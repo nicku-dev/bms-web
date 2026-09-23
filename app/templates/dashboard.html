@@ -147,8 +147,7 @@
       </label>
       <div class="relative group">
         <select class="appearance-none w-full h-10 pl-3.5 pr-10 bg-slate-50/80 hover:bg-white border border-slate-200 group-hover:border-slate-300 rounded-xl text-slate-800 font-medium text-xs focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-600 transition shadow-inner cursor-pointer" id="perusahaan-select">
-          <option selected="" value="FPS">FPS (PT Fleet Prima Samudra)</option>
-          <option value="BMS">BMS (PT Bahtera Mitra Samudra)</option>
+          <option selected="" value="">Memuat perusahaan...</option>
         </select>
         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400 group-hover:text-slate-600 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,7 +177,7 @@
     </div>
     <!-- Action Button: Buat Laporan -->
     <div class="w-full lg:w-auto shrink-0">
-      <button class="relative group inline-flex items-center justify-center w-full lg:w-auto px-5 h-10 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-500 hover:via-blue-600 hover:to-indigo-600 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-glow-blue transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/30 cursor-pointer overflow-hidden" type="button">
+      <button id="btn-generate-report" class="relative group inline-flex items-center justify-center w-full lg:w-auto px-5 h-10 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-500 hover:via-blue-600 hover:to-indigo-600 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-glow-blue transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/30 cursor-pointer overflow-hidden" type="button">
         <span class="absolute top-0 right-0 w-16 h-16 -mr-6 -mt-6 bg-white/10 rounded-full blur-sm pointer-events-none"></span>
         <svg class="w-3.5 h-3.5 mr-2 text-blue-200 group-hover:scale-110 transition duration-200" fill="currentColor" viewBox="0 0 20 20">
           <path clip-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" fill-rule="evenodd"></path>
@@ -189,12 +188,12 @@
   </div>
 
   <!-- Pipeline Progress Indicator -->
-  <div class="w-full bg-slate-100 rounded-full h-1 overflow-hidden border border-slate-200/60 shadow-inner">
-    <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-full rounded-full w-full transition-all duration-700 shadow-sm"></div>
+  <div id="pipeline-progress" class="w-full bg-slate-100 rounded-full h-1 overflow-hidden border border-slate-200/60 shadow-inner hidden">
+    <div id="progress-bar-fill" class="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-full rounded-full w-0 transition-all duration-700 shadow-sm"></div>
   </div>
 
   <!-- Compact Status Alert -->
-  <div class="flex items-center justify-between bg-gradient-to-r from-emerald-50/95 via-teal-50/90 to-emerald-50/70 border border-emerald-300/60 rounded-xl px-3.5 py-2 text-emerald-900 shadow-2xs">
+  <div id="status-alert" class="flex items-center justify-between bg-gradient-to-r from-emerald-50/95 via-teal-50/90 to-emerald-50/70 border border-emerald-300/60 rounded-xl px-3.5 py-2 text-emerald-900 shadow-2xs hidden">
     <div class="flex items-center space-x-2.5">
       <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-[10px] font-black shadow-glow-emerald shrink-0">
         ✓
@@ -212,7 +211,7 @@
   </div>
 
   <!-- Integrated Download Section (Space-Saving) -->
-  <div class="pt-2 border-t border-slate-200/70 space-y-2">
+  <div id="download-section" class="pt-2 border-t border-slate-200/70 space-y-2 hidden">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <span class="text-sm">🗂️</span>
@@ -603,10 +602,78 @@
 </div>
 </footer>
 <!-- END: Footer -->
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const response = await fetch('/api/companies');
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        const select = document.getElementById('perusahaan-select');
+        select.innerHTML = '';
+        data.companies.forEach(company => {
+          const option = document.createElement('option');
+          option.value = company.id;
+          option.textContent = company.name;
+          select.appendChild(option);
+        });
+      }
+    } catch (e) {
+      console.error("Gagal memuat daftar perusahaan:", e);
+    }
+  });
 
-
-
-
-
-
+  document.getElementById('btn-generate-report').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-generate-report');
+    const companyId = document.getElementById('perusahaan-select').value;
+    const reportTemplate = document.getElementById('laporan-select').value;
+    
+    // UI Reset
+    document.getElementById('pipeline-progress').classList.remove('hidden');
+    document.getElementById('progress-bar-fill').style.width = '10%';
+    document.getElementById('status-alert').classList.add('hidden');
+    document.getElementById('download-section').classList.add('hidden');
+    
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin inline-block"></span><span class="ml-2">Memproses...</span>`;
+    
+    // Simulate progress animation
+    setTimeout(() => { document.getElementById('progress-bar-fill').style.width = '60%'; }, 1000);
+    
+    try {
+      const response = await fetch('/api/generate_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: companyId, template: reportTemplate })
+      });
+      const data = await response.json();
+      
+      document.getElementById('progress-bar-fill').style.width = '100%';
+      
+      if (response.ok && data.status === 'success') {
+        setTimeout(() => {
+          document.getElementById('status-alert').classList.remove('hidden');
+          document.getElementById('download-section').classList.remove('hidden');
+          if(data.file_url) {
+            document.getElementById('btn-download-file').href = data.file_url;
+            document.getElementById('btn-download-file').download = data.file_url.split('/').pop();
+          }
+        }, 500);
+      } else {
+        alert(data.message || "Gagal membuat laporan.");
+      }
+    } catch (e) {
+      alert("Terjadi kesalahan koneksi saat memproses laporan.");
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+        setTimeout(() => {
+            document.getElementById('pipeline-progress').classList.add('hidden');
+            document.getElementById('progress-bar-fill').style.width = '0%';
+        }, 3000);
+      }, 500);
+    }
+  });
+</script>
 </body></html>

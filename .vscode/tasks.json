@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Restart Remote Service (bms-web)",
+            "type": "shell",
+            "command": "ssh -t nicku.pasaribu@10.100.1.58 'sudo systemctl restart odoo-dev4.service'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Check Remote Service Status",
+            "type": "shell",
+            "command": "ssh -t nicku.pasaribu@10.100.1.58 'sudo systemctl status odoo-dev4.service'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}

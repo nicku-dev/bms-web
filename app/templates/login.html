@@ -103,24 +103,56 @@
       }
     }
 
-    function handlePortalLogin() {
+    async function handlePortalLogin() {
       const btn = document.getElementById('submitAuthBtn');
       const originalText = btn.innerHTML;
+      
+      const username = document.getElementById('operatorId').value;
+      const password = document.getElementById('operatorKey').value;
+      
+      if (!username || !password) {
+        alert("Mohon masukkan Username dan Password");
+        return;
+      }
+      
       btn.disabled = true;
       btn.innerHTML = `
         <span class="w-4 h-4 rounded-full border-2 border-on-primary border-t-transparent animate-spin"></span>
         <span class="font-title-md text-title-md ml-2">Mengotentikasi Armada...</span>
       `;
-      setTimeout(() => {
-        btn.innerHTML = `
-          <span class="material-symbols-outlined text-[20px] text-secondary-container">verified</span>
-          <span class="font-title-md text-title-md ml-1">Kredensial Tervalidasi</span>
-        `;
-        setTimeout(() => {
+      
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'success') {
+          btn.innerHTML = `
+            <span class="material-symbols-outlined text-[20px] text-secondary-container">verified</span>
+            <span class="font-title-md text-title-md ml-1">Kredensial Tervalidasi</span>
+          `;
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        } else {
           btn.disabled = false;
           btn.innerHTML = originalText;
-        }, 1500);
-      }, 1000);
+          alert(data.message || "Login gagal. Periksa kembali kredensial Anda.");
+        }
+      } catch (error) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        alert("Terjadi kesalahan sistem saat mencoba login.");
+      }
     }
   </script>
 </div></main><footer class="w-full bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_-1px_8px_rgba(0,0,0,0.02)] py-space-md" style="background: rgba(10, 25, 47, 0.7); border-top: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1;"><div class="w-full px-margin flex flex-col sm:flex-row items-center justify-between gap-space-sm" style="color: #94a3b8;"><div class="flex items-center gap-space-sm"><span class="font-label-sm text-label-sm text-outline-variant">•</span><span class="font-label-sm text-label-sm text-on-surface-variant">Build v2.4.0 (PROD)</span></div><div class="text-center sm:text-right"><span class="font-label-sm text-label-sm text-on-surface-variant">All rights reserved PT. Lentera Kreasi Teknologi © 2026</span></div></div></footer>

@@ -1,0 +1,13 @@
+[Unit]
+Description=FastAPI BMS Web Frontend (Odoo Dev4)
+After=network.target
+
+[Service]
+User=nicku.pasaribu
+Group=nicku.pasaribu
+WorkingDirectory=/home/nicku.pasaribu/srv/odoo-dev4/bms-web
+Environment="PATH=/home/nicku.pasaribu/srv/odoo-dev4/bms-web/venv/bin"
+ExecStart=/home/nicku.pasaribu/srv/odoo-dev4/bms-web/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 3000
+
+[Install]
+WantedBy=multi-user.target
