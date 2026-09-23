@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+jinja2
+requests
+pandas
+openpyxl
+sqlalchemy
+psycopg2-binary
