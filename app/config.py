@@ -2,7 +2,7 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from pathlib import Path
-env_path = Path(__file__).parent.parent.parent / '.env'
+env_path = Path(__file__).parent.parent / '.env'
 
 class Settings(BaseSettings):
     db_host: str = "localhost"
