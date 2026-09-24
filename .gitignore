@@ -4,3 +4,7 @@ __pycache__/
 venv/
 *.pyc
 *.pyo
+
+*.xlsx
+*.db
+test_*.py
