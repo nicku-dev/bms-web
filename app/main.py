@@ -235,19 +235,22 @@ class SyncTemplatesRequest(BaseModel):
     company_id: int
     templates: list[SyncItem]
 
-@app.post("/api/admin/sync_templates")
-async def api_admin_sync_templates(req: SyncTemplatesRequest):
+from fastapi import BackgroundTasks
+
+def background_sync_templates(company_id: int, templates_data: list):
     import json
     from datetime import datetime
     from app.odoo_api import OdooAPI
     from app.models import ReportTemplate
+    from app.db import SessionLocal
+    from app.models import Company
     
     db = SessionLocal()
-    company = db.query(Company).filter(Company.id == req.company_id, Company.is_active == True).first()
-    if not company:
-        return JSONResponse(status_code=404, content={"status": "error", "message": "Company not found"})
-        
     try:
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            return
+            
         api = OdooAPI(
             db_name=company.target_db_name, 
             url=company.server_url, 
@@ -255,27 +258,47 @@ async def api_admin_sync_templates(req: SyncTemplatesRequest):
             password=company.odoo_password
         )
         
-        for item in req.templates:
-            matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
-            
-            template = db.query(ReportTemplate).filter(
-                ReportTemplate.company_id == company.id,
-                ReportTemplate.odoo_report_id == item.odoo_report_id
-            ).first()
-            
-            if not template:
-                template = ReportTemplate(company_id=company.id, odoo_report_id=item.odoo_report_id, report_name=item.report_name)
-                db.add(template)
-            elif not template.report_name:
-                template.report_name = item.report_name
+        for item in templates_data:
+            try:
+                matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
+                if matrix is None:
+                    continue
+                    
+                template = db.query(ReportTemplate).filter(
+                    ReportTemplate.company_id == company.id,
+                    ReportTemplate.odoo_report_id == item.odoo_report_id
+                ).first()
                 
-            template.skeleton_json = json.dumps(matrix)
-            template.last_sync = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-        db.commit()
-        return {"status": "success", "message": f"{len(req.templates)} Template berhasil disinkronisasi"}
+                if not template:
+                    template = ReportTemplate(company_id=company.id, odoo_report_id=item.odoo_report_id, report_name=item.report_name)
+                    db.add(template)
+                elif not template.report_name:
+                    template.report_name = item.report_name
+                    
+                template.skeleton_json = json.dumps(matrix)
+                template.last_sync = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                db.commit()
+            except Exception as e:
+                print(f"Error syncing template {item.odoo_report_id}: {e}")
+                db.rollback()
+    finally:
+        db.close()
+
+@app.post("/api/admin/sync_templates")
+async def api_admin_sync_templates(req: SyncTemplatesRequest, background_tasks: BackgroundTasks):
+    from app.models import Company
+    db = SessionLocal()
+    try:
+        company = db.query(Company).filter(Company.id == req.company_id, Company.is_active == True).first()
+        if not company:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Company not found"})
+        
+        background_tasks.add_task(background_sync_templates, company.id, req.templates)
+        return {"status": "success", "message": "Proses sinkronisasi berjalan di latar belakang (Background). Silakan refresh halaman 1-2 menit lagi."}
     except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal narik skeleton Odoo ({company.name}): {str(e)}"})
+        return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal memulai sync latar belakang: {str(e)}"})
+    finally:
+        db.close()
 
 @app.get("/api/admin/templates")
 async def api_admin_templates():
