@@ -142,6 +142,13 @@ class CompanyRequest(BaseModel):
     odoo_user: Optional[str] = None
     odoo_password: Optional[str] = None
 
+class TestConnectionRequest(BaseModel):
+    server_url: str
+    target_db_name: str
+    odoo_user: str
+    odoo_password: str
+    company_id: Optional[int] = None
+
 @app.get("/config", response_class=HTMLResponse)
 async def read_config(request: Request):
     return templates.TemplateResponse(request=request, name="config.html")
@@ -230,6 +237,34 @@ async def api_admin_odoo_reports(company_id: int):
         return {"status": "success", "data": reports}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal terhubung ke Odoo ({company.name}): {str(e)}"})
+@app.post("/api/admin/test_connection")
+async def api_admin_test_connection(req: TestConnectionRequest):
+    from app.odoo_api import OdooAPI
+    from app.models import Company
+    db = SessionLocal()
+    try:
+        # If password is empty (e.g. from UI placeholder), fetch existing from DB
+        password = req.odoo_password
+        if (not password or password == "********") and req.company_id:
+            c = db.query(Company).filter(Company.id == req.company_id).first()
+            if c:
+                password = c.odoo_password
+                
+        if not password:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Password diperlukan untuk menguji koneksi."})
+            
+        api = OdooAPI(
+            db_name=req.target_db_name, 
+            url=req.server_url, 
+            username=req.odoo_user, 
+            password=password
+        )
+        api.authenticate()
+        return {"status": "success", "message": "Koneksi ke Odoo berhasil!"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
 
 class SyncItem(BaseModel):
     odoo_report_id: int

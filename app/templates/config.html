@@ -227,6 +227,7 @@
         </div>
         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
           <button type="button" id="btn-save-company" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Simpan Data</button>
+          <button type="button" id="btn-test-conn" onclick="testConnection()" class="mt-3 w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-semibold text-white hover:bg-green-700 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Test Koneksi Odoo</button>
           <button type="button" onclick="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Batal</button>
         </div>
       </div>
@@ -316,14 +317,14 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.target_db_name}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title="${c.odoo_password}">${c.odoo_user || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onclick="editCompany(${c.id}, '${c.initial_pt}', '${c.name}', '${c.server_url}', '${c.target_db_name}', '${c.odoo_user}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                  <button onclick="editCompany(${c.id}, '${c.initial_pt}', '${c.name}', '${c.server_url}', '${c.target_db_name}', '${c.odoo_user}', '${c.odoo_password}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
                   <button onclick="deleteCompany(${c.id})" class="text-red-600 hover:text-red-900">Hapus</button>
                 </td>
               </tr>
             `;
         });
     }
-    function openModal(id, initial, name, url, db, user) {
+    function openModal(id, initial, name, url, db, user, pass_str) {
         document.getElementById('company-modal').classList.remove('hidden');
         document.getElementById('form-company-id').value = id || '';
         document.getElementById('form-initial').value = (initial && initial !== 'null') ? initial : '';
@@ -331,7 +332,15 @@
         document.getElementById('form-url').value = (url && url !== 'null') ? url : 'https://odoo-fps.lenterateknologi.com';
         document.getElementById('form-db').value = (db && db !== 'null') ? db : '';
         document.getElementById('form-user').value = (user && user !== 'null') ? user : 'admin_dev';
-        document.getElementById('form-pass').value = '';
+        
+        const passInput = document.getElementById('form-pass');
+        passInput.value = '';
+        if (pass_str && pass_str !== 'null') {
+            passInput.placeholder = "******** (Kosongkan jika tidak diubah)";
+        } else {
+            passInput.placeholder = "Ketik password odoo";
+        }
+        
         document.getElementById('modal-title').innerText = id ? 'Edit Perusahaan' : 'Tambah Perusahaan';
     }
 
@@ -339,13 +348,58 @@
         document.getElementById('company-modal').classList.add('hidden');
     }
     
-    function editCompany(id, curr_initial, curr_name, curr_url, curr_db, curr_user) {
-        openModal(id, curr_initial, curr_name, curr_url, curr_db, curr_user);
+    function editCompany(id, curr_initial, curr_name, curr_url, curr_db, curr_user, pass_str) {
+        openModal(id, curr_initial, curr_name, curr_url, curr_db, curr_user, pass_str);
     }
     
     document.getElementById('btn-add').addEventListener('click', () => {
-        openModal(null, null, null, null, null, null);
+        openModal(null, null, null, null, null, null, null);
     });
+
+    async function testConnection() {
+        const id = document.getElementById('form-company-id').value;
+        const server_url = document.getElementById('form-url').value;
+        const target_db_name = document.getElementById('form-db').value;
+        const odoo_user = document.getElementById('form-user').value;
+        let odoo_password = document.getElementById('form-pass').value;
+        
+        const passInput = document.getElementById('form-pass');
+        if (!odoo_password && passInput.placeholder.includes('********')) {
+            odoo_password = '********';
+        }
+
+        if (!server_url || !target_db_name || !odoo_user) {
+            alert("Harap isi URL, Database, dan Username terlebih dahulu.");
+            return;
+        }
+
+        const btn = document.getElementById('btn-test-conn');
+        const oldText = btn.innerText;
+        btn.innerText = 'Menguji...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/admin/test_connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    company_id: id ? parseInt(id) : null,
+                    server_url, target_db_name, odoo_user, odoo_password 
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('✅ Berhasil: ' + data.message);
+            } else {
+                alert('❌ Gagal: ' + data.message);
+            }
+        } catch (e) {
+            alert('❌ Gagal menghubungi server: ' + e.message);
+        } finally {
+            btn.innerText = oldText;
+            btn.disabled = false;
+        }
+    }
 
     document.getElementById('btn-save-company').addEventListener('click', async () => {
         const id = document.getElementById('form-company-id').value;
