@@ -126,15 +126,17 @@
 <div class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
 </button>
 <!-- Tab Nonaktif: Konfigurasi Sistem -->
-<button class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1" type="button">
+<a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">⚙️</span>
 <span class="">Konfigurasi Sistem</span>
-</button>
+</a>
 </div>
 </nav>
 <!-- END: NavigationTabs -->
 <!-- BEGIN: MainContentArea -->
-<main class="relative z-10 flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8 space-y-8">
+<main class="relative z-10 flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8">
+  <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
+    <div class="xl:col-span-3 space-y-8 min-w-0">
 <!-- BEGIN: ReportGenerationSection -->
 <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card p-4 sm:p-5 space-y-3.5 transition hover:shadow-[0_4px_30px_rgba(15,23,42,0.06)]">
   <!-- Form Input Controls & Generate Button -->
@@ -164,9 +166,7 @@
       </label>
       <div class="relative group">
         <select class="appearance-none w-full h-10 pl-3.5 pr-10 bg-slate-50/80 hover:bg-white border border-slate-200 group-hover:border-slate-300 rounded-xl text-slate-800 font-medium text-xs focus:bg-white focus:ring-4 focus:ring-blue-500/15 focus:border-blue-600 transition shadow-inner cursor-pointer" id="laporan-select">
-          <option selected="" value="FPS_2025_Q">Laporan Triwulan - Kapal FPS 2025 (FAST)</option>
-          <option value="FPS_2024_A">Laporan Tahunan Audit - Kapal FPS 2024</option>
-          <option value="BMS_2025_M">Laporan Bulanan Operasional BMS 2025</option>
+          <option value="">Memuat laporan...</option>
         </select>
         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400 group-hover:text-slate-600 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +176,10 @@
       </div>
     </div>
     <!-- Action Button: Buat Laporan -->
-    <div class="w-full lg:w-auto shrink-0">
+    <div class="w-full lg:w-auto shrink-0 flex items-center lg:justify-end gap-x-4 mt-2 lg:mt-0">
+      <button id="btn-cancel-report" class="hidden relative group inline-flex items-center justify-center w-full lg:w-auto px-5 h-10 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-rose-200 cursor-pointer" type="button">
+        <span class="tracking-wide">Batal</span>
+      </button>
       <button id="btn-generate-report" class="relative group inline-flex items-center justify-center w-full lg:w-auto px-5 h-10 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-500 hover:via-blue-600 hover:to-indigo-600 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-glow-blue transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-500/30 cursor-pointer overflow-hidden" type="button">
         <span class="absolute top-0 right-0 w-16 h-16 -mr-6 -mt-6 bg-white/10 rounded-full blur-sm pointer-events-none"></span>
         <svg class="w-3.5 h-3.5 mr-2 text-blue-200 group-hover:scale-110 transition duration-200" fill="currentColor" viewBox="0 0 20 20">
@@ -219,7 +222,7 @@
           Unduh Laporan
         </h3>
       </div>
-      <span class="text-[11px] text-slate-400 font-medium">Format Microsoft Excel Standar Korporasi</span>
+      <span class="text-[11px] text-slate-400 font-medium">Format Microsoft Excel</span>
     </div>
     <div class="bg-slate-50/80 rounded-xl border border-slate-200/80 p-3 sm:px-4 sm:py-3 flex flex-col sm:flex-row items-center justify-between gap-3 transition duration-200 hover:bg-slate-50">
       <div class="flex items-center space-x-3.5 w-full sm:w-auto min-w-0">
@@ -230,7 +233,7 @@
         <div class="min-w-0 flex-1">
           <p class="font-mono text-xs font-semibold text-slate-900 flex items-center gap-1.5 truncate">
             <span class="text-sm opacity-75">💾</span>
-            <span class="truncate">Laporan_Triwulan_-Kapal_FPS_2025(FAST)_2025.xlsx</span>
+            <span class="truncate" id="download-filename">nama_file.xlsx</span>
           </p>
           <div class="flex items-center gap-2 mt-0.5">
             <span class="text-[11px] font-medium text-slate-500">Microsoft Excel Spreadsheet</span>
@@ -245,7 +248,7 @@
           </div>
         </div>
       </div>
-      <button class="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-lg text-xs font-semibold shadow-sm shadow-glow-emerald hover:shadow transition-all focus:outline-none focus:ring-4 focus:ring-emerald-300/50 cursor-pointer shrink-0 active:scale-[0.98] border border-emerald-400/30" type="button">
+      <button id="btn-download-file" class="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-lg text-xs font-semibold shadow-sm shadow-glow-emerald hover:shadow transition-all focus:outline-none focus:ring-4 focus:ring-emerald-300/50 cursor-pointer shrink-0 active:scale-[0.98] border border-emerald-400/30" type="button">
         <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
         </svg>
@@ -255,337 +258,69 @@
   </div>
 </div>
 <!-- END: ReportGenerationSection -->
-<!-- BEGIN: DownloadReportSection -->
-
-<!-- END: DownloadReportSection -->
 <!-- BEGIN: DataPreviewSection -->
-<section aria-labelledby="pratinjau-title" class="space-y-4 pt-1">
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3"><div class="flex items-center space-x-3"><div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/80 border border-blue-200 flex items-center justify-center text-blue-600 shadow-2xs"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div><div><div class="flex items-center gap-2"><h2 class="text-lg font-bold tracking-tight text-slate-900 leading-tight" id="pratinjau-title">Preview Report</h2><span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">Pratinjau Laporan Interaktif</span></div><p class="text-xs font-semibold text-blue-700 tracking-wider uppercase mt-0.5">Laporan Triwulan - Kapal FPS 2025 (FAST)</p></div></div><div class="flex items-center space-x-2 text-xs font-medium text-slate-500"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 shadow-2xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Satuan: IDR / Metrik Resmi</span></div></div>
+<section aria-labelledby="pratinjau-title" class="space-y-4 pt-1 relative" id="preview-section-container">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+  <div class="flex items-center space-x-3">
+    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/80 border border-blue-200 flex items-center justify-center text-blue-600 shadow-2xs">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+    </div>
+    <div>
+      <div class="flex items-center gap-2">
+        <h2 class="text-lg font-bold tracking-tight text-slate-900 leading-tight" id="pratinjau-title">Preview Report</h2>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">Pratinjau Laporan Interaktif</span>
+      </div>
+      <p id="preview-report-title" class="text-xs font-semibold text-blue-700 tracking-wider uppercase mt-0.5">Silakan buat laporan</p>
+    </div>
+  </div>
+  <div class="flex items-center space-x-2 text-xs font-medium text-slate-500">
+    <div class="inline-flex rounded-lg shadow-sm border border-slate-200/80 bg-white p-0.5 mr-2" role="group">
+      <button type="button" onclick="zoomPreview(-0.1)" class="px-2 py-1 text-slate-600 hover:bg-slate-100 rounded hover:text-slate-900 focus:z-10 focus:ring-2 focus:ring-blue-500" title="Zoom Out">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path></svg>
+      </button>
+      <button type="button" onclick="zoomPreview(0, true)" class="px-2 py-1 text-xs font-mono font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:z-10 border-x border-slate-200/80" id="zoom-level-text">100%</button>
+      <button type="button" onclick="zoomPreview(0.1)" class="px-2 py-1 text-slate-600 hover:bg-slate-100 rounded hover:text-slate-900 focus:z-10 focus:ring-2 focus:ring-blue-500" title="Zoom In">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+      </button>
+      <button type="button" onclick="toggleFullScreenPreview()" class="px-2 py-1 ml-1 text-slate-600 hover:bg-slate-100 rounded hover:text-slate-900 focus:z-10 focus:ring-2 focus:ring-blue-500" title="Full Screen">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+      </button>
+    </div>
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 shadow-2xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Satuan: IDR</span>
+  </div>
+</div>
 <!-- Financial Data Grid Container -->
-<div class="bg-white border border-slate-200 rounded-2xl shadow-subtle-card overflow-hidden ring-1 ring-black/5">
-<div class="overflow-x-auto max-h-[820px] relative">
-<table class="w-full text-left text-xs border-collapse font-sans">
-<!-- Table Header -->
-<thead class="bg-slate-100/90 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200/90 text-slate-700">
+<div id="preview-wrapper" class="bg-white border border-slate-200 rounded-2xl shadow-subtle-card overflow-hidden ring-1 ring-black/5 transition-all duration-300 transform origin-top-left">
+<div class="overflow-auto max-h-[820px] relative custom-scrollbar">
+<table class="w-full text-left text-xs border-collapse font-sans min-w-max">
+<thead id="report-thead" class="bg-slate-100/90 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200/90 text-slate-700">
 <tr>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider w-1/3 min-w-[340px] border-r border-slate-200/70" scope="col">Uraian</th>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-center w-28 min-w-[110px] border-r border-slate-200/70" scope="col">Keterangan</th>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right w-36 min-w-[130px] border-r border-slate-200/70" scope="col">Q1</th>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right w-36 min-w-[130px] border-r border-slate-200/70" scope="col">Q2</th>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right w-36 min-w-[130px] border-r border-slate-200/70" scope="col">Q3</th>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right w-36 min-w-[130px] border-r border-slate-200/70" scope="col">Q4</th>
-<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right w-36 min-w-[140px] bg-slate-200/70 text-slate-900" scope="col">TB. FPS</th>
+<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-center" scope="col">Data belum dimuat. Silakan buat laporan.</th>
 </tr>
 </thead>
-<tbody class="divide-y divide-slate-200/70 tabular-nums font-mono text-[12px]">
-<!-- OPERASIONAL METRICS -->
-<tr class="bg-blue-50/70 font-semibold text-slate-900 hover:bg-blue-50 transition">
-<td class="py-2.5 px-4 font-sans font-bold border-r border-slate-200/70 text-blue-950">Kapasitas</td>
-<td class="py-2.5 px-4 text-center border-r border-slate-200/70 text-slate-600 font-sans">DWT</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">3,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">3,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">3,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">3,000.00</td>
-<td class="py-2.5 px-4 text-right bg-blue-100/50 font-bold text-slate-900">3,000.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 transition">
-<td class="py-2 px-4 font-sans border-r border-slate-200/70 font-medium text-slate-700">Trip</td>
-<td class="py-2 px-4 text-center border-r border-slate-200/70 text-slate-500 font-sans text-xs">Trip Selesai</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">3.00</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">4.00</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">5.00</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">5.00</td>
-<td class="py-2 px-4 text-right font-bold bg-slate-50/50 text-slate-800">17.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 transition">
-<td class="py-2 px-4 font-sans border-r border-slate-200/70 font-medium text-slate-700">Rupiah per Trip</td>
-<td class="py-2 px-4 text-center border-r border-slate-200/70 text-slate-500 font-sans text-xs">IDR</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">579,000.00</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">606,102.31</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">338,467.20</td>
-<td class="py-2 px-4 text-right border-r border-slate-200/70">372,551.56</td>
-<td class="py-2 px-4 text-right font-bold bg-slate-50/50 text-slate-800">474,030.27</td>
-</tr>
-<!-- PENDAPATAN JASA -->
-<tr class="bg-gradient-to-r from-blue-100/90 via-sky-50 to-blue-100/70 font-bold text-slate-900 border-t-2 border-blue-300">
-<td class="py-2.5 px-4 font-sans tracking-wide text-blue-950 border-r border-slate-200/70 flex items-center justify-between">
-<span class="">PENDAPATAN JASA</span>
-<span class="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
-</td>
-<td class="py-2.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70 text-blue-950">5,211,000,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70 text-blue-950">7,273,227,672.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70 text-blue-950">5,077,008,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70 text-blue-950">5,588,273,430.00</td>
-<td class="py-2.5 px-4 text-right bg-blue-200/60 font-black text-blue-950">23,149,509,102.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-600 transition">
-<td class="py-1.5 px-4 pl-8 font-sans border-r border-slate-200/70">4000011000 Pendapatan Usaha Freight Charter Kapal FPS</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">5,211,000,000.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">7,290,792,675.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">5,130,685,760.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">5,588,273,430.00</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/50 font-medium">23,220,751,865.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-400 transition">
-<td class="py-1.5 px-4 pl-8 font-sans border-r border-slate-200/70 text-slate-600">4000012000 Pendapatan Usaha - Time Charter Kapal FPS</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/50">-</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-400 transition">
-<td class="py-1.5 px-4 pl-8 font-sans border-r border-slate-200/70 text-slate-600">4000013000 Pendapatan Usaha - Demurrage Kapal FPS</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/50">-</td>
-</tr>
-<tr class="hover:bg-rose-50/50 text-rose-600 transition">
-<td class="py-1.5 px-4 pl-8 font-sans border-r border-slate-200/70 font-medium">5000092000 Biaya Klaim Susut</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-17,565,003.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-53,677,760.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1.5 px-4 text-right bg-rose-50/80 font-bold">-71,242,763.00</td>
-</tr>
-<!-- Total Pendapatan Jasa Summary -->
-<tr class="bg-blue-100 font-black text-slate-900 border-t-2 border-b-2 border-blue-200">
-<td class="py-2.5 px-4 font-sans text-blue-950 border-r border-slate-200/70">Total Pendapatan Jasa</td>
-<td class="py-2.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">5,211,000,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">7,273,227,672.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">5,077,008,000.00</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">5,588,273,430.00</td>
-<td class="py-2.5 px-4 text-right bg-blue-200/80 font-black text-blue-950">23,149,509,102.00</td>
-</tr>
-<!-- BIAYA OPERASIONAL SECTION -->
-<tr class="bg-slate-800 text-white font-black tracking-wider text-xs">
-<td class="py-2.5 px-4 uppercase font-sans tracking-widest" colspan="7">BIAYA OPERASIONAL</td>
-</tr>
-<tr class="bg-slate-100/90 font-bold text-slate-700">
-<td class="py-1.5 px-4 pl-6 uppercase text-[11px] font-sans tracking-wide" colspan="7">BIAYA LANGSUNG</td>
-</tr>
-<tr class="bg-slate-50 font-semibold text-slate-500 border-b border-slate-200/80">
-<td class="py-1.5 px-4 pl-8 uppercase text-[10px] font-sans tracking-wider" colspan="7">BIAYA VARIABEL</td>
-</tr>
-<!-- Variabel Costs Breakdown -->
-<tr class="hover:bg-slate-50/80 font-medium transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-800">Biaya Solar</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">887,024,725.01</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">1,079,870,701.74</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">1,151,501,031.83</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">966,684,797.27</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/60 font-bold text-slate-900">4,085,081,255.85</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000011000 Biaya Solar</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">887,024,725.01</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">1,079,870,701.74</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">1,151,501,031.83</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">966,684,797.27</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">4,085,081,255.85</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-800">Biaya Sparepart</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">33,133,221.20</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">23,612,311.81</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">25,468,974.68</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">20,368,277.12</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/60 font-bold text-slate-900">102,582,784.81</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000021000 Biaya Sparepart</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">33,133,221.20</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">23,612,311.81</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">25,468,974.68</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">20,368,277.12</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">102,582,784.81</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-800">Biaya Oli</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">22,077,044.49</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">25,410,283.70</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">28,144,474.06</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">15,734,612.23</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/60 font-bold text-slate-900">91,366,414.48</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000012000 Biaya Oli</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">22,077,044.49</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">25,410,283.70</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">28,144,474.06</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">15,734,612.23</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">91,366,414.48</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-800">Biaya Agency Fee</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">155,825,795.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">188,835,602.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">151,686,188.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">182,032,200.00</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/60 font-bold text-slate-900">678,379,785.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000041000 Biaya Keagenan Kapal</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">155,825,795.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">188,835,602.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">151,686,188.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">182,032,200.00</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">678,379,785.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-800">Biaya Lashing, Unlashing, Tally, Cleaning</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">20,500,000.00</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">65,900,000.00</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/60 font-bold text-slate-900">86,400,000.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000052000 Biaya Lashing, Tally, Trip &amp; Cleaning</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">20,500,000.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">65,900,000.00</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">86,400,000.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium text-slate-400 transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-500">Biaya Tug Assist dan Sewa Crane</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/40">-</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium text-slate-400 transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-500">Biaya Sewa Kapal Luar</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/40">-</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-400 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000072000 Biaya Sewa Time Charter Kapal Luar</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">-</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">-</td>
-</tr>
-<!-- Total Biaya Variabel Highlight -->
-<tr class="bg-amber-50/70 font-bold text-slate-900 border-t-2 border-b border-amber-200/80">
-<td class="py-2.5 px-4 font-sans border-r border-slate-200/70 text-amber-950">Total Biaya Variabel</td>
-<td class="py-2.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">1,098,060,785.70</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">1,338,228,899.25</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">1,356,800,668.57</td>
-<td class="py-2.5 px-4 text-right border-r border-slate-200/70">1,250,719,886.62</td>
-<td class="py-2.5 px-4 text-right bg-amber-100/60 font-black text-amber-950">5,043,810,240.14</td>
-</tr>
-<!-- % Total Biaya Variabel -->
-<tr class="bg-slate-50/90 font-semibold text-slate-700">
-<td class="py-1.5 px-4 font-sans border-r border-slate-200/70">% Total Biaya Variabel</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">21.07%</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">18.40%</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">26.72%</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70">22.38%</td>
-<td class="py-1.5 px-4 text-right bg-slate-100 font-bold">21.79%</td>
-</tr>
-<!-- BIAYA TETAP SECTION -->
-<tr class="bg-slate-100/80 font-bold text-slate-700 border-t border-slate-200">
-<td class="py-1.5 px-4 pl-8 uppercase text-[10px] font-sans tracking-wider" colspan="7">BIAYA TETAP</td>
-</tr>
-<tr class="hover:bg-slate-50/80 font-medium transition">
-<td class="py-1.5 px-4 pl-10 font-sans border-r border-slate-200/70 text-slate-800">Biaya Gaji, Tunjangan Prestasi, Uang Makan Crew Kapal</td>
-<td class="py-1.5 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">384,850,143.80</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">350,343,863.27</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">323,646,575.59</td>
-<td class="py-1.5 px-4 text-right border-r border-slate-200/70 font-semibold text-slate-900">330,556,794.80</td>
-<td class="py-1.5 px-4 text-right bg-slate-50/60 font-bold text-slate-900">1,389,397,377.46</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000031100 Biaya Gaji Crew</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">191,089,224.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">181,980,302.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">178,313,563.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">179,540,988.00</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">730,924,077.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000031200 Biaya Insentif Crew</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">98,371,055.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">88,715,772.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">87,799,027.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">89,028,928.00</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">363,914,782.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000031300 Biaya THR Crew</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">42,927,817.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">42,927,817.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000032100 Biaya BPJS Tenaga Kerja Crew</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">10,674,298.29</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">10,540,751.75</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">9,960,643.15</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">10,291,165.53</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">41,466,858.72</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000032200 Biaya BPJS Kesehatan Crew</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">1,940,158.00</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70">7,029,122.00</td>
-<td class="py-1 px-4 text-right bg-slate-50/40">8,969,280.00</td>
-</tr>
-<tr class="hover:bg-slate-50/80 text-slate-500 text-[11px] transition">
-<td class="py-1 px-4 pl-14 font-sans border-r border-slate-200/70">5000032300 Biaya Medical Crew</td>
-<td class="py-1 px-4 text-center border-r border-slate-200/70"></td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right border-r border-slate-200/70 text-slate-400">-</td>
-<td class="py-1 px-4 text-right bg-slate-50/40 text-slate-400">-</td>
-</tr>
+<tbody id="report-tbody" class="divide-y divide-slate-200/70 tabular-nums font-mono text-[12px]">
 </tbody>
 </table>
 </div>
 </div>
 </section>
 <!-- END: DataPreviewSection -->
+    </div>
+    
+    <!-- Right Column (History) -->
+    <div class="xl:col-span-1 space-y-4">
+      <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card p-4 sm:p-5 h-full">
+        <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+          <span class="text-indigo-500">🕒</span> Riwayat Laporan
+        </h2>
+        <div id="history-list" class="space-y-3 max-h-[1000px] overflow-y-auto pr-2 custom-scrollbar">
+          <div class="flex items-center justify-center py-10">
+            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </main>
 <!-- END: MainContentArea -->
 <!-- BEGIN: Footer -->
@@ -603,6 +338,41 @@
 </footer>
 <!-- END: Footer -->
 <script>
+  document.getElementById('perusahaan-select').addEventListener('change', async (e) => {
+    const companyId = e.target.value;
+    const reportSelect = document.getElementById('laporan-select');
+    
+    if (!companyId) {
+      reportSelect.innerHTML = '<option value="">Pilih perusahaan dahulu</option>';
+      return;
+    }
+    
+    reportSelect.innerHTML = '<option value="">Memuat laporan dari Odoo...</option>';
+    
+    try {
+      const response = await fetch(`/api/reports/${companyId}`);
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        reportSelect.innerHTML = '';
+        if (data.reports && data.reports.length > 0) {
+          data.reports.forEach(report => {
+            const option = document.createElement('option');
+            option.value = report.id;
+            option.textContent = report.name;
+            reportSelect.appendChild(option);
+          });
+        } else {
+          reportSelect.innerHTML = '<option value="">Tidak ada laporan ditemukan</option>';
+        }
+      } else {
+        reportSelect.innerHTML = `<option value="">Gagal memuat: ${data.message || 'Error'}</option>`;
+      }
+    } catch(err) {
+      reportSelect.innerHTML = '<option value="">Error koneksi Odoo</option>';
+      console.error(err);
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', async () => {
     try {
       const response = await fetch('/api/companies');
@@ -616,22 +386,42 @@
           option.textContent = company.name;
           select.appendChild(option);
         });
+        
+        // Trigger select change to load reports for the first company
+        if (data.companies.length > 0) {
+          select.dispatchEvent(new Event('change'));
+        }
       }
     } catch (e) {
       console.error("Gagal memuat daftar perusahaan:", e);
     }
   });
 
+  let currentAbortController = null;
+
+  document.getElementById('btn-cancel-report').addEventListener('click', () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+  });
+
   document.getElementById('btn-generate-report').addEventListener('click', async () => {
     const btn = document.getElementById('btn-generate-report');
+    const cancelBtn = document.getElementById('btn-cancel-report');
     const companyId = document.getElementById('perusahaan-select').value;
-    const reportTemplate = document.getElementById('laporan-select').value;
+    const reportSelect = document.getElementById('laporan-select');
+    const reportTemplate = reportSelect.value;
+    const reportName = reportSelect.options[reportSelect.selectedIndex]?.text || "Laporan";
+    const forceRefresh = false;
     
     // UI Reset
     document.getElementById('pipeline-progress').classList.remove('hidden');
     document.getElementById('progress-bar-fill').style.width = '10%';
     document.getElementById('status-alert').classList.add('hidden');
     document.getElementById('download-section').classList.add('hidden');
+    cancelBtn.classList.remove('hidden');
+    
+    currentAbortController = new AbortController();
     
     const originalContent = btn.innerHTML;
     btn.disabled = true;
@@ -644,7 +434,8 @@
       const response = await fetch('/api/generate_report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company_id: companyId, template: reportTemplate })
+        body: JSON.stringify({ company_id: companyId, template: reportTemplate, template_name: reportName, force_refresh: forceRefresh }),
+        signal: currentAbortController.signal
       });
       const data = await response.json();
       
@@ -655,16 +446,105 @@
           document.getElementById('status-alert').classList.remove('hidden');
           document.getElementById('download-section').classList.remove('hidden');
           if(data.file_url) {
-            document.getElementById('btn-download-file').href = data.file_url;
-            document.getElementById('btn-download-file').download = data.file_url.split('/').pop();
+            const filename = data.file_url.split('/').pop();
+            const filenameEl = document.getElementById('download-filename');
+            if (filenameEl) filenameEl.textContent = filename;
+            
+            let downloadBtn = document.getElementById('btn-download-file');
+            if (!downloadBtn) {
+              // try finding the button via class or querySelector if id doesn't exist
+              const buttons = document.querySelectorAll('button');
+              buttons.forEach(btn => {
+                if(btn.textContent.includes('Unduh File Spreadsheet')) downloadBtn = btn;
+              });
+            }
+            if (downloadBtn) {
+              // we can set window.location or handle it depending on structure
+              downloadBtn.onclick = () => window.location.href = data.file_url;
+            }
+          }
+          
+          if(data.matrix) {
+            const thead = document.getElementById('report-thead');
+            const tbody = document.getElementById('report-tbody');
+            
+            // Render Header
+            let headHtml = '';
+            data.matrix.header.forEach((row, i) => {
+              headHtml += '<tr>';
+              if (i === 0) {
+                headHtml += '<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider border-r border-slate-200/70" scope="col" style="width:1%;"><div class="resize-x overflow-hidden min-w-[250px] w-[340px] max-w-[600px]">Uraian / Keterangan</div></th>';
+              } else {
+                headHtml += '<th class="py-3 px-4 border-r border-slate-200/70"></th>';
+              }
+              row.cols.forEach(col => {
+                headHtml += `<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right border-r border-slate-200/70" colspan="${col.colspan || 1}">${col.label || ''}</th>`;
+              });
+              headHtml += '</tr>';
+            });
+            thead.innerHTML = headHtml;
+            
+            // Render Body
+            let bodyHtml = '';
+            data.matrix.body.forEach(row => {
+              let isBold = row.style && row.style.includes('font-weight: bold');
+              let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
+              let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 4, 16)}` : 'pl-4';
+              let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
+              
+              let rowStyleAttr = row.style ? `style="${row.style}"` : '';
+              bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
+              bodyHtml += `<td class="py-2 px-4 ${plClass} font-sans border-r border-slate-200/70">${row.label || ''}</td>`;
+              
+              if (row.cells) {
+                row.cells.forEach(cell => {
+                  let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
+                  if (val === 'undefined' || val === '#ERR') val = '';
+                  if (typeof val === 'number') {
+                    val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                  }
+                  let cellBold = cell.style && cell.style.includes('font-weight: bold');
+                  let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
+                  let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
+                  bodyHtml += `<td class="py-2 px-4 text-right border-r border-slate-200/70 ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
+                });
+              }
+              bodyHtml += '</tr>';
+            });
+            tbody.innerHTML = bodyHtml;
+            
+            // Apply Sticky Column and Resizable
+            const allFirstTh = thead.querySelectorAll('th:first-child');
+            allFirstTh.forEach(th => {
+              th.classList.add('sticky', 'left-0', 'bg-slate-100', 'z-40');
+            });
+            const allFirstTd = tbody.querySelectorAll('td:first-child');
+            allFirstTd.forEach(td => {
+              td.classList.add('sticky', 'left-0', 'bg-white', 'z-30');
+            });
+            
+            // Update Title
+            const reportSelect = document.getElementById('laporan-select');
+            const titleEl = document.getElementById('preview-report-title');
+            if (titleEl && reportSelect.options[reportSelect.selectedIndex]) {
+               titleEl.textContent = reportSelect.options[reportSelect.selectedIndex].text;
+            }
+            
+            loadHistory(); // reload history
           }
         }, 500);
       } else {
         alert(data.message || "Gagal membuat laporan.");
       }
     } catch (e) {
-      alert("Terjadi kesalahan koneksi saat memproses laporan.");
+      if (e.name === 'AbortError') {
+        alert("Proses dibatalkan oleh pengguna.");
+      } else {
+        alert("Terjadi kesalahan koneksi saat memproses laporan.");
+      }
     } finally {
+      currentAbortController = null;
+      cancelBtn.classList.add('hidden');
       setTimeout(() => {
         btn.disabled = false;
         btn.innerHTML = originalContent;
@@ -674,6 +554,83 @@
         }, 3000);
       }, 500);
     }
+  });
+
+  // UI Zoom & Full Screen Logic
+  let currentZoom = 1;
+  function zoomPreview(delta, reset=false) {
+      const wrapper = document.getElementById('preview-wrapper');
+      const text = document.getElementById('zoom-level-text');
+      if(reset) currentZoom = 1;
+      else currentZoom += delta;
+      
+      if(currentZoom < 0.5) currentZoom = 0.5;
+      if(currentZoom > 2) currentZoom = 2;
+      
+      wrapper.style.transform = `scale(${currentZoom})`;
+      wrapper.style.width = `${100 / currentZoom}%`; // compensate width so it doesn't clip
+      text.innerText = Math.round(currentZoom * 100) + '%';
+  }
+
+  function toggleFullScreenPreview() {
+      const section = document.getElementById('preview-section-container');
+      if (!document.fullscreenElement) {
+          section.requestFullscreen().catch(err => {
+              alert(`Error attempting to enable full-screen mode: ${err.message}`);
+          });
+      } else {
+          document.exitFullscreen();
+      }
+  }
+  
+  document.addEventListener('fullscreenchange', (event) => {
+      const section = document.getElementById('preview-section-container');
+      if (document.fullscreenElement) {
+          section.classList.add('bg-white', 'p-6', 'overflow-auto');
+      } else {
+          section.classList.remove('bg-white', 'p-6', 'overflow-auto');
+      }
+  });
+
+  async function loadHistory() {
+      try {
+          const res = await fetch('/api/history');
+          const data = await res.json();
+          const list = document.getElementById('history-list');
+          if(data.status === 'success' && data.data.length > 0) {
+              let html = '';
+              data.data.forEach(h => {
+                  html += `
+                  <div class="bg-slate-50/80 rounded-xl border border-slate-200/80 p-3 hover:bg-slate-100 transition shadow-sm group">
+                      <div class="flex items-start space-x-3">
+                          <div class="w-8 h-8 rounded bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex flex-col items-center justify-center shrink-0 shadow">
+                              <span class="text-[9px] font-black font-mono">XLS</span>
+                          </div>
+                          <div class="min-w-0 flex-1">
+                              <p class="text-[11px] font-bold text-slate-900 truncate" title="${h.template_name}">${h.template_name}</p>
+                              <p class="text-[9px] text-slate-500 mt-0.5">${h.generated_at} • ${h.user}</p>
+                          </div>
+                      </div>
+                      <div class="mt-2 text-right">
+                          <a href="${h.file_url}" target="_blank" class="inline-flex items-center justify-center px-3 py-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-100/50 hover:bg-emerald-100 rounded-lg transition border border-emerald-200/50">
+                              ⬇️ Unduh Ulang
+                          </a>
+                      </div>
+                  </div>
+                  `;
+              });
+              list.innerHTML = html;
+          } else {
+              list.innerHTML = '<p class="text-xs text-slate-500 text-center">Belum ada riwayat laporan.</p>';
+          }
+      } catch(e) {
+          console.error(e);
+      }
+  }
+  
+  // Load history on load
+  document.addEventListener("DOMContentLoaded", () => {
+      loadHistory();
   });
 </script>
 </body></html>

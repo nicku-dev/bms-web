@@ -1,0 +1,774 @@
+<!DOCTYPE html><html class="h-full bg-slate-900/5" lang="id" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Enterprise Reporting Engine - Tug &amp; Barge Operations</title>
+<!-- Tailwind CSS v3 with Forms & Container Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            navy: {
+              800: '#0F172A',
+              900: '#0B132B',
+              950: '#050A18',
+            },
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+              800: '#1e3a8a',
+            }
+          },
+          boxShadow: {
+            'subtle-card': '0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+            'glow-blue': '0 4px 20px -2px rgba(37, 99, 235, 0.35)',
+            'glow-emerald': '0 4px 14px -2px rgba(16, 185, 129, 0.25)',
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="typography">
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+<style data-purpose="custom-scrollbars">
+    /* Subtle modern enterprise scrollbar */
+    ::-webkit-scrollbar {
+      height: 7px;
+      width: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f8fafc;
+      border-radius: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 6px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-blue-600 selection:text-white relative">
+<!-- Ambient background glow mesh -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-70">
+<div class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[1200px] h-[450px] bg-gradient-to-b from-blue-100/60 via-indigo-50/40 to-transparent blur-3xl rounded-full"></div>
+<div class="absolute top-[35%] -left-[10%] w-[600px] h-[600px] bg-cyan-100/30 blur-3xl rounded-full"></div>
+<div class="absolute bottom-[10%] -right-[10%] w-[550px] h-[550px] bg-blue-100/30 blur-3xl rounded-full"></div>
+</div>
+<!-- BEGIN: MainHeader -->
+<header class="bg-white/80 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-40 transition shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]">
+<div class="max-w-[1600px] mx-auto px-6 lg:px-12 py-3.5 flex items-center justify-between">
+<!-- Sisi Kiri: Branding & Title -->
+<div class="flex items-center space-x-4">
+<!-- Modern Maritime / Anchor Emblem Logo with multi-layer depth -->
+<div class="flex items-center shrink-0"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHNVj8oPLOCIlRQ5a7z2_W0LLafT1g-PrdL9S_3UgJBlVDW-ldyKMEEJHJ6I2kQ0qItA4Ci9CRUb1wJ-oVT0mTM-c-6w6t8b3bCr1YvTWsXgkGiiAP44e_EeLTYL2VxUDz9nhHnVYp5WtPPvN6Bt6DAGYKKHDy4zwCr3IpSPP_9T1x9s09zAp1A3JCb8F72gCTuMm4tAhamx_A5yoDO99wfmnOWxshFsRdHH4Ro1GBruUaVvAv0DyiPJoXDGQXsiLWRi0" alt="ISA Logo" class="h-11 w-auto object-contain"></div>
+<div>
+<div class="flex items-center space-x-2.5">
+<h1 class="text-xl font-black tracking-tight text-slate-900 leading-tight">
+            ISA Fleet Report
+          </h1>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+            PRO
+          </span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            LIVE
+          </span>
+</div>
+<p class="text-xs font-medium text-slate-500 mt-0.5 tracking-normal">
+          Enterprise Maritime Reporting Dashboard
+        </p>
+</div>
+</div>
+<!-- Sisi Kanan: User Status & Logout -->
+<div class="flex items-center space-x-3.5">
+<div class="flex items-center space-x-2.5 bg-slate-100/90 hover:bg-slate-100 transition px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-2xs">
+<div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xs font-bold shadow-2xs">
+          A
+        </div>
+<span class="text-sm font-semibold text-slate-800 tracking-tight">admin</span>
+<div class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</div>
+</div>
+<button class="inline-flex items-center space-x-2 px-3.5 py-1.5 border border-slate-300/80 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition shadow-2xs active:scale-[0.98]" type="button">
+<span class="text-slate-500">🚪</span>
+<span class="font-medium">Logout</span>
+</button>
+</div>
+</div>
+</header>
+<!-- END: MainHeader -->
+<!-- BEGIN: NavigationTabs -->
+<nav aria-label="Main Navigation" class="bg-white/70 backdrop-blur-md border-b border-slate-200/90 relative z-30">
+<div class="max-w-[1600px] mx-auto px-6 lg:px-12 flex space-x-2">
+<!-- Tab Nonaktif: Buat Laporan -->
+<a href="/dashboard" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🚀</span>
+<span class="">Buat Laporan</span>
+</a>
+<!-- Tab Aktif: Konfigurasi Sistem -->
+<button class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition" type="button">
+<span class="mr-2 text-base filter drop-shadow-xs">⚙️</span>
+<span class="">Konfigurasi Sistem</span>
+<div class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
+</button>
+</div>
+</nav>
+<!-- END: NavigationTabs -->
+<!-- BEGIN: MainContentArea -->
+<main class="relative z-10 flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8 space-y-8">
+  <div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-bold text-slate-800">Manajemen Perusahaan</h2>
+      <button id="btn-add" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Tambah Perusahaan</button>
+    </div>
+    
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inisial PT</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Perusahaan</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Odoo Server</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Odoo Target DB</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Odoo User</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="company-table" class="bg-white divide-y divide-gray-200">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Manajemen Template -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+      <h3 class="text-sm font-semibold text-gray-800">Daftar Template Laporan (Mapping ke Odoo)</h3>
+      <button onclick="openSyncModal()" class="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Tarik Skeleton dari Odoo</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PT</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Alias</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Odoo Report ID</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terakhir Sync</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktif</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="template-table" class="bg-white divide-y divide-gray-200">
+          <!-- Template Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Perusahaan -->
+  <div id="company-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 transition-opacity" aria-hidden="true" onclick="closeModal()">
+        <div class="absolute inset-0 bg-gray-900 opacity-50"></div>
+      </div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4" id="modal-title">Tambah Perusahaan</h3>
+          <input type="hidden" id="form-company-id">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">1. Inisial PT</label>
+              <input type="text" id="form-initial" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Misal: BMS">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">2. Nama Lengkap PT</label>
+              <input type="text" id="form-name" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Misal: PT Bintang Mas Samudra">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">3. IP/URL Odoo Server</label>
+              <input type="text" id="form-url" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Misal: https://odoo-fps.lenterateknologi.com">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">4. Target Database Odoo</label>
+              <input type="text" id="form-db" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Misal: BMS_26_PRODUCTION">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">5. Username Odoo</label>
+              <input type="text" id="form-user" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Misal: admin_dev">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">6. Password Odoo</label>
+              <input type="password" id="form-pass" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Ketik password (Kosongkan jika tidak diubah)">
+            </div>
+          </div>
+        </div>
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+          <button type="button" id="btn-save-company" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Simpan Data</button>
+          <button type="button" onclick="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Batal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="td-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 transition-opacity" aria-hidden="true" onclick="closeTdModal()">
+        <div class="absolute inset-0 bg-gray-900 opacity-50"></div>
+      </div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg leading-6 font-bold text-gray-900">Detail Struktur Template Odoo</h3>
+            <button onclick="closeTdModal()" class="text-gray-400 hover:text-gray-500"><span class="material-symbols-outlined">close</span></button>
+          </div>
+          <div id="td-modal-content"></div>
+        </div>
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+          <button type="button" onclick="closeTdModal()" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Sync Template Massal -->
+  <div id="sync-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 transition-opacity" aria-hidden="true" onclick="closeSyncModal()">
+        <div class="absolute inset-0 bg-gray-900 opacity-50"></div>
+      </div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4">Tarik & Petakan Laporan Odoo</h3>
+          
+          <div class="flex space-x-4 mb-4">
+            <div class="flex-grow">
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">Pilih Perusahaan Target</label>
+              <select id="sync-company-select" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></select>
+            </div>
+            <div class="flex items-end">
+              <button onclick="fetchOdooReports()" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Tampilkan Daftar Laporan Odoo</button>
+            </div>
+          </div>
+
+          <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pilih</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Odoo Report ID</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Laporan di Odoo</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Alias (Tampil di Web)</th>
+                </tr>
+              </thead>
+              <tbody id="odoo-reports-table" class="bg-white divide-y divide-gray-200">
+                <!-- Data dari Odoo -->
+              </tbody>
+            </table>
+          </div>
+          <p class="text-xs text-gray-500 mt-2" id="sync-status-msg"></p>
+        </div>
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+          <button type="button" onclick="executeSyncTemplates()" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-semibold text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Simpan & Tarik Skeleton</button>
+          <button type="button" onclick="closeSyncModal()" class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Batal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    async function loadCompanies() {
+        const res = await fetch('/api/admin/companies');
+        const data = await res.json();
+        const tbody = document.getElementById('company-table');
+        tbody.innerHTML = '';
+        data.data.forEach(c => {
+            tbody.innerHTML += `
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${c.initial_pt || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${c.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.server_url || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.target_db_name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title="${c.odoo_password}">${c.odoo_user || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button onclick="editCompany(${c.id}, '${c.initial_pt}', '${c.name}', '${c.server_url}', '${c.target_db_name}', '${c.odoo_user}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                  <button onclick="deleteCompany(${c.id})" class="text-red-600 hover:text-red-900">Hapus</button>
+                </td>
+              </tr>
+            `;
+        });
+    }
+    function openModal(id, initial, name, url, db, user) {
+        document.getElementById('company-modal').classList.remove('hidden');
+        document.getElementById('form-company-id').value = id || '';
+        document.getElementById('form-initial').value = (initial && initial !== 'null') ? initial : '';
+        document.getElementById('form-name').value = (name && name !== 'null') ? name : '';
+        document.getElementById('form-url').value = (url && url !== 'null') ? url : 'https://odoo-fps.lenterateknologi.com';
+        document.getElementById('form-db').value = (db && db !== 'null') ? db : '';
+        document.getElementById('form-user').value = (user && user !== 'null') ? user : 'admin_dev';
+        document.getElementById('form-pass').value = '';
+        document.getElementById('modal-title').innerText = id ? 'Edit Perusahaan' : 'Tambah Perusahaan';
+    }
+
+    function closeModal() {
+        document.getElementById('company-modal').classList.add('hidden');
+    }
+    
+    function editCompany(id, curr_initial, curr_name, curr_url, curr_db, curr_user) {
+        openModal(id, curr_initial, curr_name, curr_url, curr_db, curr_user);
+    }
+    
+    document.getElementById('btn-add').addEventListener('click', () => {
+        openModal(null, null, null, null, null, null);
+    });
+
+    document.getElementById('btn-save-company').addEventListener('click', async () => {
+        const id = document.getElementById('form-company-id').value;
+        const initial_pt = document.getElementById('form-initial').value;
+        const name = document.getElementById('form-name').value;
+        const server_url = document.getElementById('form-url').value;
+        const target_db_name = document.getElementById('form-db').value;
+        const odoo_user = document.getElementById('form-user').value;
+        const odoo_password = document.getElementById('form-pass').value;
+
+        if(!name || !target_db_name) {
+            alert('Nama PT dan Target DB harus diisi!');
+            return;
+        }
+
+        const payload = {
+            initial_pt: initial_pt,
+            name: name,
+            server_url: server_url,
+            target_db_name: target_db_name,
+            odoo_user: odoo_user,
+            odoo_password: odoo_password || (id ? null : "")
+        };
+
+        let endpoint = '/api/admin/companies';
+        let method = 'POST';
+        
+        if (id) {
+            endpoint = '/api/admin/companies/' + id;
+            method = 'PUT';
+        }
+
+        await fetch(endpoint, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        closeModal();
+        loadCompanies();
+    });
+
+    async function deleteCompany(id) {
+        if(confirm('Hapus perusahaan?')) {
+            await fetch('/api/admin/companies/' + id, {method: 'DELETE'});
+            loadCompanies();
+        }
+    }
+
+    async function loadTemplates() {
+        const res = await fetch('/api/admin/templates');
+        const data = await res.json();
+        const tbody = document.getElementById('template-table');
+        tbody.innerHTML = '';
+        data.data.forEach(t => {
+            tbody.innerHTML += `
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.company_initial}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.report_name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.odoo_report_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.last_sync || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <input type="checkbox" disabled ${t.is_active ? 'checked' : ''} class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <button onclick="viewTemplateDetail(${t.id})" class="text-indigo-600 hover:text-indigo-900 font-medium">Lihat Detail</button>
+                </td>
+              </tr>
+            `;
+        });
+    }
+
+    async function viewTemplateDetail(id) {
+        document.getElementById('td-modal').classList.remove('hidden');
+        document.getElementById('td-modal-content').innerHTML = '<p class="text-center text-gray-500 py-4">Memuat detail...</p>';
+        try {
+            const res = await fetch('/api/admin/template/' + id);
+            const data = await res.json();
+            if(data.status === 'success') {
+                const t = data.data;
+                let html = `
+                    <div class="mb-4">
+                        <h4 class="font-bold text-gray-800">${t.report_name}</h4>
+                        <p class="text-xs text-gray-500">Terakhir Sync: ${t.last_sync || '-'}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="bg-gray-50 px-3 py-2 border-b text-xs font-bold text-gray-600 uppercase">Kolom Odoo (${t.cols.length})</div>
+                            <ul class="divide-y divide-gray-100 max-h-60 overflow-y-auto bg-white">
+                                ${t.cols.map(c => `<li class="px-3 py-2 text-sm text-gray-700">${c}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="bg-gray-50 px-3 py-2 border-b text-xs font-bold text-gray-600 uppercase">Baris (KPI) Odoo (${t.rows.length})</div>
+                            <ul class="divide-y divide-gray-100 max-h-60 overflow-y-auto bg-white">
+                                ${t.rows.map(r => `<li class="px-3 py-2 text-sm text-gray-700 truncate" title="${r}">${r}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('td-modal-content').innerHTML = html;
+            } else {
+                document.getElementById('td-modal-content').innerHTML = `<p class="text-center text-red-500 py-4">${data.message}</p>`;
+            }
+        } catch(e) {
+            document.getElementById('td-modal-content').innerHTML = `<p class="text-center text-red-500 py-4">Error loading data.</p>`;
+        }
+    }
+    function closeTdModal() { document.getElementById('td-modal').classList.add('hidden'); }
+
+    async function openSyncModal() {
+        document.getElementById('sync-modal').classList.remove('hidden');
+        document.getElementById('odoo-reports-table').innerHTML = '';
+        document.getElementById('sync-status-msg').innerText = '';
+        
+        const res = await fetch('/api/admin/companies');
+        const data = await res.json();
+        const select = document.getElementById('sync-company-select');
+        select.innerHTML = '<option value="">-- Pilih --</option>';
+        data.data.forEach(c => {
+            select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        });
+    }
+
+    function closeSyncModal() {
+        document.getElementById('sync-modal').classList.add('hidden');
+    }
+
+    async function fetchOdooReports() {
+        const companyId = document.getElementById('sync-company-select').value;
+        if(!companyId) return alert("Pilih perusahaan dulu!");
+        
+        const tbody = document.getElementById('odoo-reports-table');
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Mengambil data dari Odoo...</td></tr>';
+        
+        try {
+            const res = await fetch('/api/admin/odoo_reports/' + companyId);
+            const data = await res.json();
+            if(data.status === 'success') {
+                tbody.innerHTML = '';
+                data.data.forEach(r => {
+                    tbody.innerHTML += `
+                      <tr>
+                        <td class="px-4 py-2 whitespace-nowrap"><input type="checkbox" class="sync-checkbox h-4 w-4 text-indigo-600 rounded" data-id="${r.id}"></td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${r.id}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">${r.name}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">
+                          <input type="text" class="sync-alias-input border border-gray-300 rounded px-2 py-1 text-sm w-full" value="${r.name}" data-id="${r.id}">
+                        </td>
+                      </tr>
+                    `;
+                });
+                document.getElementById('sync-status-msg').innerText = `Ditemukan ${data.data.length} laporan di Odoo. Centang yang ingin ditarik.`;
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-600">ERROR: ${data.message}</td></tr>`;
+            }
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-600">Gagal mengambil data!</td></tr>`;
+        }
+    }
+
+    async function executeSyncTemplates() {
+        const companyId = document.getElementById('sync-company-select').value;
+        if(!companyId) return alert("Pilih perusahaan!");
+        
+        const checkboxes = document.querySelectorAll('.sync-checkbox:checked');
+        if(checkboxes.length === 0) return alert("Belum ada laporan yang dicentang!");
+        
+        const templates = [];
+        checkboxes.forEach(cb => {
+            const id = cb.getAttribute('data-id');
+            const aliasInput = document.querySelector(`.sync-alias-input[data-id="${id}"]`);
+            templates.push({
+                odoo_report_id: parseInt(id),
+                report_name: aliasInput.value
+            });
+        });
+        
+        document.getElementById('sync-status-msg').innerText = "Sedang menarik Skeleton dari Odoo, mohon tunggu...";
+        
+        try {
+            const res = await fetch('/api/admin/sync_templates', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    company_id: parseInt(companyId),
+                    templates: templates
+                })
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                alert("SUKSES: " + data.message);
+                closeSyncModal();
+                loadTemplates();
+            } else {
+                alert("ERROR: " + data.message);
+            }
+        } catch(e) {
+            alert("Error: " + e);
+        }
+    }
+    
+    // Load data on page load
+    loadCompanies();
+    loadTemplates();
+  </script>
+</main>
+<!-- END: MainContentArea -->
+<!-- BEGIN: Footer -->
+<footer class="mt-auto border-t border-slate-200/80 bg-white/70 backdrop-blur-md py-4 relative z-20">
+<div class="max-w-[1600px] mx-auto px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-blue-600"></span>
+<span class="font-medium">Enterprise Reporting Engine • Tug &amp; Barge Operations System</span>
+</div>
+<div class="font-mono text-slate-400 text-[11px] flex items-center space-x-2">
+<span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 font-semibold">v2.4.0 (PROD)</span>
+<span class="">• All Systems Operational</span>
+</div>
+</div>
+</footer>
+<!-- END: Footer -->
+<script>
+  document.getElementById('perusahaan-select').addEventListener('change', async (e) => {
+    const companyId = e.target.value;
+    const reportSelect = document.getElementById('laporan-select');
+    
+    if (!companyId) {
+      reportSelect.innerHTML = '<option value="">Pilih perusahaan dahulu</option>';
+      return;
+    }
+    
+    reportSelect.innerHTML = '<option value="">Memuat laporan dari Odoo...</option>';
+    
+    try {
+      const response = await fetch(`/api/reports/${companyId}`);
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        reportSelect.innerHTML = '';
+        if (data.reports && data.reports.length > 0) {
+          data.reports.forEach(report => {
+            const option = document.createElement('option');
+            option.value = report.id;
+            option.textContent = report.name;
+            reportSelect.appendChild(option);
+          });
+        } else {
+          reportSelect.innerHTML = '<option value="">Tidak ada laporan ditemukan</option>';
+        }
+      } else {
+        reportSelect.innerHTML = `<option value="">Gagal memuat: ${data.message || 'Error'}</option>`;
+      }
+    } catch(err) {
+      reportSelect.innerHTML = '<option value="">Error koneksi Odoo</option>';
+      console.error(err);
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const response = await fetch('/api/companies');
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        const select = document.getElementById('perusahaan-select');
+        select.innerHTML = '';
+        data.companies.forEach(company => {
+          const option = document.createElement('option');
+          option.value = company.id;
+          option.textContent = company.name;
+          select.appendChild(option);
+        });
+        
+        // Trigger select change to load reports for the first company
+        if (data.companies.length > 0) {
+          select.dispatchEvent(new Event('change'));
+        }
+      }
+    } catch (e) {
+      console.error("Gagal memuat daftar perusahaan:", e);
+    }
+  });
+
+  let currentAbortController = null;
+
+  document.getElementById('btn-cancel-report').addEventListener('click', () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+  });
+
+  document.getElementById('btn-generate-report').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-generate-report');
+    const cancelBtn = document.getElementById('btn-cancel-report');
+    const companyId = document.getElementById('perusahaan-select').value;
+    const reportSelect = document.getElementById('laporan-select');
+    const reportTemplate = reportSelect.value;
+    const reportName = reportSelect.options[reportSelect.selectedIndex]?.text || "Laporan";
+    const forceRefresh = document.getElementById('force-refresh-checkbox').checked;
+    
+    // UI Reset
+    document.getElementById('pipeline-progress').classList.remove('hidden');
+    document.getElementById('progress-bar-fill').style.width = '10%';
+    document.getElementById('status-alert').classList.add('hidden');
+    document.getElementById('download-section').classList.add('hidden');
+    cancelBtn.classList.remove('hidden');
+    
+    currentAbortController = new AbortController();
+    
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin inline-block"></span><span class="ml-2">Memproses...</span>`;
+    
+    // Simulate progress animation
+    setTimeout(() => { document.getElementById('progress-bar-fill').style.width = '60%'; }, 1000);
+    
+    try {
+      const response = await fetch('/api/generate_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: companyId, template: reportTemplate, template_name: reportName, force_refresh: forceRefresh }),
+        signal: currentAbortController.signal
+      });
+      const data = await response.json();
+      
+      document.getElementById('progress-bar-fill').style.width = '100%';
+      
+      if (response.ok && data.status === 'success') {
+        setTimeout(() => {
+          document.getElementById('status-alert').classList.remove('hidden');
+          document.getElementById('download-section').classList.remove('hidden');
+          if(data.file_url) {
+            let downloadBtn = document.getElementById('btn-download-file');
+            if (!downloadBtn) {
+              // try finding the button via class or querySelector if id doesn't exist
+              const buttons = document.querySelectorAll('button');
+              buttons.forEach(btn => {
+                if(btn.textContent.includes('Unduh File Spreadsheet')) downloadBtn = btn;
+              });
+            }
+            if (downloadBtn) {
+              // we can set window.location or handle it depending on structure
+              downloadBtn.onclick = () => window.location.href = data.file_url;
+            }
+          }
+          
+          if(data.matrix) {
+            const thead = document.getElementById('report-thead');
+            const tbody = document.getElementById('report-tbody');
+            
+            // Render Header
+            let headHtml = '';
+            data.matrix.header.forEach((row, i) => {
+              headHtml += '<tr>';
+              if (i === 0) {
+                headHtml += '<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider w-1/3 min-w-[340px] border-r border-slate-200/70" scope="col">Uraian / Keterangan</th>';
+              } else {
+                headHtml += '<th class="py-3 px-4 border-r border-slate-200/70"></th>';
+              }
+              row.cols.forEach(col => {
+                headHtml += `<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right border-r border-slate-200/70" colspan="${col.colspan || 1}">${col.label || ''}</th>`;
+              });
+              headHtml += '</tr>';
+            });
+            thead.innerHTML = headHtml;
+            
+            // Render Body
+            let bodyHtml = '';
+            data.matrix.body.forEach(row => {
+              let isBold = row.style && row.style.includes('font-weight: bold');
+              let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
+              let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 4, 16)}` : 'pl-4';
+              let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
+              
+              let rowStyleAttr = row.style ? `style="${row.style}"` : '';
+              bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
+              bodyHtml += `<td class="py-2 px-4 ${plClass} font-sans border-r border-slate-200/70">${row.label || ''}</td>`;
+              
+              if (row.cells) {
+                row.cells.forEach(cell => {
+                  let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
+                  if (typeof val === 'number') {
+                    val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                  }
+                  let cellBold = cell.style && cell.style.includes('font-weight: bold');
+                  let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
+                  let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
+                  bodyHtml += `<td class="py-2 px-4 text-right border-r border-slate-200/70 ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
+                });
+              }
+              bodyHtml += '</tr>';
+            });
+            tbody.innerHTML = bodyHtml;
+            
+            // Update Title
+            const reportSelect = document.getElementById('laporan-select');
+            const titleEl = document.getElementById('preview-report-title');
+            if (titleEl && reportSelect.options[reportSelect.selectedIndex]) {
+               titleEl.textContent = reportSelect.options[reportSelect.selectedIndex].text;
+            }
+          }
+        }, 500);
+      } else {
+        alert(data.message || "Gagal membuat laporan.");
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        alert("Proses dibatalkan oleh pengguna.");
+      } else {
+        alert("Terjadi kesalahan koneksi saat memproses laporan.");
+      }
+    } finally {
+      currentAbortController = null;
+      cancelBtn.classList.add('hidden');
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+        setTimeout(() => {
+            document.getElementById('pipeline-progress').classList.add('hidden');
+            document.getElementById('progress-bar-fill').style.width = '0%';
+        }, 3000);
+      }, 500);
+    }
+  });
+</script>
+</body></html>

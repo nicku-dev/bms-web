@@ -1,16 +1,16 @@
 import requests
 import json
 from typing import Dict, Any, List, Optional
-from bms_reporting.config import settings
+from app.config import settings
 
 class OdooAPI:
-    def __init__(self, db_name: str, username: str = 'admin', password: str = None):
+    def __init__(self, db_name: str, url: str = None, username: str = None, password: str = None):
         """
         Initialize JSON-RPC connection to Odoo.
         """
-        self.url = settings.odoo_url
+        self.url = url or settings.odoo_url
         self.db = db_name
-        self.username = username
+        self.username = username or 'admin'
         self.password = password or settings.odoo_password
         self.session = requests.Session()
         self.session.verify = False  # Bypass SSL for internal

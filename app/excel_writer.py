@@ -139,6 +139,9 @@ class ExcelWriter:
                 val = c.get('val')
                 val_r = c.get('val_r', '')
                 
+                if str(val) == 'undefined' or str(val_r) == 'undefined' or str(val) == '#ERR' or str(val_r) == '#ERR':
+                    val = None
+                
                 # Determine number format
                 num_format = '#,##0.00'
                 if '%' in str(val_r):
