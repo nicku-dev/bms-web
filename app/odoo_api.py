@@ -35,7 +35,7 @@ class OdooAPI:
         }
         headers = {"Content-Type": "application/json"}
         try:
-            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=15)
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=120)
             if response.status_code != 200:
                 raise ConnectionError(f"Server Odoo merespon HTTP {response.status_code}")
             res = response.json()
@@ -43,7 +43,7 @@ class OdooAPI:
                 raise Exception(res['error'].get('message', res['error']))
             return res.get('result')
         except requests.exceptions.Timeout:
-            raise ConnectionError(f"Koneksi ke server Odoo ({self.url}) Timeout (melewati batas 15 detik)")
+            raise ConnectionError(f"Koneksi ke server Odoo ({self.url}) Timeout (melewati batas 120 detik)")
         except requests.exceptions.RequestException as e:
             raise ConnectionError(f"Gagal terhubung ke server Odoo ({self.url}): {e}")
 
@@ -61,7 +61,7 @@ class OdooAPI:
         }
         headers = {"Content-Type": "application/json"}
         try:
-            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=15)
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=120)
             if response.status_code != 200:
                 return None
             res = response.json()
@@ -86,7 +86,7 @@ class OdooAPI:
         }
         headers = {"Content-Type": "application/json"}
         try:
-            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=15)
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=120)
             if response.status_code != 200:
                 raise ConnectionError(f"Server Odoo ({self.url}) merespon HTTP {response.status_code}")
             res = response.json()
@@ -94,7 +94,7 @@ class OdooAPI:
                 raise Exception(res['error'].get('data', {}).get('message', res['error']))
             return res.get('result')
         except requests.exceptions.Timeout:
-            raise ConnectionError(f"Koneksi ke server Odoo ({self.url}) Timeout (melewati 15 detik)")
+            raise ConnectionError(f"Koneksi ke server Odoo ({self.url}) Timeout (melewati 120 detik)")
         except requests.exceptions.RequestException as e:
             raise ConnectionError(f"Gagal terhubung ke server Odoo ({self.url}): {e}")
 
