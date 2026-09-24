@@ -119,7 +119,11 @@ async def api_get_reports(company_id: int, request: Request):
             return JSONResponse(status_code=400, content={"status": "error", "message": "Perusahaan tidak ditemukan."})
 
         from app.models import ReportTemplate
-        synced_reports = db.query(ReportTemplate).filter(ReportTemplate.company_id == company.id, ReportTemplate.is_active == True).all()
+        synced_reports = db.query(ReportTemplate).filter(
+            ReportTemplate.company_id == company.id, 
+            ReportTemplate.is_active == True,
+            ReportTemplate.skeleton_json != None
+        ).all()
         reports = [{"id": r.odoo_report_id, "name": r.report_name} for r in synced_reports]
         
         return {"status": "success", "reports": reports}
@@ -260,41 +264,72 @@ def background_sync_templates(company_id: int, templates_data: list):
         
         for item in templates_data:
             try:
+                import time
+                start_time = time.time()
                 matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
                 if matrix is None:
-                    continue
+                    raise Exception("Odoo returned empty matrix")
                     
                 template = db.query(ReportTemplate).filter(
                     ReportTemplate.company_id == company.id,
                     ReportTemplate.odoo_report_id == item.odoo_report_id
                 ).first()
                 
-                if not template:
-                    template = ReportTemplate(company_id=company.id, odoo_report_id=item.odoo_report_id, report_name=item.report_name)
-                    db.add(template)
-                elif not template.report_name:
-                    template.report_name = item.report_name
-                    
-                template.skeleton_json = json.dumps(matrix)
-                template.last_sync = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                db.commit()
+                if template:
+                    duration = time.time() - start_time
+                    template.skeleton_json = json.dumps(matrix)
+                    template.last_sync = f"Ready ({duration:.1f}s) - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                    db.commit()
             except Exception as e:
                 print(f"Error syncing template {item.odoo_report_id}: {e}")
                 db.rollback()
+                template = db.query(ReportTemplate).filter(
+                    ReportTemplate.company_id == company.id,
+                    ReportTemplate.odoo_report_id == item.odoo_report_id
+                ).first()
+                if template:
+                    template.last_sync = f"Failed: {str(e)[:40]}"
+                    db.commit()
     finally:
         db.close()
 
 @app.post("/api/admin/sync_templates")
 async def api_admin_sync_templates(req: SyncTemplatesRequest, background_tasks: BackgroundTasks):
-    from app.models import Company
+    from app.models import Company, ReportTemplate
     db = SessionLocal()
     try:
         company = db.query(Company).filter(Company.id == req.company_id, Company.is_active == True).first()
         if not company:
             return JSONResponse(status_code=404, content={"status": "error", "message": "Company not found"})
+            
+        templates_to_sync = []
+        for item in req.templates:
+            template = db.query(ReportTemplate).filter(
+                ReportTemplate.company_id == company.id,
+                ReportTemplate.odoo_report_id == item.odoo_report_id
+            ).first()
+            
+            # Prevent multiple clicks running parallel heavy queries
+            if template and template.last_sync and template.last_sync.startswith("Syncing"):
+                continue
+                
+            if not template:
+                template = ReportTemplate(company_id=company.id, odoo_report_id=item.odoo_report_id, report_name=item.report_name)
+                db.add(template)
+            elif not template.report_name:
+                template.report_name = item.report_name
+                
+            template.skeleton_json = None
+            template.last_sync = "Syncing (Fetching from Odoo...)"
+            templates_to_sync.append(item)
+            
+        db.commit()
         
-        background_tasks.add_task(background_sync_templates, company.id, req.templates)
-        return {"status": "success", "message": "Proses sinkronisasi berjalan di latar belakang (Background). Silakan refresh halaman 1-2 menit lagi."}
+        if not templates_to_sync:
+            return {"status": "success", "message": "Semua template yang dipilih sudah dalam proses sinkronisasi."}
+        
+        background_tasks.add_task(background_sync_templates, company.id, templates_to_sync)
+        return {"status": "success", "message": f"{len(templates_to_sync)} Template sedang ditarik di latar belakang. Silakan refresh tabel beberapa saat lagi."}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal memulai sync latar belakang: {str(e)}"})
     finally:
