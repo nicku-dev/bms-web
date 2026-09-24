@@ -290,9 +290,9 @@
   </div>
 </div>
 <!-- Financial Data Grid Container -->
-<div id="preview-wrapper" class="bg-white border border-slate-200 rounded-2xl shadow-subtle-card overflow-hidden ring-1 ring-black/5 transition-all duration-300 transform origin-top-left">
-<div class="overflow-auto max-h-[820px] relative custom-scrollbar">
-<table class="w-full text-left text-xs border-collapse font-sans min-w-max">
+<div id="preview-wrapper" class="bg-white border border-slate-200 rounded-2xl shadow-subtle-card overflow-hidden ring-1 ring-black/5 transition-all duration-300 transform origin-top-left flex-1 flex flex-col">
+<div id="table-scroll-container" class="overflow-auto max-h-[820px] relative custom-scrollbar">
+<table class="w-max text-left text-xs border-collapse font-sans">
 <thead id="report-thead" class="bg-slate-100/90 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200/90 text-slate-700">
 <tr>
 <th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-center" scope="col">Data belum dimuat. Silakan buat laporan.</th>
@@ -473,12 +473,12 @@
             data.matrix.header.forEach((row, i) => {
               headHtml += '<tr>';
               if (i === 0) {
-                headHtml += '<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider border-r border-slate-200/70" scope="col" style="width:1%;"><div class="resize-x overflow-hidden min-w-[250px] w-[340px] max-w-[600px]">Uraian / Keterangan</div></th>';
+                headHtml += '<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider border-r border-slate-200/70" scope="col" style="width:1%;"><div class="resize-x overflow-hidden min-w-[200px] w-[280px] max-w-[600px] leading-tight">Uraian / Keterangan</div></th>';
               } else {
-                headHtml += '<th class="py-3 px-4 border-r border-slate-200/70"></th>';
+                headHtml += '<th class="py-1.5 px-2.5 border-r border-slate-200/70"></th>';
               }
               row.cols.forEach(col => {
-                headHtml += `<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right border-r border-slate-200/70" colspan="${col.colspan || 1}">${col.label || ''}</th>`;
+                headHtml += `<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider text-right border-r border-slate-200/70 leading-tight whitespace-nowrap" colspan="${col.colspan || 1}">${col.label || ''}</th>`;
               });
               headHtml += '</tr>';
             });
@@ -489,12 +489,12 @@
             data.matrix.body.forEach(row => {
               let isBold = row.style && row.style.includes('font-weight: bold');
               let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
-              let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 4, 16)}` : 'pl-4';
+              let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 2, 16)}` : 'pl-2.5';
               let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
               
               let rowStyleAttr = row.style ? `style="${row.style}"` : '';
               bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
-              bodyHtml += `<td class="py-2 px-4 ${plClass} font-sans border-r border-slate-200/70">${row.label || ''}</td>`;
+              bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug">${row.label || ''}</td>`;
               
               if (row.cells) {
                 row.cells.forEach(cell => {
@@ -506,7 +506,7 @@
                   let cellBold = cell.style && cell.style.includes('font-weight: bold');
                   let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
                   let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
-                  bodyHtml += `<td class="py-2 px-4 text-right border-r border-slate-200/70 ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
+                  bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70 text-[11px] whitespace-nowrap ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
                 });
               }
               bodyHtml += '</tr>';
@@ -585,10 +585,17 @@
   
   document.addEventListener('fullscreenchange', (event) => {
       const section = document.getElementById('preview-section-container');
+      const scrollContainer = document.getElementById('table-scroll-container');
       if (document.fullscreenElement) {
-          section.classList.add('bg-white', 'p-6', 'overflow-auto');
+          section.classList.add('bg-white', 'p-6', 'h-screen', 'flex', 'flex-col');
+          section.classList.remove('overflow-auto');
+          scrollContainer.classList.remove('max-h-[820px]');
+          scrollContainer.classList.add('flex-1', 'h-full');
       } else {
-          section.classList.remove('bg-white', 'p-6', 'overflow-auto');
+          section.classList.remove('bg-white', 'p-6', 'h-screen', 'flex', 'flex-col');
+          section.classList.add('overflow-auto');
+          scrollContainer.classList.add('max-h-[820px]');
+          scrollContainer.classList.remove('flex-1', 'h-full');
       }
   });
 
