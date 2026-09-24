@@ -402,21 +402,74 @@
         tbody.innerHTML = '';
         data.data.forEach(t => {
             tbody.innerHTML += `
-              <tr>
+              <tr id="tpl-row-${t.id}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.id}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.company_initial}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.report_name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <div class="flex items-center space-x-2">
+                    <input type="text" id="input-tpl-name-${t.id}" value="${t.report_name}" class="border border-gray-300 rounded px-2.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 w-64 bg-gray-50 focus:bg-white transition">
+                    <button onclick="saveTemplateName(${t.id})" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-sm transition">Simpan</button>
+                  </div>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.odoo_report_id}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.last_sync || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <input type="checkbox" disabled ${t.is_active ? 'checked' : ''} class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                  <input type="checkbox" id="chk-tpl-active-${t.id}" onchange="saveTemplateName(${t.id})" ${t.is_active ? 'checked' : ''} class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer">
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-3">
                   <button onclick="viewTemplateDetail(${t.id})" class="text-indigo-600 hover:text-indigo-900 font-medium">Lihat Detail</button>
+                  <button onclick="deleteTemplate(${t.id})" class="text-red-600 hover:text-red-900 font-medium">Hapus</button>
                 </td>
               </tr>
             `;
         });
+    }
+
+    async function saveTemplateName(id) {
+        const nameInput = document.getElementById(`input-tpl-name-${id}`);
+        const activeChk = document.getElementById(`chk-tpl-active-${id}`);
+        const newName = nameInput ? nameInput.value.trim() : '';
+        const isActive = activeChk ? activeChk.checked : true;
+
+        if (!newName) {
+            alert('Nama template tidak boleh kosong!');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/admin/template/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ report_name: newName, is_active: isActive })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                nameInput.classList.add('border-green-500', 'bg-green-50');
+                setTimeout(() => {
+                    nameInput.classList.remove('border-green-500', 'bg-green-50');
+                }, 1200);
+            } else {
+                alert('Gagal menyimpan: ' + data.message);
+            }
+        } catch (e) {
+            alert('Error menyimpan template: ' + e.message);
+        }
+    }
+
+    async function deleteTemplate(id) {
+        if (confirm('Apakah Anda yakin ingin menghapus template ini?')) {
+            try {
+                const res = await fetch(`/api/admin/template/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    loadTemplates();
+                } else {
+                    alert('Gagal menghapus: ' + data.message);
+                }
+            } catch (e) {
+                alert('Error menghapus template: ' + e.message);
+            }
+        }
     }
 
     async function viewTemplateDetail(id) {
@@ -480,11 +533,19 @@
         if(!companyId) return alert("Pilih perusahaan dulu!");
         
         const tbody = document.getElementById('odoo-reports-table');
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Mengambil data dari Odoo...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-indigo-600 font-medium">Mengambil data dari Odoo...</td></tr>';
         
         try {
             const res = await fetch('/api/admin/odoo_reports/' + companyId);
-            const data = await res.json();
+            let data;
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                throw new Error(`Server Error (${res.status}): Server Odoo tidak merespon/timeout.`);
+            }
+
             if(data.status === 'success') {
                 tbody.innerHTML = '';
                 data.data.forEach(r => {
@@ -501,10 +562,10 @@
                 });
                 document.getElementById('sync-status-msg').innerText = `Ditemukan ${data.data.length} laporan di Odoo. Centang yang ingin ditarik.`;
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-600">ERROR: ${data.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-600 font-semibold">ERROR: ${data.message}</td></tr>`;
             }
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-600">Gagal mengambil data!</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-600 font-semibold">Gagal mengambil data! ${e.message}</td></tr>`;
         }
     }
 
@@ -525,28 +586,53 @@
             });
         });
         
-        document.getElementById('sync-status-msg').innerText = "Sedang menarik Skeleton dari Odoo, mohon tunggu...";
+        const statusMsg = document.getElementById('sync-status-msg');
+        statusMsg.className = "text-xs font-semibold text-indigo-600 animate-pulse";
         
-        try {
-            const res = await fetch('/api/admin/sync_templates', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    company_id: parseInt(companyId),
-                    templates: templates
-                })
-            });
-            const data = await res.json();
-            if(data.status === 'success') {
-                alert("SUKSES: " + data.message);
-                closeSyncModal();
-                loadTemplates();
-            } else {
-                alert("ERROR: " + data.message);
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (let i = 0; i < templates.length; i++) {
+            statusMsg.innerText = `Sedang menarik Skeleton dari Odoo (${i+1}/${templates.length}), mohon tunggu...`;
+            try {
+                const res = await fetch('/api/admin/sync_templates', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        company_id: parseInt(companyId),
+                        templates: [templates[i]]
+                    })
+                });
+
+                let data;
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await res.json();
+                } else {
+                    throw new Error(`Server Error (${res.status}): Server Odoo tidak merespon/timeout.`);
+                }
+
+                if(data.status === 'success') {
+                    successCount++;
+                } else {
+                    console.error("ERROR:", data.message);
+                    failCount++;
+                }
+            } catch(e) {
+                console.error("Gagal Sinkronisasi:", e.message);
+                failCount++;
             }
-        } catch(e) {
-            alert("Error: " + e);
         }
+        
+        if (failCount === 0) {
+            alert(`SUKSES: ${successCount} Template berhasil disinkronisasi`);
+            closeSyncModal();
+        } else {
+            alert(`Selesai. Berhasil: ${successCount}, Gagal: ${failCount}. Cek console untuk detail.`);
+            statusMsg.innerText = `Selesai. Berhasil: ${successCount}, Gagal: ${failCount}`;
+            statusMsg.className = "text-xs font-semibold text-red-600";
+        }
+        loadTemplates();
     }
     
     // Load data on page load

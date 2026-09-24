@@ -34,11 +34,18 @@ class OdooAPI:
             "id": 1
         }
         headers = {"Content-Type": "application/json"}
-        response = self.session.post(url, data=json.dumps(payload), headers=headers)
-        res = response.json()
-        if 'error' in res:
-            raise Exception(res['error'].get('message', res['error']))
-        return res.get('result')
+        try:
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=15)
+            if response.status_code != 200:
+                raise ConnectionError(f"Server Odoo merespon HTTP {response.status_code}")
+            res = response.json()
+            if 'error' in res:
+                raise Exception(res['error'].get('message', res['error']))
+            return res.get('result')
+        except requests.exceptions.Timeout:
+            raise ConnectionError(f"Koneksi ke server Odoo ({self.url}) Timeout (melewati batas 15 detik)")
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Gagal terhubung ke server Odoo ({self.url}): {e}")
 
     def authenticate(self):
         url = f"{self.url}/web/session/authenticate"
@@ -53,11 +60,16 @@ class OdooAPI:
             "id": 1
         }
         headers = {"Content-Type": "application/json"}
-        response = self.session.post(url, data=json.dumps(payload), headers=headers)
-        res = response.json()
-        if 'error' in res:
+        try:
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=15)
+            if response.status_code != 200:
+                return None
+            res = response.json()
+            if 'error' in res:
+                return None
+            return res.get('result', {}).get('uid')
+        except Exception:
             return None
-        return res.get('result', {}).get('uid')
 
     def execute_kw(self, model: str, method: str, args: List, kwargs: Dict = None):
         url = f"{self.url}/web/dataset/call_kw"
@@ -73,11 +85,18 @@ class OdooAPI:
             "id": 1
         }
         headers = {"Content-Type": "application/json"}
-        response = self.session.post(url, data=json.dumps(payload), headers=headers)
-        res = response.json()
-        if 'error' in res:
-            raise Exception(res['error'].get('data', {}).get('message', res['error']))
-        return res.get('result')
+        try:
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=15)
+            if response.status_code != 200:
+                raise ConnectionError(f"Server Odoo ({self.url}) merespon HTTP {response.status_code}")
+            res = response.json()
+            if 'error' in res:
+                raise Exception(res['error'].get('data', {}).get('message', res['error']))
+            return res.get('result')
+        except requests.exceptions.Timeout:
+            raise ConnectionError(f"Koneksi ke server Odoo ({self.url}) Timeout (melewati 15 detik)")
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Gagal terhubung ke server Odoo ({self.url}): {e}")
 
     def search_read(self, model: str, domain: List, fields: List[str] = None, limit: int = None) -> List[Dict]:
         kwargs = {}

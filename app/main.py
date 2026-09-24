@@ -119,7 +119,7 @@ async def api_get_reports(company_id: int, request: Request):
             return JSONResponse(status_code=400, content={"status": "error", "message": "Perusahaan tidak ditemukan."})
 
         from app.models import ReportTemplate
-        synced_reports = db.query(ReportTemplate).filter(ReportTemplate.company_id == company.id).all()
+        synced_reports = db.query(ReportTemplate).filter(ReportTemplate.company_id == company.id, ReportTemplate.is_active == True).all()
         reports = [{"id": r.odoo_report_id, "name": r.report_name} for r in synced_reports]
         
         return {"status": "success", "reports": reports}
@@ -225,7 +225,7 @@ async def api_admin_odoo_reports(company_id: int):
         reports = api.search_read('mis.report.instance', [], ['id', 'name'])
         return {"status": "success", "data": reports}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal terhubung ke Odoo ({company.name}): {str(e)}"})
 
 class SyncItem(BaseModel):
     odoo_report_id: int
@@ -266,7 +266,7 @@ async def api_admin_sync_templates(req: SyncTemplatesRequest):
             if not template:
                 template = ReportTemplate(company_id=company.id, odoo_report_id=item.odoo_report_id, report_name=item.report_name)
                 db.add(template)
-            else:
+            elif not template.report_name:
                 template.report_name = item.report_name
                 
             template.skeleton_json = json.dumps(matrix)
@@ -275,7 +275,7 @@ async def api_admin_sync_templates(req: SyncTemplatesRequest):
         db.commit()
         return {"status": "success", "message": f"{len(req.templates)} Template berhasil disinkronisasi"}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal narik skeleton Odoo ({company.name}): {str(e)}"})
 
 @app.get("/api/admin/templates")
 async def api_admin_templates():
@@ -328,6 +328,48 @@ async def api_admin_template_detail(template_id: int):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
     finally:
         db.close()
+
+class TemplateUpdateRequest(BaseModel):
+    report_name: str
+    is_active: Optional[bool] = True
+
+@app.put("/api/admin/template/{template_id}")
+async def api_admin_update_template(template_id: int, req: TemplateUpdateRequest):
+    db = SessionLocal()
+    from app.models import ReportTemplate
+    try:
+        t = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
+        if not t:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Template tidak ditemukan"})
+        
+        t.report_name = req.report_name.strip()
+        if req.is_active is not None:
+            t.is_active = req.is_active
+            
+        db.commit()
+        return {"status": "success", "message": "Template berhasil diperbarui"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
+@app.delete("/api/admin/template/{template_id}")
+async def api_admin_delete_template(template_id: int):
+    db = SessionLocal()
+    from app.models import ReportTemplate
+    try:
+        t = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
+        if not t:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Template tidak ditemukan"})
+        
+        db.delete(t)
+        db.commit()
+        return {"status": "success", "message": "Template berhasil dihapus"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
 
 
 class ReportRequest(BaseModel):
