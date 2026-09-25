@@ -28,13 +28,13 @@ class FastMatrixCompiler:
             vessels = []
             for h in h0:
                 colspan = h.get('colspan', 1)
-                vessel_name = str(h.get('val', '')).strip()
+                vessel_name = str(h.get('label', h.get('val', ''))).strip()
                 vessels.extend([vessel_name] * colspan)
                 
             for i, h in enumerate(h1):
                 col_map.append({
                     'vessel_name': vessels[i] if i < len(vessels) else None,
-                    'period': str(h.get('val', '')).strip().lower() # 'q1', 'q2', 'q3', 'q4', 'ytd'
+                    'period': str(h.get('label', h.get('val', ''))).strip().lower() # 'q1', 'q2', 'q3', 'q4', 'ytd'
                 })
         
         # Fallback if headers are missing (assume 5 columns Total)
@@ -70,7 +70,7 @@ class FastMatrixCompiler:
                         
                         vessel_df = df
                         # If the column header belongs to a specific vessel, filter it.
-                        if vessel and vessel != 'Total' and 'Kapal' in vessel:
+                        if vessel and vessel.lower() != 'total':
                             clean_vessel = vessel.replace('Kapal - ', '').strip()
                             vessel_df = df[df['vessel_name'] == clean_vessel]
                             
