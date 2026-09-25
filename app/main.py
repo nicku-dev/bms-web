@@ -31,23 +31,45 @@ class LoginRequest(BaseModel):
 async def read_root(request: Request):
     if "session_token" not in request.cookies:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request=request, name="dashboard.html")
+    
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    db.close()
+    
+    if not user:
+        return RedirectResponse(url="/logout", status_code=303)
+        
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={"request": request, "user": user})
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
     if "session_token" not in request.cookies:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request=request, name="dashboard.html")
+        
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    db.close()
+    
+    if not user:
+        return RedirectResponse(url="/logout", status_code=303)
+        
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={"request": request, "user": user})
 
 @app.get("/login", response_class=HTMLResponse)
 async def read_login(request: Request):
-    return templates.TemplateResponse(request=request, name="login.html")
+    return templates.TemplateResponse(request=request, name="login.html", context={"request": request})
+
+@app.get("/logout")
+async def logout(request: Request):
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie("session_token")
+    return response
 
 @app.get("/builder", response_class=HTMLResponse)
 async def read_builder(request: Request):
     if "session_token" not in request.cookies:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request=request, name="builder.html")
+    return templates.TemplateResponse(request=request, name="builder.html", context={"request": request})
 
 @app.post("/api/login")
 async def api_login(req: LoginRequest):
@@ -158,7 +180,20 @@ class TestConnectionRequest(BaseModel):
 
 @app.get("/config", response_class=HTMLResponse)
 async def read_config(request: Request):
-    return templates.TemplateResponse(request=request, name="config.html")
+    if "session_token" not in request.cookies:
+        return RedirectResponse(url="/login", status_code=303)
+        
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    db.close()
+    
+    if not user:
+        return RedirectResponse(url="/logout", status_code=303)
+        
+    if user.role != 'admin' and user.username not in ["admin_isa", "admin_dev"]:
+        return RedirectResponse(url="/dashboard", status_code=303)
+        
+    return templates.TemplateResponse(request=request, name="config.html", context={"request": request, "user": user})
 
 @app.get("/api/admin/companies")
 async def api_admin_companies():
