@@ -96,9 +96,9 @@ class ExcelWriter:
                 # Top-left empty cell
                 worksheet.write(current_row, 0, "Keterangan", self._get_format(workbook, {}, is_header=True))
                 
-            cols = h_row.get('cols', [])
+            cols = h_row if isinstance(h_row, list) else h_row.get('cols', [])
             for c in cols:
-                label = c.get('label', '')
+                label = c.get('label', c.get('val', ''))
                 colspan = c.get('colspan', 1)
                 
                 fmt = self._get_format(workbook, {}, is_header=True)
