@@ -35,7 +35,7 @@ class OdooAPI:
         }
         headers = {"Content-Type": "application/json"}
         try:
-            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=900)
+            response = self.session.post(url, data=json.dumps(payload), headers=headers, timeout=120)
             if response.status_code != 200:
                 raise ConnectionError(f"Server Odoo merespon HTTP {response.status_code}")
             res = response.json()
