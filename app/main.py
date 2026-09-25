@@ -9,8 +9,10 @@ import json
 from app.db import SessionLocal, init_db
 from app.models import User, Company
 from app.config import settings
+from app.builder import router as builder_router
 
 app = FastAPI(title="ISA Fleet Report - Modern View")
+app.include_router(builder_router)
 
 # Mount static files (for css, js, images if needed)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -40,6 +42,12 @@ async def read_dashboard(request: Request):
 @app.get("/login", response_class=HTMLResponse)
 async def read_login(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
+
+@app.get("/builder", response_class=HTMLResponse)
+async def read_builder(request: Request):
+    if "session_token" not in request.cookies:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(request=request, name="builder.html")
 
 @app.post("/api/login")
 async def api_login(req: LoginRequest):

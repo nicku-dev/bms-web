@@ -120,13 +120,21 @@
 <nav aria-label="Main Navigation" class="bg-white/70 backdrop-blur-md border-b border-slate-200/90 relative z-30">
 <div class="max-w-[1600px] mx-auto px-6 lg:px-12 flex space-x-2">
 <!-- Tab Aktif: Buat Laporan -->
-<button class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition" type="button">
+<button id="tab-btn-generate" onclick="switchMainTab('generate')" class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition" type="button">
 <span class="mr-2 text-base filter drop-shadow-xs">🚀</span>
 <span class="">Buat Laporan</span>
-<div class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
+<div id="tab-indicator-generate" class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
 </button>
+
+<!-- Tab: Riwayat Laporan -->
+<button id="tab-btn-history" onclick="switchMainTab('history')" class="relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1" type="button">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🕒</span>
+<span class="">Riwayat Laporan</span>
+<div id="tab-indicator-history" class="hidden absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
+</button>
+
 <!-- Tab Nonaktif: Konfigurasi Sistem -->
-<a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1">
+<a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">⚙️</span>
 <span class="">Konfigurasi Sistem</span>
 </a>
@@ -135,8 +143,7 @@
 <!-- END: NavigationTabs -->
 <!-- BEGIN: MainContentArea -->
 <main class="relative z-10 flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8">
-  <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
-    <div class="xl:col-span-3 space-y-8 min-w-0">
+  <div id="tab-content-generate" class="space-y-8 min-w-0">
 <!-- BEGIN: ReportGenerationSection -->
 <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card p-4 sm:p-5 space-y-3.5 transition hover:shadow-[0_4px_30px_rgba(15,23,42,0.06)]">
   <!-- Form Input Controls & Generate Button -->
@@ -306,20 +313,19 @@
 </section>
 <!-- END: DataPreviewSection -->
     </div>
-    
-    <!-- Right Column (History) -->
-    <div class="xl:col-span-1 space-y-4">
-      <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card p-4 sm:p-5 h-full">
-        <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-          <span class="text-indigo-500">🕒</span> Riwayat Laporan
+  </div>
+  
+  <div id="tab-content-history" class="hidden space-y-8 min-w-0">
+      <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card p-6 min-h-[500px]">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
+          <span class="text-indigo-500">🕒</span> Semua Riwayat Laporan
         </h2>
-        <div id="history-list" class="space-y-3 max-h-[1000px] overflow-y-auto pr-2 custom-scrollbar">
-          <div class="flex items-center justify-center py-10">
-            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+        <div id="history-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div class="flex col-span-full items-center justify-center py-10">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         </div>
       </div>
-    </div>
   </div>
 </main>
 <!-- END: MainContentArea -->
@@ -477,8 +483,9 @@
               } else {
                 headHtml += '<th class="py-1.5 px-2.5 border-r border-slate-200/70"></th>';
               }
-              row.cols.forEach(col => {
-                headHtml += `<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider text-right border-r border-slate-200/70 leading-tight whitespace-nowrap" colspan="${col.colspan || 1}">${col.label || ''}</th>`;
+              let colsArray = Array.isArray(row) ? row : (row.cols || []);
+              colsArray.forEach(col => {
+                headHtml += `<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider text-right border-r border-slate-200/70 leading-tight whitespace-nowrap" colspan="${col.colspan || 1}">${col.label || col.val || ''}</th>`;
               });
               headHtml += '</tr>';
             });
@@ -639,5 +646,36 @@
   document.addEventListener("DOMContentLoaded", () => {
       loadHistory();
   });
+  
+  function switchMainTab(tabName) {
+      const btnGenerate = document.getElementById('tab-btn-generate');
+      const btnHistory = document.getElementById('tab-btn-history');
+      const indGenerate = document.getElementById('tab-indicator-generate');
+      const indHistory = document.getElementById('tab-indicator-history');
+      const contentGenerate = document.getElementById('tab-content-generate');
+      const contentHistory = document.getElementById('tab-content-history');
+      
+      if (tabName === 'generate') {
+          // Tab active styles
+          btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition";
+          btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1";
+          indGenerate.classList.remove('hidden');
+          indHistory.classList.add('hidden');
+          
+          // Content visibility
+          contentGenerate.classList.remove('hidden');
+          contentHistory.classList.add('hidden');
+      } else if (tabName === 'history') {
+          // Tab active styles
+          btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition";
+          btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1";
+          indHistory.classList.remove('hidden');
+          indGenerate.classList.add('hidden');
+          
+          // Content visibility
+          contentHistory.classList.remove('hidden');
+          contentGenerate.classList.add('hidden');
+      }
+  }
 </script>
 </body></html>

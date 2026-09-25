@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISA Report Builder (Independent)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { height: 7px; width: 7px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased min-h-screen flex flex-col relative">
+
+<!-- Header -->
+<header class="bg-white/80 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-40 transition shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]">
+    <div class="max-w-[1600px] mx-auto px-6 lg:px-12 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-black tracking-tight text-slate-900 leading-tight">
+                ISA Independent Report Builder
+            </h1>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-purple-50 text-purple-700 border border-purple-200/80">
+                EXPERIMENTAL
+            </span>
+        </div>
+        <div class="flex items-center space-x-3.5">
+            <a href="/dashboard" class="inline-flex items-center space-x-2 px-3.5 py-1.5 border border-slate-300/80 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50">
+                <span class="font-medium">Kembali ke Dashboard</span>
+            </a>
+        </div>
+    </div>
+</header>
+
+<main class="flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8">
+    <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
+        <!-- Sidebar: Configuration -->
+        <div class="xl:col-span-1 space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span class="text-indigo-500">⚙️</span> Konfigurasi Utama
+                </h2>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Perusahaan</label>
+                    <select id="company-select" class="w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Nama Laporan</label>
+                    <input type="text" id="template-name" class="w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500" placeholder="Misal: Laba Rugi 2026">
+                </div>
+                <button onclick="saveTemplate()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all active:scale-[0.98]">
+                    💾 Simpan Laporan
+                </button>
+                <div id="save-status" class="text-xs text-center font-medium mt-2 hidden"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+                <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span class="text-indigo-500">⛴️</span> Pilih Kapal (Kolom)
+                </h2>
+                <div class="flex space-x-2">
+                    <input type="text" id="search-vessel" class="flex-1 text-xs border border-slate-200 rounded-lg p-1.5" placeholder="Cari kapal...">
+                    <button onclick="addVessel()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 hover:bg-indigo-100">+</button>
+                </div>
+                <div id="selected-vessels" class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                    <!-- Vessel items go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Builder -->
+        <div class="xl:col-span-3 space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span class="text-indigo-500">📊</span> Susunan Baris Laporan
+                    </h2>
+                    <div class="space-x-2">
+                        <button onclick="addRow('data')" class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-200 hover:bg-emerald-100">+ Baris Data</button>
+                        <button onclick="addRow('formula')" class="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-200 hover:bg-amber-100">+ Baris Formula</button>
+                    </div>
+                </div>
+
+                <div class="border rounded-xl border-slate-200 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="p-3 w-12 text-center">Urutan</th>
+                                <th class="p-3 w-20">Kode</th>
+                                <th class="p-3 w-64">Nama Baris / Label</th>
+                                <th class="p-3">Sumber Data (Tag) / Rumus</th>
+                                <th class="p-3 w-24 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rows-container" class="divide-y divide-slate-100">
+                            <!-- Rows go here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    let dbVessels = [];
+    let dbTags = [];
+    let selectedVessels = [];
+    let reportRows = [];
+    let rowCounter = 0;
+
+    async function initBuilder() {
+        // Load companies
+        try {
+            let res = await fetch('/api/companies');
+            let data = await res.json();
+            if (data.status === 'success' && data.data) {
+                let sel = document.getElementById('company-select');
+                sel.innerHTML = '<option value="">-- Pilih Perusahaan --</option>';
+                data.data.forEach(c => {
+                    sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+                
+                sel.addEventListener('change', async (e) => {
+                    if(e.target.value) {
+                        await loadCompanyData(e.target.value);
+                    }
+                });
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadCompanyData(companyId) {
+        // Fetch vessels and tags
+        try {
+            let res = await fetch(`/api/builder/vessels?company_id=${companyId}`);
+            dbVessels = await res.json();
+            
+            let res2 = await fetch(`/api/builder/tags?company_id=${companyId}`);
+            dbTags = await res2.json();
+            
+            console.log("Loaded", dbVessels.length, "vessels and", dbTags.length, "tags");
+        } catch(e) {
+            console.error(e);
+            alert("Gagal memuat data dari database!");
+        }
+    }
+
+    function addVessel() {
+        let input = document.getElementById('search-vessel').value.toLowerCase();
+        let match = dbVessels.find(v => v.name.toLowerCase().includes(input));
+        if (match && !selectedVessels.find(sv => sv.id === match.id)) {
+            selectedVessels.push(match);
+            renderVessels();
+            document.getElementById('search-vessel').value = '';
+        } else if (!match) {
+            alert("Kapal tidak ditemukan!");
+        } else {
+            alert("Kapal sudah ditambahkan!");
+        }
+    }
+
+    function removeVessel(id) {
+        selectedVessels = selectedVessels.filter(v => v.id !== id);
+        renderVessels();
+    }
+
+    function renderVessels() {
+        let html = '';
+        selectedVessels.forEach(v => {
+            html += `
+            <div class="flex justify-between items-center bg-slate-50 border border-slate-200 p-2 rounded-lg text-xs">
+                <span class="font-medium text-slate-700 truncate w-4/5" title="${v.name}">${v.name}</span>
+                <button onclick="removeVessel(${v.id})" class="text-red-500 hover:text-red-700 font-bold">✕</button>
+            </div>
+            `;
+        });
+        document.getElementById('selected-vessels').innerHTML = html;
+    }
+
+    function addRow(type) {
+        rowCounter++;
+        let code = `R${rowCounter}`;
+        reportRows.push({
+            id: rowCounter,
+            code: code,
+            type: type,
+            label: `Baris ${rowCounter}`,
+            expression: type === 'data' ? '' : `${code} = `
+        });
+        renderRows();
+    }
+
+    function updateRow(id, field, value) {
+        let r = reportRows.find(x => x.id === id);
+        if (r) r[field] = value;
+    }
+
+    function removeRow(id) {
+        reportRows = reportRows.filter(x => x.id !== id);
+        renderRows();
+    }
+
+    function renderRows() {
+        let html = '';
+        reportRows.forEach((r, idx) => {
+            let bgClass = r.type === 'data' ? 'bg-white' : 'bg-amber-50/30';
+            
+            let tagOptions = '<option value="">-- Pilih Tag Akuntansi --</option>';
+            dbTags.forEach(t => {
+                let sel = r.expression === t ? 'selected' : '';
+                tagOptions += `<option value="${t}" ${sel}>${t}</option>`;
+            });
+
+            let inputHtml = r.type === 'data' 
+                ? `<select onchange="updateRow(${r.id}, 'expression', this.value)" class="w-full text-xs p-1.5 border border-slate-300 rounded">${tagOptions}</select>`
+                : `<input type="text" onchange="updateRow(${r.id}, 'expression', this.value)" value="${r.expression}" class="w-full text-xs p-1.5 border border-slate-300 rounded font-mono" placeholder="Misal: R1 + R2">`;
+
+            html += `
+            <tr class="${bgClass}">
+                <td class="p-2 text-center text-xs font-bold text-slate-400">${idx + 1}</td>
+                <td class="p-2"><input type="text" onchange="updateRow(${r.id}, 'code', this.value)" value="${r.code}" class="w-full text-xs font-mono font-bold text-blue-600 bg-transparent p-1 border-b border-transparent focus:border-blue-300 outline-none"></td>
+                <td class="p-2"><input type="text" onchange="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs font-semibold text-slate-800 bg-transparent p-1 border-b border-transparent focus:border-blue-300 outline-none"></td>
+                <td class="p-2">${inputHtml}</td>
+                <td class="p-2 text-right">
+                    <button onclick="removeRow(${r.id})" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50">Hapus</button>
+                </td>
+            </tr>
+            `;
+        });
+        document.getElementById('rows-container').innerHTML = html;
+    }
+
+    async function saveTemplate() {
+        let companyId = document.getElementById('company-select').value;
+        let name = document.getElementById('template-name').value;
+        let statusDiv = document.getElementById('save-status');
+        
+        if (!companyId || !name) {
+            alert("Pilih Perusahaan dan isi Nama Laporan!");
+            return;
+        }
+
+        let config = {
+            vessels: selectedVessels,
+            rows: reportRows
+        };
+
+        statusDiv.innerHTML = "Menyimpan...";
+        statusDiv.className = "text-xs text-center font-medium mt-2 text-blue-600 block";
+
+        try {
+            let res = await fetch('/api/builder/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company_id: parseInt(companyId),
+                    name: name,
+                    config: config
+                })
+            });
+            let data = await res.json();
+            if (data.status === 'success') {
+                statusDiv.innerHTML = "✅ Berhasil disimpan! (ID: " + data.id + ")";
+                statusDiv.className = "text-xs text-center font-medium mt-2 text-emerald-600 block";
+            }
+        } catch(e) {
+            console.error(e);
+            statusDiv.innerHTML = "❌ Gagal menyimpan";
+            statusDiv.className = "text-xs text-center font-medium mt-2 text-red-600 block";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        initBuilder();
+    });
+</script>
+</body>
+</html>

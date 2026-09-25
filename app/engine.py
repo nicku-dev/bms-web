@@ -16,6 +16,28 @@ class ReportEngine:
         pg_url = settings.get_postgres_connection_string(db_name)
         self.conn.execute(f"ATTACH '{pg_url}' AS pg (TYPE postgres, READ_ONLY);")
 
+    def get_all_tags(self) -> list[str]:
+        """Fetches all unique account tags from the database."""
+        query = "SELECT DISTINCT name->>'en_US' as tag_name FROM account_account_tag WHERE name->>'en_US' IS NOT NULL ORDER BY tag_name"
+        duckdb_query = f"SELECT * FROM postgres_query('pg', $${query}$$)"
+        try:
+            df = self.conn.execute(duckdb_query).df()
+            return df['tag_name'].tolist()
+        except Exception as e:
+            print(f"Error fetching tags: {e}")
+            return []
+
+    def get_all_vessels(self) -> list[dict]:
+        """Fetches all fleet combinations (vessels)."""
+        query = "SELECT id, name, is_third_party FROM fleet_combination ORDER BY name"
+        duckdb_query = f"SELECT * FROM postgres_query('pg', $${query}$$)"
+        try:
+            df = self.conn.execute(duckdb_query).df()
+            return df.to_dict('records')
+        except Exception as e:
+            print(f"Error fetching vessels: {e}")
+            return []
+
     def get_all_quarters_by_tag(
         self, 
         year: int,
@@ -47,7 +69,6 @@ class ReportEngine:
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
             """
         else:
-            is_third_party_str = 'true' if report_type == 'non_fps' else 'false'
             query = f"""
                 SELECT 
                     fc.name AS vessel_name,
@@ -64,7 +85,6 @@ class ReportEngine:
                 WHERE aml.parent_state = 'posted'
                   AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')
                   AND EXTRACT(YEAR FROM aml.date) = {year}
-                  AND fc.is_third_party = {is_third_party_str}
                 GROUP BY fc.name, EXTRACT(QUARTER FROM aml.date)
             """
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
@@ -74,7 +94,6 @@ class ReportEngine:
         if report_type == 'ho':
             return pd.DataFrame(columns=['vessel_name', 'quarter', 'value'])
             
-        is_third_party_str = 'true' if report_type == 'non_fps' else 'false'
         query = f"""
             SELECT vessel_name, quarter, SUM(trip_count) AS value
             FROM (
@@ -90,7 +109,6 @@ class ReportEngine:
                 JOIN fleet_combination fc ON fc.id = so.nama_kapal_id
                 WHERE am.state = 'posted'
                   AND EXTRACT(YEAR FROM am.invoice_date) = {year}
-                  AND fc.is_third_party = {is_third_party_str}
                 GROUP BY am.id, so.name, fc.name, EXTRACT(QUARTER FROM am.invoice_date)
             ) sub
             GROUP BY vessel_name, quarter
@@ -102,7 +120,6 @@ class ReportEngine:
         if report_type == 'ho':
             return pd.DataFrame(columns=['vessel_name', 'quarter', 'value'])
             
-        is_third_party_str = 'true' if report_type == 'non_fps' else 'false'
         query = f"""
             SELECT 
                 fc.name AS vessel_name,
@@ -115,7 +132,6 @@ class ReportEngine:
             JOIN fleet_vehicle_model fvm ON fv.model_id = fvm.id
             LEFT JOIN fleet_vehicle fv3 ON fc.secondary_ship = fv3.id
             LEFT JOIN fleet_vehicle_model fvm3 ON fv3.model_id = fvm3.id
-            WHERE fc.is_third_party = {is_third_party_str}
         """
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
         return self.conn.execute(duckdb_query).df()

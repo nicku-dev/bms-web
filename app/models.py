@@ -52,3 +52,14 @@ class ReportHistory(Base):
 
     company = relationship('Company')
     user = relationship('User')
+
+class CustomBuilderTemplate(Base):
+    __tablename__ = 'custom_builder_templates'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    company_id = Column(Integer, ForeignKey('companies.id'), nullable=False)
+    name = Column(String(100), nullable=False)
+    config_json = Column(String, nullable=False) # JSON storing rows, columns, styles
+    created_at = Column(String(50), nullable=False)
+    updated_at = Column(String(50), nullable=False)
+    
+    company = relationship('Company')
