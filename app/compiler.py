@@ -71,7 +71,12 @@ class FastMatrixCompiler:
                         vessel_df = df
                         # If the column header belongs to a specific vessel, filter it.
                         if vessel and vessel != 'Total' and 'Kapal' in vessel:
-                            vessel_df = df[df['vessel_name'] == vessel]
+                            clean_vessel = vessel.replace('Kapal - ', '').strip()
+                            vessel_df = df[df['vessel_name'] == clean_vessel]
+                            
+                            # Fallback to contains if exact match fails
+                            if vessel_df.empty:
+                                vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
                         
                         val = 0
                         if period in ['q1', 'q2', 'q3', 'q4']:
