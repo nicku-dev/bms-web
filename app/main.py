@@ -59,9 +59,8 @@ async def api_login(req: LoginRequest):
 
         authenticated = False
         
-        if req.username in ["admin_isa", "admin_dev"] or user.role == "admin":
-            if user.password == req.password:
-                authenticated = True
+        if user.password == req.password:
+            authenticated = True
         else:
             # XML-RPC Authentication with Odoo
             context = ssl._create_unverified_context()
@@ -421,7 +420,9 @@ async def api_admin_template_detail(template_id: int):
                         data["rows"].append(label)
                         
             if "header" in skeleton and len(skeleton["header"]) > 0:
-                for col in skeleton["header"][0].get("cols", []):
+                h0 = skeleton["header"][0]
+                cols = h0 if isinstance(h0, list) else h0.get("cols", [])
+                for col in cols:
                     data["cols"].append(col.get("label", ""))
                     
         return {"status": "success", "data": data}
@@ -612,6 +613,98 @@ async def api_get_history(request: Request):
                 "user": h.user.username if h.user else "System"
             })
         return {"status": "success", "data": data}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+    role: str = 'user'
+    company_id: Optional[int] = None
+    is_active: bool = True
+
+class UserUpdateRequest(BaseModel):
+    username: str
+    password: Optional[str] = None
+    role: str = 'user'
+    company_id: Optional[int] = None
+    is_active: bool = True
+
+@app.get("/api/admin/users")
+async def api_admin_users():
+    db = SessionLocal()
+    users = db.query(User).all()
+    data = []
+    for u in users:
+        data.append({
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "company_id": u.company_id,
+            "company_name": u.company.name if u.company else "Semua",
+            "is_active": u.is_active
+        })
+    db.close()
+    return {"status": "success", "data": data}
+
+@app.post("/api/admin/users")
+async def api_admin_create_user(req: UserCreateRequest):
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.username == req.username).first():
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Username sudah ada"})
+            
+        u = User(
+            username=req.username,
+            password=req.password,
+            role=req.role,
+            company_id=req.company_id,
+            is_active=req.is_active
+        )
+        db.add(u)
+        db.commit()
+        return {"status": "success", "message": "User berhasil dibuat"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
+@app.put("/api/admin/users/{user_id}")
+async def api_admin_update_user(user_id: int, req: UserUpdateRequest):
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.id == user_id).first()
+        if not u:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "User tidak ditemukan"})
+            
+        if req.username != u.username and db.query(User).filter(User.username == req.username).first():
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Username sudah ada"})
+            
+        u.username = req.username
+        if req.password:
+            u.password = req.password
+        u.role = req.role
+        u.company_id = req.company_id
+        u.is_active = req.is_active
+        db.commit()
+        return {"status": "success", "message": "User berhasil diupdate"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
+@app.delete("/api/admin/users/{user_id}")
+async def api_admin_delete_user(user_id: int):
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.id == user_id).first()
+        if not u:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "User tidak ditemukan"})
+        db.delete(u)
+        db.commit()
+        return {"status": "success", "message": "User berhasil dihapus"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
     finally:

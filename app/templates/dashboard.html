@@ -127,7 +127,7 @@
 </button>
 
 <!-- Tab: Riwayat Laporan -->
-<button id="tab-btn-history" onclick="switchMainTab('history')" class="relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1" type="button">
+<button id="tab-btn-history" onclick="switchMainTab('history')" class="relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2" type="button">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🕒</span>
 <span class="">Riwayat Laporan</span>
 <div id="tab-indicator-history" class="hidden absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
@@ -315,7 +315,7 @@
     </div>
   </div>
   
-  <div id="tab-content-history" class="hidden space-y-8 min-w-0">
+  <div id="tab-content-history" class="hidden space-y-8 min-w-0 mt-8">
       <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card p-6 min-h-[500px]">
         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
           <span class="text-indigo-500">🕒</span> Semua Riwayat Laporan
@@ -645,8 +645,15 @@
   // Load history on load
   document.addEventListener("DOMContentLoaded", () => {
       loadHistory();
+      
+      // Handle URL tab parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab === 'history') {
+          switchMainTab('history');
+      }
   });
-  
+
   function switchMainTab(tabName) {
       const btnGenerate = document.getElementById('tab-btn-generate');
       const btnHistory = document.getElementById('tab-btn-history');
@@ -658,7 +665,7 @@
       if (tabName === 'generate') {
           // Tab active styles
           btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition";
-          btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1";
+          btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2";
           indGenerate.classList.remove('hidden');
           indHistory.classList.add('hidden');
           
@@ -668,7 +675,7 @@
       } else if (tabName === 'history') {
           // Tab active styles
           btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition";
-          btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1";
+          btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2";
           indHistory.classList.remove('hidden');
           indGenerate.classList.add('hidden');
           

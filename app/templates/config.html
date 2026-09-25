@@ -124,8 +124,15 @@
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🚀</span>
 <span class="">Buat Laporan</span>
 </a>
+
+<!-- Tab Nonaktif: Riwayat Laporan -->
+<a href="/dashboard?tab=history" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🕒</span>
+<span class="">Riwayat Laporan</span>
+</a>
+
 <!-- Tab Aktif: Konfigurasi Sistem -->
-<button class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition" type="button">
+<button class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition ml-auto" type="button">
 <span class="mr-2 text-base filter drop-shadow-xs">⚙️</span>
 <span class="">Konfigurasi Sistem</span>
 <div class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
@@ -135,13 +142,14 @@
 <!-- END: NavigationTabs -->
 <!-- BEGIN: MainContentArea -->
 <main class="relative z-10 flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8 space-y-8">
-  <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-bold text-slate-800">Manajemen Perusahaan</h2>
-      <button id="btn-add" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Tambah Perusahaan</button>
+  <!-- Manajemen Perusahaan -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+      <h3 class="text-sm font-semibold text-gray-800">Manajemen Perusahaan</h3>
+      <button id="btn-add" class="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">+ Tambah Perusahaan</button>
     </div>
     
-    <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -164,7 +172,7 @@
   <!-- Manajemen Template -->
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
     <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-      <h3 class="text-sm font-semibold text-gray-800">Daftar Template Laporan (Mapping ke Odoo)</h3>
+      <h3 class="text-sm font-semibold text-gray-800">Template Laporan</h3>
       <button onclick="openSyncModal()" class="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Tarik Skeleton dari Odoo</button>
     </div>
     <div class="overflow-x-auto">
@@ -184,6 +192,79 @@
           <!-- Template Rows -->
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Manajemen User -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+      <h3 class="text-sm font-semibold text-gray-800">Manajemen User</h3>
+      <button onclick="openUserModal()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ Tambah User</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akses Perusahaan</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="user-table" class="bg-white divide-y divide-gray-200">
+          <!-- User Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal User -->
+  <div id="user-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 transition-opacity" aria-hidden="true" onclick="closeUserModal()">
+        <div class="absolute inset-0 bg-gray-900 opacity-50"></div>
+      </div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4" id="user-modal-title">Tambah User</h3>
+          <input type="hidden" id="form-user-id">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">Username</label>
+              <input type="text" id="form-user-name" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">Password</label>
+              <input type="password" id="form-user-pass" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" placeholder="Ketik untuk set password baru">
+              <p class="text-[10px] text-gray-500 mt-1" id="form-user-pass-help">Isi untuk mengganti/mereset password, kosongkan jika tidak diubah.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">Role</label>
+              <select id="form-user-role" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">Akses Perusahaan</label>
+              <select id="form-user-company" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
+                <option value="">Semua Perusahaan (Admin)</option>
+              </select>
+            </div>
+            <div class="flex items-center">
+              <input type="checkbox" id="form-user-active" class="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded" checked>
+              <label class="ml-2 block text-sm text-gray-900 font-semibold">User Aktif</label>
+            </div>
+          </div>
+        </div>
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
+          <button type="button" onclick="saveUser()" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-semibold text-white hover:bg-emerald-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Simpan</button>
+          <button type="button" onclick="closeUserModal()" class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Batal</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -692,6 +773,132 @@
     // Load data on page load
     loadCompanies();
     loadTemplates();
+    loadUsers();
+    
+    // --- User Management JS --- //
+    async function loadUsers() {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        const tbody = document.getElementById('user-table');
+        tbody.innerHTML = '';
+        if(data.status === 'success') {
+            data.data.forEach(u => {
+                const tr = document.createElement('tr');
+                const badgeClass = u.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${u.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold">${u.username}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-semibold uppercase">${u.role}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${u.company_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}">${u.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick='editUser(${JSON.stringify(u)})' class="text-indigo-600 hover:text-indigo-900 mr-3 font-semibold">Edit</button>
+                        <button onclick="deleteUser(${u.id})" class="text-rose-600 hover:text-rose-900 font-semibold">Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+    
+    function openUserModal() {
+        document.getElementById('user-modal-title').innerText = "Tambah User";
+        document.getElementById('form-user-id').value = "";
+        document.getElementById('form-user-name').value = "";
+        document.getElementById('form-user-pass').value = "";
+        document.getElementById('form-user-role').value = "user";
+        document.getElementById('form-user-company').value = "";
+        document.getElementById('form-user-active').checked = true;
+        
+        // Populate companies dropdown
+        populateUserCompanies();
+        document.getElementById('user-modal').classList.remove('hidden');
+    }
+    
+    function closeUserModal() {
+        document.getElementById('user-modal').classList.add('hidden');
+    }
+    
+    function editUser(u) {
+        document.getElementById('user-modal-title').innerText = "Edit User";
+        document.getElementById('form-user-id').value = u.id;
+        document.getElementById('form-user-name').value = u.username;
+        document.getElementById('form-user-pass').value = "";
+        document.getElementById('form-user-role').value = u.role;
+        document.getElementById('form-user-active').checked = u.is_active;
+        
+        populateUserCompanies(u.company_id);
+        document.getElementById('user-modal').classList.remove('hidden');
+    }
+    
+    async function populateUserCompanies(selectedId = null) {
+        const res = await fetch('/api/companies');
+        const data = await res.json();
+        const sel = document.getElementById('form-user-company');
+        sel.innerHTML = '<option value="">Semua Perusahaan (Admin)</option>';
+        if(data.status === 'success') {
+            data.companies.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                if(selectedId && c.id == selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+    }
+    
+    async function saveUser() {
+        const id = document.getElementById('form-user-id').value;
+        const payload = {
+            username: document.getElementById('form-user-name').value,
+            role: document.getElementById('form-user-role').value,
+            company_id: document.getElementById('form-user-company').value ? parseInt(document.getElementById('form-user-company').value) : null,
+            is_active: document.getElementById('form-user-active').checked
+        };
+        
+        const pass = document.getElementById('form-user-pass').value;
+        if(pass) {
+            payload.password = pass;
+        } else if(!id) {
+            alert("Password wajib diisi untuk User baru!");
+            return;
+        }
+        
+        const url = id ? `/api/admin/users/${id}` : '/api/admin/users';
+        const method = id ? 'PUT' : 'POST';
+        
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                closeUserModal();
+                loadUsers();
+            } else {
+                alert(data.message || 'Gagal menyimpan user');
+            }
+        } catch(e) {
+            alert("Error: " + e);
+        }
+    }
+    
+    async function deleteUser(id) {
+        if(!confirm("Yakin ingin menghapus user ini?")) return;
+        try {
+            const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if(data.status === 'success') {
+                loadUsers();
+            } else {
+                alert(data.message);
+            }
+        } catch(e) {
+            alert("Error: " + e);
+        }
+    }
   </script>
 </main>
 <!-- END: MainContentArea -->
