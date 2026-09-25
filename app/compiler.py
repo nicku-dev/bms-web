@@ -18,9 +18,37 @@ class FastMatrixCompiler:
 
     def compile(self, matrix):
         print("🚀 FAST MATRIX COMPILER INITIATED")
-        for row in matrix.get('body', []):
-            label = row.get('label') or row.get('name') or ''
+        
+        # 1. Map columns to vessel and quarter
+        col_map = []
+        if len(matrix.get('header', [])) >= 2:
+            h0 = matrix['header'][0]
+            h1 = matrix['header'][1]
             
+            vessels = []
+            for h in h0:
+                colspan = h.get('colspan', 1)
+                vessel_name = str(h.get('val', '')).strip()
+                vessels.extend([vessel_name] * colspan)
+                
+            for i, h in enumerate(h1):
+                col_map.append({
+                    'vessel_name': vessels[i] if i < len(vessels) else None,
+                    'period': str(h.get('val', '')).strip().lower() # 'q1', 'q2', 'q3', 'q4', 'ytd'
+                })
+        
+        # Fallback if headers are missing (assume 5 columns Total)
+        if not col_map:
+            col_map = [
+                {'vessel_name': 'Total', 'period': 'q1'},
+                {'vessel_name': 'Total', 'period': 'q2'},
+                {'vessel_name': 'Total', 'period': 'q3'},
+                {'vessel_name': 'Total', 'period': 'q4'},
+                {'vessel_name': 'Total', 'period': 'ytd'},
+            ]
+
+        # 2. Iterate rows
+        for row in matrix.get('body', []):
             tag_name = None
             for cell in row.get('cells', []):
                 val_c = cell.get('val_c', '')
@@ -33,31 +61,30 @@ class FastMatrixCompiler:
             if tag_name:
                 df = self.get_df_by_tag(tag_name)
                 if df is not None and not df.empty:
-                    # Determine if row is a specific vessel or total
-                    vessel_df = df[df['vessel_name'] == label]
-                    is_total = False
-                    if vessel_df.empty:
-                        vessel_df = df
-                        is_total = True
-                        
-                    # Calculate Quarters
-                    q_vals = {1: 0, 2: 0, 3: 0, 4: 0}
-                    for _, r in vessel_df.iterrows():
-                        q = int(r['quarter'])
-                        if q in q_vals:
-                            q_vals[q] += float(r['value'] or 0)
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i >= len(col_map):
+                            continue
                             
-                    # Inject back to cells (assuming standard 5 columns: Q1, Q2, Q3, Q4, YTD)
-                    if len(row.get('cells', [])) >= 5:
-                        row['cells'][0]['val'] = q_vals[1]
-                        row['cells'][1]['val'] = q_vals[2]
-                        row['cells'][2]['val'] = q_vals[3]
-                        row['cells'][3]['val'] = q_vals[4]
-                        row['cells'][4]['val'] = sum(q_vals.values())
+                        vessel = col_map[i]['vessel_name']
+                        period = col_map[i]['period']
                         
-                        # Fix formatting for the UI
-                        for i in range(5):
-                            row['cells'][i]['val_r'] = "{:,.2f}".format(row['cells'][i]['val'])
+                        vessel_df = df
+                        # If the column header belongs to a specific vessel, filter it.
+                        if vessel and vessel != 'Total' and 'Kapal' in vessel:
+                            vessel_df = df[df['vessel_name'] == vessel]
+                        
+                        val = 0
+                        if period in ['q1', 'q2', 'q3', 'q4']:
+                            q_num = int(period[1])
+                            val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
+                        elif period == 'ytd' or period == 'total':
+                            val = vessel_df['value'].sum()
+                            
+                        # Convert numpy float64 to python float to avoid JSON serialization errors
+                        val = float(val)
+                            
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f}".format(val)
                             
         self.engine.close()
         return matrix
