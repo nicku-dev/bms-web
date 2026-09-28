@@ -298,6 +298,29 @@
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 shadow-2xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Satuan: IDR</span>
   </div>
 </div>
+<!-- BEGIN: Interactive Filters -->
+<div id="interactive-filters" class="hidden flex flex-wrap items-end gap-4 bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl mb-3 mt-3 shadow-inner">
+    <div class="flex flex-col">
+        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Filter Kapal / Entitas</label>
+        <select id="filter-ships" multiple class="text-xs rounded-lg border-slate-300 w-64 md:w-80 h-24 bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 custom-scrollbar">
+        </select>
+        <span class="text-[9px] text-slate-400 mt-1.5 font-medium">Tahan Ctrl/Cmd untuk pilih lebih dari satu</span>
+    </div>
+    <div class="flex flex-col">
+        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Filter Periode</label>
+        <select id="filter-periods" multiple class="text-xs rounded-lg border-slate-300 w-32 h-24 bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 custom-scrollbar">
+        </select>
+    </div>
+    <div class="flex flex-col gap-2 pb-1">
+        <button onclick="applyFilters()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm shadow-glow-blue transition active:scale-[0.98]">
+            <span class="mr-1">⚡</span> Terapkan Filter
+        </button>
+        <button onclick="resetFilters()" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition active:scale-[0.98]">
+            Tampilkan Semua
+        </button>
+    </div>
+</div>
+<!-- END: Interactive Filters -->
 <!-- Financial Data Grid Container -->
 <div id="preview-wrapper" class="bg-white border border-slate-200 rounded-2xl shadow-subtle-card overflow-hidden ring-1 ring-black/5 transition-all duration-300 transform origin-top-left flex-1 flex flex-col">
 <div id="table-scroll-container" class="overflow-auto max-h-[820px] relative custom-scrollbar">
@@ -473,64 +496,9 @@
           }
           
           if(data.matrix) {
-            const thead = document.getElementById('report-thead');
-            const tbody = document.getElementById('report-tbody');
-            
-            // Render Header
-            let headHtml = '';
-            data.matrix.header.forEach((row, i) => {
-              headHtml += '<tr>';
-              if (i === 0) {
-                headHtml += '<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider border-r border-slate-200/70" scope="col" style="width:1%;"><div class="resize-x overflow-hidden min-w-[200px] w-[280px] max-w-[600px] leading-tight">Uraian / Keterangan</div></th>';
-              } else {
-                headHtml += '<th class="py-1.5 px-2.5 border-r border-slate-200/70"></th>';
-              }
-              let colsArray = Array.isArray(row) ? row : (row.cols || []);
-              colsArray.forEach(col => {
-                headHtml += `<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider text-right border-r border-slate-200/70 leading-tight whitespace-nowrap" colspan="${col.colspan || 1}">${col.label || col.val || ''}</th>`;
-              });
-              headHtml += '</tr>';
-            });
-            thead.innerHTML = headHtml;
-            
-            // Render Body
-            let bodyHtml = '';
-            data.matrix.body.forEach(row => {
-              let isBold = row.style && row.style.includes('font-weight: bold');
-              let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
-              let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 2, 16)}` : 'pl-2.5';
-              let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
-              
-              let rowStyleAttr = row.style ? `style="${row.style}"` : '';
-              bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
-              bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug">${row.label || ''}</td>`;
-              
-              if (row.cells) {
-                row.cells.forEach(cell => {
-                  let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
-                  if (val === 'undefined' || val === '#ERR') val = '';
-                  if (typeof val === 'number') {
-                    val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-                  }
-                  let cellBold = cell.style && cell.style.includes('font-weight: bold');
-                  let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
-                  let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
-                  bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70 text-[11px] whitespace-nowrap ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
-                });
-              }
-              bodyHtml += '</tr>';
-            });
-            tbody.innerHTML = bodyHtml;
-            
-            // Apply Sticky Column and Resizable
-            const allFirstTh = thead.querySelectorAll('th:first-child');
-            allFirstTh.forEach(th => {
-              th.classList.add('sticky', 'left-0', 'bg-slate-100', 'z-40');
-            });
-            const allFirstTd = tbody.querySelectorAll('td:first-child');
-            allFirstTd.forEach(td => {
-              td.classList.add('sticky', 'left-0', 'bg-white', 'z-30');
-            });
+            window.currentMatrixData = data.matrix;
+            buildFilterOptions(data.matrix);
+            renderMatrix(data.matrix);
             
             // Update Title
             const reportSelect = document.getElementById('laporan-select');
@@ -540,6 +508,7 @@
             }
             
             loadHistory(); // reload history
+            document.getElementById('interactive-filters').classList.remove('hidden');
           }
         }, 500);
       } else {
@@ -564,6 +533,161 @@
       }, 500);
     }
   });
+
+  // --- INTERACTIVE FILTER & MATRIX RENDER LOGIC ---
+  function buildFilterOptions(matrix) {
+      if(!matrix.header || matrix.header.length === 0) return;
+      let h0 = Array.isArray(matrix.header[0]) ? matrix.header[0] : (matrix.header[0].cols || []);
+      let h1 = matrix.header.length > 1 ? (Array.isArray(matrix.header[1]) ? matrix.header[1] : (matrix.header[1].cols || [])) : [];
+      
+      const shipSelect = document.getElementById('filter-ships');
+      const periodSelect = document.getElementById('filter-periods');
+      shipSelect.innerHTML = '';
+      periodSelect.innerHTML = '';
+      
+      let uniqueShips = [];
+      let uniquePeriods = [];
+      
+      h0.forEach(col => {
+          let s = col.label || col.val || 'Unknown';
+          if(s && !uniqueShips.includes(s)) uniqueShips.push(s);
+      });
+      h1.forEach(col => {
+          let p = col.label || col.val || 'Unknown';
+          if(p && !uniquePeriods.includes(p)) uniquePeriods.push(p);
+      });
+      
+      uniqueShips.forEach(s => {
+          shipSelect.innerHTML += `<option value="${s}" selected>${s}</option>`;
+      });
+      uniquePeriods.forEach(p => {
+          periodSelect.innerHTML += `<option value="${p}" selected>${p}</option>`;
+      });
+  }
+  
+  function applyFilters() {
+      if(!window.currentMatrixData) return;
+      
+      const shipOptions = Array.from(document.getElementById('filter-ships').selectedOptions).map(o => o.value);
+      const periodOptions = Array.from(document.getElementById('filter-periods').selectedOptions).map(o => o.value);
+      
+      renderMatrix(window.currentMatrixData, shipOptions, periodOptions);
+  }
+  
+  function resetFilters() {
+      const shipSelect = document.getElementById('filter-ships');
+      const periodSelect = document.getElementById('filter-periods');
+      Array.from(shipSelect.options).forEach(o => o.selected = true);
+      Array.from(periodSelect.options).forEach(o => o.selected = true);
+      applyFilters();
+  }
+  
+  function renderMatrix(matrix, allowedShips = null, allowedPeriods = null) {
+      const thead = document.getElementById('report-thead');
+      const tbody = document.getElementById('report-tbody');
+      
+      if(!matrix.header || matrix.header.length === 0) return;
+      
+      let h0 = Array.isArray(matrix.header[0]) ? matrix.header[0] : (matrix.header[0].cols || []);
+      let h1 = matrix.header.length > 1 ? (Array.isArray(matrix.header[1]) ? matrix.header[1] : (matrix.header[1].cols || [])) : [];
+      
+      // Build Mapping
+      let meta = [];
+      let cellIndex = 0;
+      h0.forEach(ship => {
+          let span = ship.colspan || 1;
+          let shipName = ship.label || ship.val || 'Unknown';
+          for(let i=0; i<span; i++) {
+              let periodName = h1[cellIndex] ? (h1[cellIndex].label || h1[cellIndex].val || 'Unknown') : 'Unknown';
+              meta.push({
+                  index: cellIndex,
+                  ship: shipName,
+                  period: periodName
+              });
+              cellIndex++;
+          }
+      });
+      
+      // Determine Active Indexes
+      let activeIndexes = [];
+      meta.forEach(m => {
+          let shipOk = allowedShips === null || allowedShips.includes(m.ship);
+          let periodOk = allowedPeriods === null || allowedPeriods.includes(m.period);
+          if(shipOk && periodOk) {
+              activeIndexes.push(m.index);
+          }
+      });
+      
+      // Rebuild Header HTML
+      let headHtml = '<tr><th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider border-r border-slate-200/70 sticky left-0 bg-slate-100 z-40" scope="col" style="width:1%;"><div class="resize-x overflow-hidden min-w-[200px] w-[280px] max-w-[600px] leading-tight">Uraian / Keterangan</div></th>';
+      
+      // Build new H0 (Ships)
+      let newH0 = [];
+      let currentShip = null;
+      let currentSpan = 0;
+      activeIndexes.forEach(idx => {
+          let m = meta[idx];
+          if(m.ship !== currentShip) {
+              if(currentShip !== null) newH0.push({label: currentShip, colspan: currentSpan});
+              currentShip = m.ship;
+              currentSpan = 1;
+          } else {
+              currentSpan++;
+          }
+      });
+      if(currentShip !== null) newH0.push({label: currentShip, colspan: currentSpan});
+      
+      newH0.forEach(col => {
+          headHtml += `<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider text-center border-r border-slate-200/70 bg-slate-100/90 leading-tight whitespace-nowrap text-slate-800" colspan="${col.colspan}">${col.label}</th>`;
+      });
+      headHtml += '</tr>';
+      
+      // Build new H1 (Periods)
+      if(h1.length > 0) {
+          headHtml += '<tr><th class="py-1.5 px-2.5 border-r border-slate-200/70 sticky left-0 bg-slate-100 z-40"></th>';
+          activeIndexes.forEach(idx => {
+              let m = meta[idx];
+              headHtml += `<th class="py-1.5 px-2.5 font-bold text-[10px] uppercase tracking-wider text-right border-r border-slate-200/70 bg-slate-50/90 leading-tight whitespace-nowrap text-slate-600">${m.period}</th>`;
+          });
+          headHtml += '</tr>';
+      }
+      thead.innerHTML = headHtml;
+      
+      // Render Body
+      let bodyHtml = '';
+      matrix.body.forEach(row => {
+          let isBold = row.style && row.style.includes('font-weight: bold');
+          let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
+          let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 2, 16)}` : 'pl-2.5';
+          let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
+          
+          let rowStyleAttr = row.style ? `style="${row.style}"` : '';
+          bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
+          bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug sticky left-0 z-30 ${isBold ? 'bg-slate-50' : 'bg-white'}">${row.label || ''}</td>`;
+          
+          if (row.cells) {
+              activeIndexes.forEach(idx => {
+                  let cell = row.cells[idx];
+                  if(!cell) {
+                      bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70"></td>`;
+                      return;
+                  }
+                  let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
+                  if (val === 'undefined' || val === '#ERR') val = '';
+                  if (typeof val === 'number') {
+                    val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+                  }
+                  let cellBold = cell.style && cell.style.includes('font-weight: bold');
+                  let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
+                  let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
+                  bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70 text-[11px] whitespace-nowrap ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
+              });
+          }
+          bodyHtml += '</tr>';
+      });
+      tbody.innerHTML = bodyHtml;
+  }
+  // --- END INTERACTIVE FILTER ---
 
   // UI Zoom & Full Screen Logic
   let currentZoom = 1;
