@@ -147,8 +147,22 @@ def build_true_skeleton():
         
         print("Menggabungkan matrix...")
         merged = {"header": [[], []], "body": []}
+        # Membangun struktur baris master berdasarkan label (menggabungkan baris yang berbeda antar periode)
+        master_rows = []
+        master_labels = []
+        
+        for m in matrices:
+            for row in m.get("body", []):
+                label = row.get("label", "")
+                if label not in master_labels:
+                    master_labels.append(label)
+                    new_row = {k: v for k, v in row.items() if k != "cells"}
+                    new_row["cells"] = []
+                    master_rows.append(new_row)
+                    
         for i, m in enumerate(matrices):
-            if len(merged["header"][0]) == 0 and len(m["header"]) > 0:
+            # Gabungkan header
+            if len(merged["header"][0]) == 0 and len(m.get("header", [])) > 0:
                 merged["header"] = [[] for _ in range(len(m["header"]))]
                 
             for h_idx in range(len(m.get("header", []))):
@@ -159,12 +173,34 @@ def build_true_skeleton():
                     merged["header"][h_idx].extend(row)
                 else:
                     merged["header"][h_idx].append(row)
-                
-            if i == 0:
-                merged["body"] = m.get("body", [])
-            else:
-                for j, row in enumerate(m.get("body", [])):
-                    merged["body"][j]["cells"].extend(row.get("cells", []))
+            
+            # Hitung jumlah sel per baris di periode ini
+            num_cells = 0
+            if m.get("body") and len(m["body"]) > 0:
+                num_cells = len(m["body"][0].get("cells", []))
+            elif m.get("header") and len(m["header"]) > 0:
+                h_last = m["header"][-1]
+                if isinstance(h_last, dict) and 'cols' in h_last:
+                    num_cells = len(h_last['cols'])
+                else:
+                    num_cells = len(h_last)
+                    
+            # Ekstrak data sel dari matrix ini berdasarkan label
+            m_cells_by_label = {r.get("label", ""): r.get("cells", []) for r in m.get("body", [])}
+            
+            # Pad dan gabungkan sel ke master_rows
+            for mr in master_rows:
+                lbl = mr.get("label", "")
+                if lbl in m_cells_by_label:
+                    cells = m_cells_by_label[lbl]
+                    # Pastikan jumlah sel sesuai
+                    if len(cells) < num_cells:
+                        cells.extend([{'val': ''} for _ in range(num_cells - len(cells))])
+                    mr["cells"].extend(cells)
+                else:
+                    mr["cells"].extend([{'val': ''} for _ in range(num_cells)])
+                    
+        merged["body"] = master_rows
                     
         template = db.query(ReportTemplate).filter(
             ReportTemplate.company_id == c_id,
