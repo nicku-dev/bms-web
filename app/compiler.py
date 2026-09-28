@@ -11,10 +11,11 @@ class FastMatrixCompiler:
         # Precompute common KPIs to memory to avoid multiple queries
         self.cache = {}
         
-    def get_df_by_tag(self, tag):
-        if tag not in self.cache:
-            self.cache[tag] = self.engine.get_all_quarters_by_tag(self.year, tag, self.report_type)
-        return self.cache[tag]
+    def get_df_by_tag_and_account(self, tag, account_code):
+        cache_key = f"{tag}_{account_code}"
+        if cache_key not in self.cache:
+            self.cache[cache_key] = self.engine.get_all_quarters_by_tag(self.year, tag, self.report_type, account_code)
+        return self.cache[cache_key]
 
     def compile(self, matrix):
         print("🚀 FAST MATRIX COMPILER INITIATED")
@@ -50,16 +51,22 @@ class FastMatrixCompiler:
         # 2. Iterate rows
         for row in matrix.get('body', []):
             tag_name = None
+            account_code = None
             for cell in row.get('cells', []):
                 val_c = cell.get('val_c', '')
-                if val_c and type(val_c) == str and 'tag_ids.name' in val_c:
-                    match = re.search(r"'tag_ids\.name',\s*'=',\s*'([^']+)'", val_c)
-                    if match:
-                        tag_name = match.group(1)
-                        break
+                if val_c and type(val_c) == str:
+                    tag_match = re.search(r"'tag_ids\.name',\s*'=',\s*'([^']+)'", val_c)
+                    if tag_match:
+                        tag_name = tag_match.group(1)
                         
-            if tag_name:
-                df = self.get_df_by_tag(tag_name)
+                    acc_match = re.search(r"'account_id\.code',\s*'=like',\s*'([^']+)'", val_c)
+                    if not acc_match:
+                        acc_match = re.search(r"'account_id\.code',\s*'=',\s*'([^']+)'", val_c)
+                    if acc_match:
+                        account_code = acc_match.group(1).replace('%', '')
+                        
+            if tag_name or account_code:
+                df = self.get_df_by_tag_and_account(tag_name, account_code)
                 if df is not None and not df.empty:
                     for i, cell in enumerate(row.get('cells', [])):
                         if i >= len(col_map):

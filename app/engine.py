@@ -42,13 +42,21 @@ class ReportEngine:
         self, 
         year: int,
         tag_name: str, 
-        report_type: str = 'fps'
+        report_type: str = 'fps',
+        account_code: Optional[str] = None
     ) -> pd.DataFrame:
         """
-        Extracts the financial metric (sum of -balance) for a specific account, 
+        Extracts the financial metric (sum of -balance) for a specific account or tag, 
         grouped by vessel and quarter.
-        report_type can be 'fps', 'non_fps', or 'ho'.
         """
+        tag_filter = ""
+        if tag_name:
+            tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            
+        acc_filter = ""
+        if account_code:
+            acc_filter = f"AND aa.code LIKE '{account_code}%'"
+            
         if report_type == 'ho':
             query = f"""
                 SELECT 
@@ -60,10 +68,11 @@ class ReportEngine:
                 JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
                 JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN account_account aa ON aa.id = aml.account_id
-                JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-                JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
                 WHERE aml.parent_state = 'posted'
-                  AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')
+                  {tag_filter}
+                  {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
                   AND (aaa.name->>'en_US' = 'Head Office' OR aaa.name->>'id_ID' = 'Head Office')
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
@@ -80,10 +89,11 @@ class ReportEngine:
                 JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN fleet_combination fc ON fc.analytic_account_id = aaa.id
                 JOIN account_account aa ON aa.id = aml.account_id
-                JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-                JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
                 WHERE aml.parent_state = 'posted'
-                  AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')
+                  {tag_filter}
+                  {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
                 GROUP BY fc.name, EXTRACT(QUARTER FROM aml.date)
             """
