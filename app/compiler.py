@@ -108,20 +108,6 @@ class FastMatrixCompiler:
                         cell['val_r'] = "{:,.2f}".format(val)
                         
         # 3. Post-process pure formula rows (TPJ)
-        # Calculate total PENDAPATAN JASA across all vessels in DB
-        df_pj = self.get_df_by_tag_and_account('PENDAPATAN JASA', None)
-        if df_pj is None or df_pj.empty:
-            # Fallback for FPS report (might be named TW_PENDAPATAN JASA)
-            df_pj = self.get_df_by_tag_and_account('TW_PENDAPATAN JASA', None)
-            
-        total_pj_db = {'q1': 0.0, 'q2': 0.0, 'q3': 0.0, 'q4': 0.0, 'ytd': 0.0}
-        if df_pj is not None and not df_pj.empty:
-            total_pj_db['q1'] = float(df_pj[df_pj['quarter'] == 1]['value'].sum())
-            total_pj_db['q2'] = float(df_pj[df_pj['quarter'] == 2]['value'].sum())
-            total_pj_db['q3'] = float(df_pj[df_pj['quarter'] == 3]['value'].sum())
-            total_pj_db['q4'] = float(df_pj[df_pj['quarter'] == 4]['value'].sum())
-            total_pj_db['ytd'] = float(df_pj['value'].sum())
-
         # Grab PENDAPATAN JASA cells to copy into TPJ Per Kapal
         pendapatan_jasa_cells = None
         for row in matrix.get('body', []):
@@ -129,6 +115,20 @@ class FastMatrixCompiler:
             if label == 'PENDAPATAN JASA' or label == 'TW_PENDAPATAN JASA':
                 pendapatan_jasa_cells = row.get('cells', [])
                 break
+
+        # Calculate Total PENDAPATAN JASA for the ships IN THIS REPORT ONLY
+        total_pj_report = {'q1': 0.0, 'q2': 0.0, 'q3': 0.0, 'q4': 0.0, 'ytd': 0.0}
+        if pendapatan_jasa_cells:
+            for i, cell in enumerate(pendapatan_jasa_cells):
+                if i < len(col_map):
+                    vessel = col_map[i].get('vessel_name', '')
+                    period = col_map[i].get('period', '')
+                    
+                    # We ONLY sum the specific ship columns, not the 'Total' column if it exists
+                    if vessel and vessel.lower() != 'total':
+                        val = cell.get('val', 0.0)
+                        if period == 'total': period = 'ytd'
+                        total_pj_report[period] += val
 
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).strip()
@@ -144,7 +144,7 @@ class FastMatrixCompiler:
                     if i < len(col_map):
                         period = col_map[i]['period']
                         if period == 'total': period = 'ytd'
-                        val = total_pj_db.get(period, 0.0)
+                        val = total_pj_report.get(period, 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val)
                         
@@ -155,7 +155,7 @@ class FastMatrixCompiler:
                         if period == 'total': period = 'ytd'
                         
                         tpj_per_kapal = pendapatan_jasa_cells[i].get('val', 0.0) if (pendapatan_jasa_cells and i < len(pendapatan_jasa_cells)) else 0.0
-                        tpj_semua = total_pj_db.get(period, 0.0)
+                        tpj_semua = total_pj_report.get(period, 0.0)
                         
                         val = 0.0
                         if tpj_semua != 0:
