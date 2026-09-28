@@ -146,6 +146,108 @@ class ReportEngine:
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
         return self.conn.execute(duckdb_query).df()
 
+    def get_audit_trail(
+        self, 
+        year: int,
+        quarter: int,
+        vessel_name: str,
+        tag_name: Optional[str] = None, 
+        account_code: Optional[str] = None
+    ) -> list[dict]:
+        """
+        Fetches detailed journal items for a specific vessel, quarter, and account/tag.
+        """
+        tag_filter = ""
+        if tag_name:
+            tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            
+        acc_filter = ""
+        if account_code:
+            acc_filter = f"AND aa.code LIKE '{account_code}%'"
+            
+        vessel_filter = ""
+        if vessel_name and vessel_name != 'Head Office':
+            vessel_filter = f"AND fc.name = '{vessel_name}'"
+            
+        quarter_filter = ""
+        if quarter and quarter != 'ytd':
+            # quarter is e.g. 'q1' or 'Q1'
+            q_num = str(quarter).lower().replace('q', '')
+            if q_num in ['1', '2', '3', '4']:
+                quarter_filter = f"AND EXTRACT(QUARTER FROM aml.date) = {q_num}"
+            
+        if vessel_name == 'Head Office':
+            query = f"""
+                SELECT 
+                    am.name as move_name,
+                    aml.date::text as date,
+                    aml.name as label,
+                    aml.ref as ref,
+                    aa.code as account_code,
+                    aa.name->>'en_US' as account_name,
+                    rp.name as partner_name,
+                    aml.debit as debit,
+                    aml.credit as credit,
+                    (-aml.balance * (jad.value::numeric / 100.0)) as value
+                FROM account_move_line aml
+                JOIN account_move am ON am.id = aml.move_id
+                LEFT JOIN res_partner rp ON rp.id = aml.partner_id
+                JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
+                JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
+                JOIN account_analytic_account aaa ON aaa.id = split_key::int
+                JOIN account_account aa ON aa.id = aml.account_id
+                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                WHERE aml.parent_state = 'posted'
+                  {tag_filter}
+                  {acc_filter}
+                  AND EXTRACT(YEAR FROM aml.date) = {year}
+                  {quarter_filter}
+                  AND (aaa.name->>'en_US' = 'Head Office' OR aaa.name->>'id_ID' = 'Head Office')
+                ORDER BY aml.date DESC
+                LIMIT 500
+            """
+        else:
+            query = f"""
+                SELECT 
+                    am.name as move_name,
+                    aml.date::text as date,
+                    aml.name as label,
+                    aml.ref as ref,
+                    aa.code as account_code,
+                    aa.name->>'en_US' as account_name,
+                    rp.name as partner_name,
+                    aml.debit as debit,
+                    aml.credit as credit,
+                    (-aml.balance * (jad.value::numeric / 100.0)) as value
+                FROM account_move_line aml
+                JOIN account_move am ON am.id = aml.move_id
+                LEFT JOIN res_partner rp ON rp.id = aml.partner_id
+                JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
+                JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
+                JOIN account_analytic_account aaa ON aaa.id = split_key::int
+                JOIN fleet_combination fc ON fc.analytic_account_id = aaa.id
+                JOIN account_account aa ON aa.id = aml.account_id
+                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                WHERE aml.parent_state = 'posted'
+                  {tag_filter}
+                  {acc_filter}
+                  AND EXTRACT(YEAR FROM aml.date) = {year}
+                  {quarter_filter}
+                  {vessel_filter}
+                ORDER BY aml.date DESC
+                LIMIT 500
+            """
+            
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
+        try:
+            df = self.conn.execute(duckdb_query).df()
+            return df.to_dict('records')
+        except Exception as e:
+            print(f"Error fetching audit trail: {e}")
+            return []
+
     def close(self):
         """Closes the DuckDB connection."""
         self.conn.close()

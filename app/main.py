@@ -642,6 +642,44 @@ async def api_generate_report(req: ReportRequest, request: Request):
     finally:
         db.close()
 
+@app.get("/api/audit_trail")
+async def api_get_audit_trail(
+    company_id: int, 
+    year: int, 
+    quarter: str, 
+    vessel_name: str, 
+    tag_name: Optional[str] = None, 
+    account_code: Optional[str] = None,
+    request: Request = None
+):
+    if request and "session_token" not in request.cookies:
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
+
+    db = SessionLocal()
+    try:
+        company = db.query(Company).filter(Company.id == company_id, Company.is_active == True).first()
+        if not company:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Perusahaan tidak ditemukan."})
+
+        from app.engine import ReportEngine
+        engine = ReportEngine(db_name=company.target_db_name)
+        
+        # Quarter can be 'q1', 'q2', 'q3', 'q4', or 'ytd'
+        data = engine.get_audit_trail(
+            year=year,
+            quarter=quarter,
+            vessel_name=vessel_name,
+            tag_name=tag_name,
+            account_code=account_code
+        )
+        engine.close()
+        
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
 @app.get("/api/history")
 async def api_get_history(request: Request):
     username = request.cookies.get("session_token")

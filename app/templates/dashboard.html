@@ -774,6 +774,7 @@
           if (row.cells) {
               activeIndexes.forEach(idx => {
                   let cell = row.cells[idx];
+                  let m = meta[idx];
                   if(!cell) {
                       bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70"></td>`;
                       return;
@@ -783,8 +784,45 @@
                   if (typeof val === 'number') {
                     val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
                   }
+                  
+                  let val_c = cell.val_c || '';
+                  if (val !== '' && val !== '0' && val !== '0,00' && val_c && !rowLabel.includes('TPJ')) {
+                      let tag_name = '';
+                      let acc_code = '';
+                      
+                      if (val_c.includes('tag_ids.name')) {
+                          let m1 = val_c.match(/'tag_ids\.name',\s*'=',\s*'([^']+)'/);
+                          if (m1) tag_name = m1[1];
+                      }
+                      if (val_c.includes('account_id.code')) {
+                          let m2 = val_c.match(/'account_id\.code',\s*'=',\s*'([^']+)'/);
+                          if (m2) acc_code = m2[1];
+                          if (!m2) {
+                              m2 = val_c.match(/'account_id\.code',\s*'=like',\s*'([^']+)'/);
+                              if (m2) acc_code = m2[1].replace(/%/g,'');
+                          }
+                      }
+                      
+                      let period = m.period || '';
+                      let vessel = m.ship || '';
+                      let year = new Date().getFullYear(); 
+                      let titleEl = document.getElementById('report-title');
+                      if (titleEl) {
+                          let titleMatch = titleEl.innerText.match(/\d{4}/);
+                          if (titleMatch) year = titleMatch[0];
+                      }
+                      
+                      if (vessel !== 'Total' && vessel !== 'Grand Total' && (tag_name || acc_code)) {
+                          let clickAttr = `onclick="openAuditTrail('${year}', '${period}', '${vessel}', '${tag_name}', '${acc_code}', '${rowLabel.replace(/'/g, "\\'")}', '${val.replace(/'/g, "\\'")}')"`;
+                          val = `<span class="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline transition-all font-medium" ${clickAttr}>${val}</span>`;
+                      }
+                  }
+                  
                   let cellBold = cell.style && cell.style.includes('font-weight: bold');
                   let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
+                  if (val.includes('-') && !val.includes('span')) {
+                      cellClasses += ' text-red-600';
+                  }
                   let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
                   bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70 text-[11px] whitespace-nowrap ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
               });
@@ -948,5 +986,138 @@
           contentGenerate.classList.add('hidden');
       }
   }
+</script>
+
+  <!-- AUDIT TRAIL MODAL -->
+  <div id="auditTrailModal" class="fixed inset-0 z-[100] hidden">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onclick="closeAuditTrail()"></div>
+      <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-6xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+          
+          <!-- Header -->
+          <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white rounded-t-2xl">
+              <div>
+                  <h3 class="text-lg font-bold text-slate-800" id="auditTitle">Audit Trail</h3>
+                  <p class="text-xs font-medium text-slate-500 mt-0.5" id="auditSubtitle">Loading data...</p>
+              </div>
+              <button onclick="closeAuditTrail()" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+          </div>
+          
+          <!-- Body / Table -->
+          <div class="flex-1 overflow-auto p-0 relative">
+              <div id="auditLoading" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                  <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p class="mt-4 text-sm font-semibold text-slate-600 animate-pulse">Menarik detail jurnal dari Database Odoo...</p>
+              </div>
+              
+              <table class="w-full text-left border-collapse" id="auditTable">
+                  <thead class="sticky top-0 bg-slate-100/90 backdrop-blur-md shadow-sm z-20">
+                      <tr>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">Tanggal</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">No. Jurnal</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">Uraian / Label</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">Akun</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">Mitra / Partner</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 text-right">Debit</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 text-right">Kredit</th>
+                          <th class="py-3 px-4 text-[10px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 text-right">Nilai Lap.</th>
+                      </tr>
+                  </thead>
+                  <tbody id="auditTableBody" class="bg-white">
+                      <!-- Rows -->
+                  </tbody>
+              </table>
+          </div>
+          
+          <!-- Footer -->
+          <div class="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center rounded-b-2xl">
+              <p class="text-xs font-semibold text-slate-500" id="auditCount">0 baris</p>
+              <button onclick="closeAuditTrail()" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors">Tutup</button>
+          </div>
+          
+      </div>
+  </div>
+
+<script>
+      function openAuditTrail(year, quarter, vessel, tag_name, account_code, rowLabel, reportValue) {
+          const modal = document.getElementById('auditTrailModal');
+          const tbody = document.getElementById('auditTableBody');
+          const title = document.getElementById('auditTitle');
+          const subtitle = document.getElementById('auditSubtitle');
+          const loading = document.getElementById('auditLoading');
+          const count = document.getElementById('auditCount');
+          
+          modal.classList.remove('hidden');
+          loading.classList.remove('hidden');
+          tbody.innerHTML = '';
+          count.innerText = 'Memuat...';
+          
+          title.innerText = `Audit Trail: ${rowLabel}`;
+          subtitle.innerText = `Kapal: ${vessel} | ${quarter} ${year} | Total Laporan: ${reportValue}`;
+          
+          let companyId = document.getElementById('company-select').value;
+          
+          let url = `/api/audit_trail?company_id=${companyId}&year=${year}&quarter=${quarter}&vessel_name=${encodeURIComponent(vessel)}`;
+          if (tag_name) url += `&tag_name=${encodeURIComponent(tag_name)}`;
+          if (account_code) url += `&account_code=${encodeURIComponent(account_code)}`;
+          
+          fetch(url)
+              .then(res => res.json())
+              .then(data => {
+                  loading.classList.add('hidden');
+                  if (data.status === 'success' && data.data) {
+                      let html = '';
+                      let rows = data.data;
+                      
+                      if (rows.length === 0) {
+                          html = `<tr><td colspan="8" class="text-center py-8 text-sm text-slate-500 font-medium">Tidak ada rincian jurnal yang ditemukan.</td></tr>`;
+                      } else {
+                          let totalVal = 0;
+                          rows.forEach(r => {
+                              let v = parseFloat(r.value || 0);
+                              totalVal += v;
+                              let valColor = v < 0 ? 'text-red-600' : 'text-slate-800';
+                              html += `
+                                  <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors group">
+                                      <td class="py-2.5 px-4 text-[11px] text-slate-600 whitespace-nowrap">${r.date || '-'}</td>
+                                      <td class="py-2.5 px-4 text-[11px] font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-800" onclick="alert('Bisa diklik untuk buka tab ke Odoo Jurnal: ' + '${r.move_name}')">${r.move_name || '-'}</td>
+                                      <td class="py-2.5 px-4 text-[11px] text-slate-700 truncate max-w-[200px]" title="${r.label || ''}">${r.label || '-'}</td>
+                                      <td class="py-2.5 px-4 text-[11px] text-slate-600 font-mono">${r.account_code || ''} ${r.account_name || ''}</td>
+                                      <td class="py-2.5 px-4 text-[11px] text-slate-600 truncate max-w-[150px]" title="${r.partner_name || ''}">${r.partner_name || '-'}</td>
+                                      <td class="py-2.5 px-4 text-[11px] text-slate-600 text-right">${new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(r.debit || 0)}</td>
+                                      <td class="py-2.5 px-4 text-[11px] text-slate-600 text-right">${new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(r.credit || 0)}</td>
+                                      <td class="py-2.5 px-4 text-[11px] font-bold ${valColor} text-right">${new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(v)}</td>
+                                  </tr>
+                              `;
+                          });
+                          
+                          let totalColor = totalVal < 0 ? 'text-red-600' : 'text-blue-700';
+                          html += `
+                              <tr class="bg-slate-50 font-bold border-t-2 border-slate-200">
+                                  <td colspan="7" class="py-3 px-4 text-xs text-slate-700 text-right uppercase tracking-wider">Total Transaksi Ditemukan :</td>
+                                  <td class="py-3 px-4 text-[11px] ${totalColor} text-right">${new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2 }).format(totalVal)}</td>
+                              </tr>
+                          `;
+                      }
+                      
+                      tbody.innerHTML = html;
+                      count.innerText = `${rows.length} baris jurnal | (Hanya menampilkan maks 500 baris terbaru)`;
+                  } else {
+                      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm text-red-500 font-bold">Error: ${data.message || 'Gagal memuat data'}</td></tr>`;
+                      count.innerText = `Error`;
+                  }
+              })
+              .catch(err => {
+                  loading.classList.add('hidden');
+                  tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm text-red-500 font-bold">Koneksi terputus. Gagal memuat data dari server.</td></tr>`;
+                  count.innerText = `Error`;
+                  console.error(err);
+              });
+      }
+
+      function closeAuditTrail() {
+          document.getElementById('auditTrailModal').classList.add('hidden');
+      }
 </script>
 </body></html>
