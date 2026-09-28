@@ -32,12 +32,15 @@ def build_true_skeleton():
     local_ports = [8069, 8070, 8071, 8072, 8081, 8082, 8083, 8091, 8094, 8095, 8096, 8060, 8044]
     api = None
     import sys
+    from urllib.parse import urlparse
+    host_header = urlparse(c.server_url).netloc
+    
     for port in local_ports:
         test_url = f"http://127.0.0.1:{port}"
         sys.stdout.write(f"\r  Mencoba port {port}...    ")
         sys.stdout.flush()
         try:
-            temp_api = OdooAPI(c.target_db_name, test_url, c.odoo_user, c.odoo_password)
+            temp_api = OdooAPI(c.target_db_name, test_url, c.odoo_user, c.odoo_password, host_header=host_header)
             print(f"\nBerhasil terhubung ke Odoo lokal di port {port}!")
             api = temp_api
             break

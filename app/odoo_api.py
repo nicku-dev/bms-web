@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from app.config import settings
 
 class OdooAPI:
-    def __init__(self, db_name: str, url: str = None, username: str = None, password: str = None):
+    def __init__(self, db_name: str, url: str = None, username: str = None, password: str = None, host_header: str = None):
         """
         Initialize JSON-RPC connection to Odoo.
         """
@@ -17,6 +17,9 @@ class OdooAPI:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
+        if host_header:
+            self.session.headers.update({'Host': host_header})
+            
         self.uid = self.authenticate()
         if not self.uid:
             raise ValueError(f"Failed to authenticate with Odoo (DB: {self.db}, User: {self.username})")
