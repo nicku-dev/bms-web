@@ -476,7 +476,10 @@ async def api_admin_template_detail(template_id: int):
                 h0 = skeleton["header"][0]
                 cols = h0 if isinstance(h0, list) else h0.get("cols", [])
                 for col in cols:
-                    data["cols"].append(col.get("label", ""))
+                    if isinstance(col, dict):
+                        data["cols"].append(col.get("label", col.get("val", "")))
+                    elif isinstance(col, str):
+                        data["cols"].append(col)
                     
         return {"status": "success", "data": data}
     except Exception as e:

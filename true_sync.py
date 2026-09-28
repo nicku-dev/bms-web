@@ -152,7 +152,13 @@ def build_true_skeleton():
                 merged["header"] = [[] for _ in range(len(m["header"]))]
                 
             for h_idx in range(len(m.get("header", []))):
-                merged["header"][h_idx].extend(m["header"][h_idx])
+                row = m["header"][h_idx]
+                if isinstance(row, dict) and 'cols' in row:
+                    merged["header"][h_idx].extend(row['cols'])
+                elif isinstance(row, list):
+                    merged["header"][h_idx].extend(row)
+                else:
+                    merged["header"][h_idx].append(row)
                 
             if i == 0:
                 merged["body"] = m.get("body", [])
