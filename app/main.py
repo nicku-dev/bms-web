@@ -674,6 +674,37 @@ async def api_get_history(request: Request):
     finally:
         db.close()
 
+@app.delete("/api/history")
+async def api_clear_history(request: Request):
+    username = request.cookies.get("session_token")
+    if not username:
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username, User.is_active == True).first()
+        if not user or (user.role != 'admin' and user.username not in ["admin_isa", "admin_dev"]):
+            return JSONResponse(status_code=403, content={"status": "error", "message": "Hanya admin yang dapat menghapus riwayat."})
+
+        from app.models import ReportHistory
+        import os
+        histories = db.query(ReportHistory).all()
+        
+        for h in histories:
+            try:
+                if h.file_path and os.path.exists(h.file_path):
+                    os.remove(h.file_path)
+            except:
+                pass
+            db.delete(h)
+            
+        db.commit()
+        return {"status": "success", "message": "Semua riwayat berhasil dihapus"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
 class UserCreateRequest(BaseModel):
     username: str
     password: str
