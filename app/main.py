@@ -311,6 +311,7 @@ async def api_admin_test_connection(req: TestConnectionRequest):
 class SyncItem(BaseModel):
     odoo_report_id: int
     report_name: str
+    is_fast_sync: bool = False
 
 class SyncTemplatesRequest(BaseModel):
     company_id: int
@@ -343,7 +344,24 @@ def background_sync_templates(company_id: int, templates_data: list):
             try:
                 import time
                 start_time = time.time()
-                matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
+                
+                if getattr(item, 'is_fast_sync', False):
+                    # Fetch periods
+                    periods = api.search_read('mis.report.instance.period', [['report_instance_id', '=', item.odoo_report_id]], ['id', 'date_from', 'date_to'])
+                    old_dates = {p['id']: {'date_from': p['date_from'], 'date_to': p['date_to']} for p in periods}
+                    try:
+                        # Set to 1970 temporarily to avoid timeout
+                        for p in periods:
+                            api.execute_kw('mis.report.instance.period', 'write', [[p['id']], {'date_from': '1970-01-01', 'date_to': '1970-01-01'}])
+                        
+                        matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
+                    finally:
+                        # Revert back
+                        for p_id, dates in old_dates.items():
+                            api.execute_kw('mis.report.instance.period', 'write', [[p_id], dates])
+                else:
+                    matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
+                    
                 if matrix is None:
                     raise Exception("Odoo returned empty matrix")
                     

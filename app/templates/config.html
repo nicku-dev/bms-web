@@ -356,6 +356,10 @@
               <button onclick="fetchOdooReports()" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">Tampilkan Daftar Laporan Odoo</button>
             </div>
           </div>
+          <div class="flex items-center space-x-2 mb-4">
+            <input type="checkbox" id="fast-sync-checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
+            <label for="fast-sync-checkbox" class="text-sm font-medium text-gray-700">Gunakan Fast Sync <span class="text-xs text-gray-500 font-normal">(Ubah periode ke 1970 untuk menghindari TimeOut)</span></label>
+          </div>
 
           <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
             <table class="min-w-full divide-y divide-gray-200">
@@ -711,13 +715,16 @@
         const checkboxes = document.querySelectorAll('.sync-checkbox:checked');
         if(checkboxes.length === 0) return alert("Belum ada laporan yang dicentang!");
         
+        const isFastSync = document.getElementById('fast-sync-checkbox').checked;
+        
         const templates = [];
         checkboxes.forEach(cb => {
             const id = cb.getAttribute('data-id');
             const aliasInput = document.querySelector(`.sync-alias-input[data-id="${id}"]`);
             templates.push({
                 odoo_report_id: parseInt(id),
-                report_name: aliasInput.value
+                report_name: aliasInput.value,
+                is_fast_sync: isFastSync
             });
         });
         
