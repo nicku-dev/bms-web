@@ -79,8 +79,23 @@ def build_manual_skeleton():
             continue
             
         kpis = api.execute_kw('mis.report.kpi', 'search_read', 
-            [[['report_id', '=', report_id]], ['name', 'description', 'expression']]
+            [[['report_id', '=', report_id]], ['name', 'description', 'expression', 'style_id']]
         )
+        
+        # Ambil style dari Odoo
+        style_ids = list(set([kpi['style_id'][0] for kpi in kpis if kpi.get('style_id')]))
+        styles_dict = {}
+        if style_ids:
+            styles_data = api.execute_kw('mis.report.style', 'search_read', 
+                [[['id', 'in', style_ids]], ['id', 'font_weight', 'indent_level', 'color', 'background_color']]
+            )
+            for s in styles_data:
+                style_str = ""
+                if s.get('font_weight') == 'bold': style_str += "font-weight: bold; "
+                if s.get('indent_level'): style_str += f"text-indent: {s['indent_level']}em; "
+                if s.get('color'): style_str += f"color: {s['color']}; "
+                if s.get('background_color'): style_str += f"background-color: {s['background_color']}; "
+                styles_dict[s['id']] = style_str
         
         header = [[], []]
         for p in periods:
@@ -90,6 +105,10 @@ def build_manual_skeleton():
                 
         body = []
         for kpi in kpis:
+            style_str = ""
+            if kpi.get('style_id'):
+                style_str = styles_dict.get(kpi['style_id'][0], "")
+                
             tag_name = None
             if kpi.get('expression'):
                 match = re.search(r'tag_ids\.name","=","([^"]+)"', kpi['expression'])
@@ -104,6 +123,7 @@ def build_manual_skeleton():
                 
             body.append({
                 'label': kpi['description'],
+                'style': style_str.strip(),
                 'cells': row_cells
             })
             
