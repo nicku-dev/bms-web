@@ -28,20 +28,31 @@ def build_true_skeleton():
         return
 
     # Bypass Nginx to avoid 504 Gateway Timeout!
-    print(f"\nMencari port Odoo lokal untuk bypass Nginx...")
+    print(f"\nMencari rute bypass Nginx (Internal IP)...")
+    import sys, socket
+    from urllib.parse import urlparse
+    
+    parsed_url = urlparse(c.server_url)
+    host_header = parsed_url.netloc
+    
+    # Dapatkan IP internal dari domain (bukan 127.0.0.1, karena bisa jadi di server lain dalam 1 subnet)
+    internal_ip = '127.0.0.1'
+    try:
+        internal_ip = socket.gethostbyname(parsed_url.hostname)
+        print(f"  -> Domain {parsed_url.hostname} teresolusi ke IP: {internal_ip}")
+    except Exception as e:
+        print(f"  -> Gagal meresolve IP: {e}")
+        
     local_ports = [8069, 8070, 8071, 8072, 8081, 8082, 8083, 8091, 8094, 8095, 8096, 8060, 8044]
     api = None
-    import sys
-    from urllib.parse import urlparse
-    host_header = urlparse(c.server_url).netloc
     
     for port in local_ports:
-        test_url = f"http://127.0.0.1:{port}"
+        test_url = f"http://{internal_ip}:{port}"
         sys.stdout.write(f"\r  Mencoba port {port}...    ")
         sys.stdout.flush()
         try:
             temp_api = OdooAPI(c.target_db_name, test_url, c.odoo_user, c.odoo_password, host_header=host_header)
-            print(f"\nBerhasil terhubung ke Odoo lokal di port {port}!")
+            print(f"\nBerhasil terhubung ke Odoo via Internal Bypass ({test_url})!")
             api = temp_api
             break
         except Exception:
