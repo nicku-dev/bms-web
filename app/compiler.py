@@ -52,6 +52,13 @@ class FastMatrixCompiler:
         for row in matrix.get('body', []):
             tag_name = None
             account_code = None
+            
+            # Try to extract account_code from row label (e.g. "4000011000 Pendapatan Usaha")
+            label = str(row.get('label', '')).strip()
+            acc_label_match = re.match(r'^(\d{6,12})\s+', label)
+            if acc_label_match:
+                account_code = acc_label_match.group(1)
+                
             for cell in row.get('cells', []):
                 val_c = cell.get('val_c', '')
                 if val_c and type(val_c) == str:
@@ -59,11 +66,13 @@ class FastMatrixCompiler:
                     if tag_match:
                         tag_name = tag_match.group(1)
                         
-                    acc_match = re.search(r"'account_id\.code',\s*'=like',\s*'([^']+)'", val_c)
-                    if not acc_match:
-                        acc_match = re.search(r"'account_id\.code',\s*'=',\s*'([^']+)'", val_c)
-                    if acc_match:
-                        account_code = acc_match.group(1).replace('%', '')
+                    # Also try from val_c if not found in label (just in case)
+                    if not account_code:
+                        acc_match = re.search(r"'account_id\.code',\s*'=like',\s*'([^']+)'", val_c)
+                        if not acc_match:
+                            acc_match = re.search(r"'account_id\.code',\s*'=',\s*'([^']+)'", val_c)
+                        if acc_match:
+                            account_code = acc_match.group(1).replace('%', '')
                         
             if tag_name or account_code:
                 df = self.get_df_by_tag_and_account(tag_name, account_code)
