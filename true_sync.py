@@ -87,7 +87,6 @@ def build_true_skeleton():
         
         matrices = []
         for i, p in enumerate(periods):
-            print(f"  -> Menghitung periode {i+1}/{len(periods)}: {p['name']}...")
             period_vals = {
                 'report_instance_id': new_id,
                 'name': p['name'],
@@ -99,9 +98,34 @@ def build_true_skeleton():
             }
             pid = api.execute_kw('mis.report.instance.period', 'create', [period_vals])
             
-            # Compute via Odoo! This gives the true perfect matrix!
-            matrix = api.execute_kw('mis.report.instance', 'compute', [[new_id]])
-            matrices.append(matrix)
+            # Compute via Odoo dengan Live Timer!
+            import threading
+            import sys
+            
+            result = [None]
+            error = [None]
+            def do_compute():
+                try:
+                    result[0] = api.execute_kw('mis.report.instance', 'compute', [[new_id]])
+                except Exception as e:
+                    error[0] = e
+                    
+            t = threading.Thread(target=do_compute)
+            t.start()
+            
+            start_time = time.time()
+            while t.is_alive():
+                elapsed = int(time.time() - start_time)
+                sys.stdout.write(f"\r  -> Menghitung periode {i+1}/{len(periods)}: {p['name'][:30]}... [Menunggu Odoo: {elapsed} detik]")
+                sys.stdout.flush()
+                time.sleep(1)
+            
+            print() # Pindah ke baris baru setelah selesai 1 periode
+            
+            if error[0]:
+                print(f"     [!] Error saat menghitung: {error[0]}")
+            else:
+                matrices.append(result[0])
             
             api.execute_kw('mis.report.instance.period', 'unlink', [[pid]])
             
