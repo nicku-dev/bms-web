@@ -152,13 +152,21 @@ def build_true_skeleton():
         master_labels = []
         
         for m in matrices:
+            prev_label = None
             for row in m.get("body", []):
                 label = row.get("label", "")
                 if label not in master_labels:
-                    master_labels.append(label)
                     new_row = {k: v for k, v in row.items() if k != "cells"}
                     new_row["cells"] = []
-                    master_rows.append(new_row)
+                    
+                    if prev_label and prev_label in master_labels:
+                        idx = master_labels.index(prev_label) + 1
+                        master_labels.insert(idx, label)
+                        master_rows.insert(idx, new_row)
+                    else:
+                        master_labels.append(label)
+                        master_rows.append(new_row)
+                prev_label = label
                     
         for i, m in enumerate(matrices):
             # Gabungkan header
