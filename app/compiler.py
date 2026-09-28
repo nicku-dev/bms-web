@@ -106,6 +106,63 @@ class FastMatrixCompiler:
                             
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val)
+                        
+        # 3. Post-process pure formula rows (TPJ)
+        # Calculate total PENDAPATAN JASA across all vessels in DB
+        df_pj = self.get_df_by_tag_and_account('PENDAPATAN JASA', None)
+        if df_pj is None or df_pj.empty:
+            # Fallback for FPS report (might be named TW_PENDAPATAN JASA)
+            df_pj = self.get_df_by_tag_and_account('TW_PENDAPATAN JASA', None)
+            
+        total_pj_db = {'q1': 0.0, 'q2': 0.0, 'q3': 0.0, 'q4': 0.0, 'ytd': 0.0}
+        if df_pj is not None and not df_pj.empty:
+            total_pj_db['q1'] = float(df_pj[df_pj['quarter'] == 1]['value'].sum())
+            total_pj_db['q2'] = float(df_pj[df_pj['quarter'] == 2]['value'].sum())
+            total_pj_db['q3'] = float(df_pj[df_pj['quarter'] == 3]['value'].sum())
+            total_pj_db['q4'] = float(df_pj[df_pj['quarter'] == 4]['value'].sum())
+            total_pj_db['ytd'] = float(df_pj['value'].sum())
+
+        # Grab PENDAPATAN JASA cells to copy into TPJ Per Kapal
+        pendapatan_jasa_cells = None
+        for row in matrix.get('body', []):
+            label = str(row.get('label', '')).strip().upper()
+            if label == 'PENDAPATAN JASA' or label == 'TW_PENDAPATAN JASA':
+                pendapatan_jasa_cells = row.get('cells', [])
+                break
+
+        for row in matrix.get('body', []):
+            label = str(row.get('label', '')).strip()
+            if 'TPJ Per Kapal' in label:
+                for i, cell in enumerate(row.get('cells', [])):
+                    if pendapatan_jasa_cells and i < len(pendapatan_jasa_cells):
+                        val = pendapatan_jasa_cells[i].get('val', 0.0)
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f}".format(val)
+            
+            elif 'TPJ Semua Kapal' in label:
+                for i, cell in enumerate(row.get('cells', [])):
+                    if i < len(col_map):
+                        period = col_map[i]['period']
+                        if period == 'total': period = 'ytd'
+                        val = total_pj_db.get(period, 0.0)
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f}".format(val)
+                        
+            elif 'Proportional TPJ' in label:
+                for i, cell in enumerate(row.get('cells', [])):
+                    if i < len(col_map):
+                        period = col_map[i]['period']
+                        if period == 'total': period = 'ytd'
+                        
+                        tpj_per_kapal = pendapatan_jasa_cells[i].get('val', 0.0) if (pendapatan_jasa_cells and i < len(pendapatan_jasa_cells)) else 0.0
+                        tpj_semua = total_pj_db.get(period, 0.0)
+                        
+                        val = 0.0
+                        if tpj_semua != 0:
+                            val = (tpj_per_kapal / tpj_semua) * 100.0
+                            
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f} %".format(val)
                             
         self.engine.close()
         return matrix
