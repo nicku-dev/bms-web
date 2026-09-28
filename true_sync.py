@@ -28,18 +28,28 @@ def build_true_skeleton():
         return
 
     # Bypass Nginx to avoid 504 Gateway Timeout!
-    local_odoo_url = "http://127.0.0.1:8069"
-    print(f"\nMenghubungkan ke Odoo Lokal (Bypass Nginx): {local_odoo_url}...")
-    api = OdooAPI(c.target_db_name, local_odoo_url, c.odoo_user, c.odoo_password)
-    try:
-        api.authenticate()
-        print("Berhasil terhubung ke Odoo!")
-    except Exception as e:
-        print(f"Gagal login ke Odoo lokal: {e}")
-        print("Mencoba fallback ke URL publik...")
-        api = OdooAPI(c.target_db_name, c.server_url, c.odoo_user, c.odoo_password)
+    print(f"\nMencari port Odoo lokal untuk bypass Nginx...")
+    local_ports = [8069, 8070, 8071, 8072, 8081, 8082, 8083, 8091, 8094, 8095, 8096, 8060, 8044]
+    api = None
+    import sys
+    for port in local_ports:
+        test_url = f"http://127.0.0.1:{port}"
+        sys.stdout.write(f"\r  Mencoba port {port}...    ")
+        sys.stdout.flush()
         try:
-            api.authenticate()
+            temp_api = OdooAPI(c.target_db_name, test_url, c.odoo_user, c.odoo_password)
+            print(f"\nBerhasil terhubung ke Odoo lokal di port {port}!")
+            api = temp_api
+            break
+        except Exception:
+            continue
+
+    if not api:
+        print("\nGagal menemukan port Odoo lokal yang cocok.")
+        print("Mencoba fallback ke URL publik...")
+        try:
+            api = OdooAPI(c.target_db_name, c.server_url, c.odoo_user, c.odoo_password)
+            print("Berhasil login ke Odoo publik!")
         except Exception as e2:
             print(f"Gagal login ke Odoo publik: {e2}")
             return
