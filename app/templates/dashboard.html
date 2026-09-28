@@ -298,29 +298,69 @@
     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 shadow-2xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Satuan: IDR</span>
   </div>
 </div>
-<!-- BEGIN: Interactive Filters -->
-<div id="interactive-filters" class="hidden flex flex-wrap items-end gap-4 bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl mb-3 mt-3 shadow-inner">
-    <div class="flex flex-col">
-        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Filter Kapal / Entitas</label>
-        <select id="filter-ships" multiple class="text-xs rounded-lg border-slate-300 w-64 md:w-80 h-24 bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 custom-scrollbar">
-        </select>
-        <span class="text-[9px] text-slate-400 mt-1.5 font-medium">Tahan Ctrl/Cmd untuk pilih lebih dari satu</span>
+<!-- BEGIN: Interactive Tools Panel -->
+<div id="interactive-tools-panel" class="hidden mt-4 mb-4 relative z-20">
+    <!-- Header / Toggle Button -->
+    <div onclick="toggleFiltersPanel()" class="flex items-center justify-between bg-white/95 backdrop-blur border border-slate-200/90 shadow-sm rounded-xl px-4 py-3 cursor-pointer select-none hover:bg-slate-50 transition group">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800 tracking-tight">Advanced Analytics Tools</h3>
+                <p class="text-[11px] text-slate-500 font-medium">Filter Kapal, Cari Uraian, dan Sorting Laba</p>
+            </div>
+        </div>
+        <div class="bg-slate-100 p-1.5 rounded-md group-hover:bg-slate-200 transition">
+            <svg id="filter-chevron" class="w-5 h-5 text-slate-500 transition-transform duration-300 transform -rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
     </div>
-    <div class="flex flex-col">
-        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Filter Periode</label>
-        <select id="filter-periods" multiple class="text-xs rounded-lg border-slate-300 w-32 h-24 bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500 custom-scrollbar">
-        </select>
-    </div>
-    <div class="flex flex-col gap-2 pb-1">
-        <button onclick="applyFilters()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm shadow-glow-blue transition active:scale-[0.98]">
-            <span class="mr-1">⚡</span> Terapkan Filter
-        </button>
-        <button onclick="resetFilters()" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition active:scale-[0.98]">
-            Tampilkan Semua
-        </button>
+    
+    <!-- Collapsible Body -->
+    <div id="interactive-tools-body" class="border border-slate-200/80 bg-white/60 backdrop-blur-md rounded-b-xl border-t-0 p-5 -mt-2 pt-6 shadow-sm transition-all duration-300 origin-top">
+        <div class="flex flex-col lg:flex-row items-start gap-6">
+            <!-- Filter Kapal & Periode -->
+            <div class="flex flex-wrap sm:flex-nowrap gap-4">
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Filter Entitas / Kapal</label>
+                    <select id="filter-ships" multiple class="text-[11px] rounded-lg border-slate-300 w-full sm:w-64 h-28 bg-white shadow-inner focus:ring-blue-500 focus:border-blue-500 custom-scrollbar font-medium">
+                    </select>
+                    <span class="text-[9px] text-slate-400 mt-1.5 font-medium">Tahan Ctrl/Cmd untuk pilih > 1</span>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Filter Periode</label>
+                    <select id="filter-periods" multiple class="text-[11px] rounded-lg border-slate-300 w-full sm:w-28 h-28 bg-white shadow-inner focus:ring-blue-500 focus:border-blue-500 custom-scrollbar font-medium">
+                    </select>
+                </div>
+            </div>
+
+            <!-- Separator -->
+            <div class="hidden lg:block w-px h-28 bg-slate-200/80"></div>
+
+            <!-- Search & Sorting -->
+            <div class="flex flex-col gap-4 flex-1 min-w-[260px]">
+                <!-- Search Row -->
+                <div>
+                    <label class="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">Cari Baris (Uraian Biaya/Pendapatan)</label>
+                    <div class="relative">
+                        <input type="text" id="search-row-input" onkeyup="applyFilters()" placeholder="Ketik kata kunci (contoh: Solar, Gaji)..." class="w-full text-xs rounded-lg border-slate-300 bg-white h-9 shadow-inner focus:ring-blue-500 focus:border-blue-500 pl-8 font-medium placeholder-slate-400 transition">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+                <!-- Action Buttons -->
+                <div class="flex gap-2 mt-auto">
+                    <button onclick="applyFilters()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-semibold rounded-lg shadow-sm shadow-glow-blue transition active:scale-[0.98] flex-1">
+                        Terapkan Filter
+                    </button>
+                    <button onclick="resetFilters()" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-[11px] font-semibold rounded-lg shadow-sm transition active:scale-[0.98]">
+                        Reset Semua
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-<!-- END: Interactive Filters -->
+<!-- END: Interactive Tools Panel -->
 <!-- Financial Data Grid Container -->
 <div id="preview-wrapper" class="bg-white border border-slate-200 rounded-2xl shadow-subtle-card overflow-hidden ring-1 ring-black/5 transition-all duration-300 transform origin-top-left flex-1 flex flex-col">
 <div id="table-scroll-container" class="overflow-auto max-h-[820px] relative custom-scrollbar">
@@ -508,7 +548,7 @@
             }
             
             loadHistory(); // reload history
-            document.getElementById('interactive-filters').classList.remove('hidden');
+            document.getElementById('interactive-tools-panel').classList.remove('hidden');
           }
         }, 500);
       } else {
@@ -570,19 +610,21 @@
       
       const shipOptions = Array.from(document.getElementById('filter-ships').selectedOptions).map(o => o.value);
       const periodOptions = Array.from(document.getElementById('filter-periods').selectedOptions).map(o => o.value);
+      const searchQuery = document.getElementById('search-row-input').value.toLowerCase().trim();
       
-      renderMatrix(window.currentMatrixData, shipOptions, periodOptions);
+      renderMatrix(window.currentMatrixData, shipOptions, periodOptions, searchQuery);
   }
   
   function resetFilters() {
       const shipSelect = document.getElementById('filter-ships');
       const periodSelect = document.getElementById('filter-periods');
+      document.getElementById('search-row-input').value = '';
       Array.from(shipSelect.options).forEach(o => o.selected = true);
       Array.from(periodSelect.options).forEach(o => o.selected = true);
       applyFilters();
   }
   
-  function renderMatrix(matrix, allowedShips = null, allowedPeriods = null) {
+  function renderMatrix(matrix, allowedShips = null, allowedPeriods = null, searchQuery = '') {
       const thead = document.getElementById('report-thead');
       const tbody = document.getElementById('report-tbody');
       
@@ -656,6 +698,13 @@
       // Render Body
       let bodyHtml = '';
       matrix.body.forEach(row => {
+          let rowLabel = row.label || '';
+          
+          // Apply Search Filter (Skip row if it doesn't match query)
+          if (searchQuery !== '' && !rowLabel.toLowerCase().includes(searchQuery)) {
+              return;
+          }
+          
           let isBold = row.style && row.style.includes('font-weight: bold');
           let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
           let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 2, 16)}` : 'pl-2.5';
@@ -663,7 +712,7 @@
           
           let rowStyleAttr = row.style ? `style="${row.style}"` : '';
           bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
-          bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug sticky left-0 z-30 ${isBold ? 'bg-slate-50' : 'bg-white'}">${row.label || ''}</td>`;
+          bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug sticky left-0 z-30 ${isBold ? 'bg-slate-50' : 'bg-white'}">${rowLabel}</td>`;
           
           if (row.cells) {
               activeIndexes.forEach(idx => {
@@ -686,6 +735,18 @@
           bodyHtml += '</tr>';
       });
       tbody.innerHTML = bodyHtml;
+  }
+  
+  function toggleFiltersPanel() {
+      const body = document.getElementById('interactive-tools-body');
+      const chevron = document.getElementById('filter-chevron');
+      if (body.classList.contains('hidden')) {
+          body.classList.remove('hidden');
+          chevron.classList.add('-rotate-180');
+      } else {
+          body.classList.add('hidden');
+          chevron.classList.remove('-rotate-180');
+      }
   }
   // --- END INTERACTIVE FILTER ---
 
