@@ -169,10 +169,10 @@ class FastMatrixCompiler:
                         
                         val = 0.0
                         if tpj_semua != 0:
-                            val = (tpj_per_kapal / tpj_semua) * 100.0
+                            val = (tpj_per_kapal / tpj_semua)
                             
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f} %".format(val)
+                        cell['val_r'] = "{:,.2f} %".format(val * 100)
                             
         self.engine.close()
         return matrix
