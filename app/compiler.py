@@ -110,11 +110,17 @@ class FastMatrixCompiler:
         # 3. Post-process pure formula rows (TPJ)
         # Grab PENDAPATAN JASA cells to copy into TPJ Per Kapal
         pendapatan_jasa_cells = None
+        total_pendapatan_jasa_cells = None
+        laba_rugi_bersih_cells = None
+        
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).strip().upper()
             if label == 'PENDAPATAN JASA' or label == 'TW_PENDAPATAN JASA':
                 pendapatan_jasa_cells = row.get('cells', [])
-                break
+            elif label == 'TOTAL PENDAPATAN JASA':
+                total_pendapatan_jasa_cells = row.get('cells', [])
+            elif label == 'LABA (RUGI) BERSIH':
+                laba_rugi_bersih_cells = row.get('cells', [])
 
         # Calculate Total PENDAPATAN JASA for the ships IN THIS REPORT ONLY
         from collections import defaultdict
@@ -170,6 +176,31 @@ class FastMatrixCompiler:
                         val = 0.0
                         if tpj_semua != 0:
                             val = (tpj_per_kapal / tpj_semua)
+                            
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f} %".format(val * 100)
+                        
+            elif '% LABA (RUGI) BERSIH' in label.upper() or '% LABA' in label.upper():
+                pendapatan_cells = total_pendapatan_jasa_cells if total_pendapatan_jasa_cells else pendapatan_jasa_cells
+                
+                for i, cell in enumerate(row.get('cells', [])):
+                    if i < len(col_map):
+                        laba = laba_rugi_bersih_cells[i].get('val', 0.0) if (laba_rugi_bersih_cells and i < len(laba_rugi_bersih_cells)) else 0.0
+                        pendapatan = pendapatan_cells[i].get('val', 0.0) if (pendapatan_cells and i < len(pendapatan_cells)) else 0.0
+                        
+                        try:
+                            laba = float(laba)
+                        except (ValueError, TypeError):
+                            laba = 0.0
+                            
+                        try:
+                            pendapatan = float(pendapatan)
+                        except (ValueError, TypeError):
+                            pendapatan = 0.0
+                            
+                        val = 0.0
+                        if pendapatan != 0:
+                            val = (laba / pendapatan)
                             
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100)
