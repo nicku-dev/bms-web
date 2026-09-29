@@ -734,6 +734,7 @@
                       // Jika beda lebih dari 10 rupiah, anggap fraud / mismatch
                       if (diff > 10.0) {
                           fraudDetected = true;
+                          window.lastMismatch = `JS: ${periodSum}, PY: ${parseFloat(backendVal)}`;
                       }
                   }
                   
@@ -753,11 +754,12 @@
           if (badge) {
               badge.classList.remove('hidden');
               if (fraudDetected) {
-                  badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span><span class="text-red-600">⚠️ Peringatan: Mismatch Data (Indikasi Fraud)</span>';
+                  badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span><span class="text-red-600 font-bold" title="${window.lastMismatch || ''}">Mismatch Data</span>`;
                   badge.classList.replace('border-slate-200', 'border-red-300');
                   badge.classList.add('bg-red-50');
+                  console.log("Validation Mismatch! " + window.lastMismatch);
               } else {
-                  badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-emerald-600">Validasi OK: Web & Excel Sinkron</span>';
+                  badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-emerald-600">Validasi OK</span>';
                   badge.classList.replace('border-red-300', 'border-emerald-200');
                   badge.classList.replace('bg-red-50', 'bg-emerald-50');
               }
