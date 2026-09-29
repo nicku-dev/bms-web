@@ -3,12 +3,14 @@ import xlsxwriter
 import re
 
 class ExcelWriter:
-    def __init__(self, output_path: str, matrix_data: dict, report_name: str, company_name: str, year: int):
+    def __init__(self, output_path: str, matrix_data: dict, report_name: str, company_name: str, year: int, db_name: str = "", compile_status: str = ""):
         self.output_path = output_path
         self.matrix = matrix_data
         self.report_name = report_name
         self.company_name = company_name
         self.year = year
+        self.db_name = db_name
+        self.compile_status = compile_status
         
         # Cache for xlsxwriter formats so we don't exceed limits
         self._format_cache = {}
@@ -165,6 +167,27 @@ class ExcelWriter:
         worksheet.set_column(0, 0, 45) # Label column wide
         if col_idx > 1:
             worksheet.set_column(1, col_idx - 1, 15) # Data columns
+            
+        # 4. Add Log Sistem Sheet
+        log_sheet = workbook.add_worksheet('Log Sistem')
+        log_sheet.set_column(0, 0, 25)
+        log_sheet.set_column(1, 1, 60)
+        
+        bold_fmt = workbook.add_format({'bold': True})
+        
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        log_sheet.write(0, 0, "Log Information", title_format)
+        
+        log_sheet.write(2, 0, "Waktu Penarikan Data", bold_fmt)
+        log_sheet.write(2, 1, now_str)
+        
+        log_sheet.write(3, 0, "Database Odoo Sumber", bold_fmt)
+        log_sheet.write(3, 1, self.db_name)
+        
+        log_sheet.write(4, 0, "Status Sinkronisasi", bold_fmt)
+        log_sheet.write(4, 1, self.compile_status)
             
         workbook.close()
         print(f"Report saved to {self.output_path}\n")

@@ -587,6 +587,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
         print(f"SQLite Skeleton HIT for Report {odoo_report_id} - {year}")
         matrix = json.loads(template_record.skeleton_json)
         
+        compile_status = "OK (Live Odoo Data)"
         # Skenario 1 Full: Inject Live Data!
         try:
             report_type = 'fps'
@@ -599,6 +600,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
             compiler = FastMatrixCompiler(db_name=company.target_db_name, year=year, report_type=report_type)
             matrix = compiler.compile(matrix)
         except Exception as e:
+            compile_status = f"FALLBACK SKELETON (Error: {str(e)})"
             print("FastMatrixCompiler fallback to pure skeleton: ", e)
 
         
@@ -621,7 +623,9 @@ async def api_generate_report(req: ReportRequest, request: Request):
             matrix_data=matrix,
             report_name=req.template_name,
             company_name=company.name,
-            year=year
+            year=year,
+            db_name=company.target_db_name,
+            compile_status=compile_status
         )
         writer.generate()
         
