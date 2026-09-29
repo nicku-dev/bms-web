@@ -646,6 +646,12 @@ async def api_generate_report(req: ReportRequest, request: Request):
             "matrix": matrix
         }
 
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
+
 class ExportExcelRequest(BaseModel):
     company_id: int
     template_name: str
@@ -701,10 +707,7 @@ def export_excel(req: ExportExcelRequest, request: Request, db: Session = Depend
     db.commit()
     
     return {"status": "success", "file_url": f"/static/reports/{output_filename}"}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-    finally:
-        db.close()
+
 
 @app.get("/api/audit_trail")
 async def api_get_audit_trail(
