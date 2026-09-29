@@ -347,13 +347,6 @@
                         <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
                 </div>
-                <!-- Dynamic Recalculate Option -->
-                <div class="mt-1 flex items-center">
-                    <input type="checkbox" id="recalc-tpj-checkbox" class="w-4 h-4 text-blue-600 bg-white border-slate-300 rounded focus:ring-blue-500 cursor-pointer">
-                    <label for="recalc-tpj-checkbox" class="ml-2 text-[11px] font-semibold text-slate-600 cursor-pointer select-none">
-                        Kalkulasi ulang persentase TPJ khusus untuk kapal yang difilter
-                    </label>
-                </div>
                 <!-- Action Buttons -->
                 <div class="flex gap-2 mt-auto">
                     <button onclick="applyFilters()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-semibold rounded-lg shadow-sm shadow-glow-blue transition active:scale-[0.98] flex-1">
@@ -544,45 +537,7 @@
               });
             }
             if (downloadBtn) {
-              downloadBtn.onclick = async () => {
-                  if (!window.filteredMatrixData) {
-                      window.location.href = data.file_url;
-                      return;
-                  }
-                  
-                  downloadBtn.disabled = true;
-                  let originalText = downloadBtn.innerHTML;
-                  downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
-                  
-                  try {
-                      // Determine year from template name, or default to current year
-                      let templateName = document.getElementById('laporan-select').options[document.getElementById('laporan-select').selectedIndex].text;
-                      let yearMatch = templateName.match(/\d{4}/);
-                      let year = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear();
-                      
-                      let res = await fetch('/api/export_excel', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                              company_id: parseInt(document.getElementById('perusahaan-select').value),
-                              template_name: templateName,
-                              year: year,
-                              matrix: window.filteredMatrixData
-                          })
-                      });
-                      let exportData = await res.json();
-                      if (exportData.status === 'success') {
-                          window.location.href = exportData.file_url;
-                      } else {
-                          alert(exportData.message || "Gagal mengunduh file.");
-                      }
-                  } catch (e) {
-                      alert("Terjadi kesalahan koneksi.");
-                  } finally {
-                      downloadBtn.disabled = false;
-                      downloadBtn.innerHTML = originalText;
-                  }
-              };
+              downloadBtn.onclick = () => window.location.href = data.file_url;
             }
           }
           
