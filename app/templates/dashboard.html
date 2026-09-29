@@ -538,15 +538,46 @@
             
             let downloadBtn = document.getElementById('btn-download-file');
             if (!downloadBtn) {
-              // try finding the button via class or querySelector if id doesn't exist
               const buttons = document.querySelectorAll('button');
               buttons.forEach(btn => {
                 if(btn.textContent.includes('Unduh File Spreadsheet')) downloadBtn = btn;
               });
             }
             if (downloadBtn) {
-              // we can set window.location or handle it depending on structure
-              downloadBtn.onclick = () => window.location.href = data.file_url;
+              downloadBtn.onclick = async () => {
+                  if (!window.filteredMatrixData) {
+                      window.location.href = data.file_url;
+                      return;
+                  }
+                  
+                  downloadBtn.disabled = true;
+                  let originalText = downloadBtn.innerHTML;
+                  downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
+                  
+                  try {
+                      let res = await fetch('/api/export_excel', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              company_id: parseInt(document.getElementById('company-select').value),
+                              template_name: document.getElementById('laporan-select').options[document.getElementById('laporan-select').selectedIndex].text,
+                              year: parseInt(document.getElementById('year-select').value),
+                              matrix: window.filteredMatrixData
+                          })
+                      });
+                      let exportData = await res.json();
+                      if (exportData.status === 'success') {
+                          window.location.href = exportData.file_url;
+                      } else {
+                          alert(exportData.message || "Gagal mengunduh file.");
+                      }
+                  } catch (e) {
+                      alert("Terjadi kesalahan koneksi.");
+                  } finally {
+                      downloadBtn.disabled = false;
+                      downloadBtn.innerHTML = originalText;
+                  }
+              };
             }
           }
           
@@ -634,7 +665,7 @@
       const shipSelect = document.getElementById('filter-ships');
       const periodSelect = document.getElementById('filter-periods');
       document.getElementById('search-row-input').value = '';
-      document.getElementById('recalc-tpj-checkbox').checked = false;
+      document.getElementById('search-row-input').value = '';
       Array.from(shipSelect.options).forEach(o => o.selected = true);
       Array.from(periodSelect.options).forEach(o => o.selected = true);
       applyFilters();
@@ -715,16 +746,11 @@
       let pendapatan_jasa_row = matrix.body.find(r => r.label && (r.label.trim().toUpperCase() === 'PENDAPATAN JASA' || r.label.trim().toUpperCase() === 'TW_PENDAPATAN JASA'));
       let tpj_semua_row = matrix.body.find(r => r.label && r.label.includes('TPJ Semua Kapal'));
       let prop_tpj_row = matrix.body.find(r => r.label && r.label.includes('Proportional TPJ'));
-      let shouldRecalc = document.getElementById('recalc-tpj-checkbox') ? document.getElementById('recalc-tpj-checkbox').checked : false;
       
       if (pendapatan_jasa_row && tpj_semua_row && prop_tpj_row) {
           let sums_per_period = {};
           
-          // If shouldRecalc is TRUE, sum ONLY from activeIndexes.
-          // If shouldRecalc is FALSE, sum from ALL ships in the report template (default behavior).
-          let indexesToSum = shouldRecalc ? activeIndexes : meta.map(m => m.index);
-          
-          indexesToSum.forEach(idx => {
+          activeIndexes.forEach(idx => {
               let m = meta[idx];
               if (m && m.ship.toLowerCase() !== 'total') {
                   let cell = pendapatan_jasa_row.cells[idx];
@@ -830,6 +856,29 @@
           bodyHtml += '</tr>';
       });
       tbody.innerHTML = bodyHtml;
+      
+      // Save filtered matrix for export
+      let filteredMatrix = JSON.parse(JSON.stringify(matrix));
+      filteredMatrix.header[0] = newH0;
+      if (filteredMatrix.header.length > 1) {
+          let newH1 = [];
+          activeIndexes.forEach(idx => {
+              if (h1[idx]) newH1.push(h1[idx]);
+          });
+          filteredMatrix.header[1] = newH1;
+      }
+      
+      filteredMatrix.body.forEach(row => {
+          if (row.cells && row.cells.length > 0) {
+              let newCells = [];
+              activeIndexes.forEach(idx => {
+                  newCells.push(row.cells[idx]);
+              });
+              row.cells = newCells;
+          }
+      });
+      
+      window.filteredMatrixData = filteredMatrix;
   }
   
   function toggleFiltersPanel() {
