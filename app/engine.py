@@ -16,6 +16,22 @@ class ReportEngine:
         pg_url = settings.get_postgres_connection_string(db_name)
         self.conn.execute(f"ATTACH '{pg_url}' AS pg (TYPE postgres, READ_ONLY);")
 
+    @property
+    def account_code_column(self):
+        if not hasattr(self, '_account_code_column'):
+            try:
+                query = "SELECT column_name FROM information_schema.columns WHERE table_name='account_account' AND column_name='code_store'"
+                duckdb_query = f"SELECT * FROM postgres_query('pg', $${query}$$)"
+                df = self.conn.execute(duckdb_query).df()
+                if not df.empty:
+                    self._account_code_column = 'code_store'
+                else:
+                    self._account_code_column = 'code'
+            except Exception as e:
+                print("Error checking account code column:", e)
+                self._account_code_column = 'code'
+        return self._account_code_column
+
     def get_all_tags(self) -> list[str]:
         """Fetches all unique account tags from the database."""
         query = "SELECT DISTINCT name->>'en_US' as tag_name FROM account_account_tag WHERE name->>'en_US' IS NOT NULL ORDER BY tag_name"
@@ -55,7 +71,10 @@ class ReportEngine:
             
         acc_filter = ""
         if account_code:
-            acc_filter = f"AND aa.code_store::text LIKE '%\"{account_code}%'"
+            if self.account_code_column == 'code_store':
+                acc_filter = f"AND aa.code_store::text LIKE '%\"{account_code}%'"
+            else:
+                acc_filter = f"AND aa.code LIKE '{account_code}%'"
             
         if report_type == 'ho':
             query = f"""
@@ -163,7 +182,10 @@ class ReportEngine:
             
         acc_filter = ""
         if account_code:
-            acc_filter = f"AND aa.code_store::text LIKE '%\"{account_code}%'"
+            if self.account_code_column == 'code_store':
+                acc_filter = f"AND aa.code_store::text LIKE '%\"{account_code}%'"
+            else:
+                acc_filter = f"AND aa.code LIKE '{account_code}%'"
             
         vessel_filter = ""
         if vessel_name and vessel_name != 'Head Office':
@@ -176,6 +198,11 @@ class ReportEngine:
             if q_num in ['1', '2', '3', '4']:
                 quarter_filter = f"AND EXTRACT(QUARTER FROM aml.date) = {q_num}"
             
+        if self.account_code_column == 'code_store':
+            col_select = "(SELECT value FROM jsonb_each_text(aa.code_store) LIMIT 1) as account_code,"
+        else:
+            col_select = "aa.code as account_code,"
+            
         if vessel_name == 'Head Office':
             query = f"""
                 SELECT 
@@ -183,7 +210,7 @@ class ReportEngine:
                     aml.date::text as date,
                     aml.name as label,
                     aml.ref as ref,
-                    aa.code_store as account_code,
+                    {col_select}
                     aa.name->>'en_US' as account_name,
                     rp.name as partner_name,
                     aml.debit as debit,
@@ -214,7 +241,7 @@ class ReportEngine:
                     aml.date::text as date,
                     aml.name as label,
                     aml.ref as ref,
-                    aa.code_store as account_code,
+                    {col_select}
                     aa.name->>'en_US' as account_name,
                     rp.name as partner_name,
                     aml.debit as debit,
