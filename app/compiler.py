@@ -117,7 +117,8 @@ class FastMatrixCompiler:
                 break
 
         # Calculate Total PENDAPATAN JASA for the ships IN THIS REPORT ONLY
-        total_pj_report = {'q1': 0.0, 'q2': 0.0, 'q3': 0.0, 'q4': 0.0, 'ytd': 0.0}
+        from collections import defaultdict
+        total_pj_report = defaultdict(float)
         if pendapatan_jasa_cells:
             for i, cell in enumerate(pendapatan_jasa_cells):
                 if i < len(col_map):
@@ -131,7 +132,6 @@ class FastMatrixCompiler:
                             val = float(val)
                         except (ValueError, TypeError):
                             val = 0.0
-                        if period == 'total': period = 'ytd'
                         total_pj_report[period] += val
 
         for row in matrix.get('body', []):
@@ -147,7 +147,6 @@ class FastMatrixCompiler:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(col_map):
                         period = col_map[i]['period']
-                        if period == 'total': period = 'ytd'
                         val = total_pj_report.get(period, 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val)
@@ -156,7 +155,6 @@ class FastMatrixCompiler:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(col_map):
                         period = col_map[i]['period']
-                        if period == 'total': period = 'ytd'
                         
                         tpj_per_kapal = pendapatan_jasa_cells[i].get('val', 0.0) if (pendapatan_jasa_cells and i < len(pendapatan_jasa_cells)) else 0.0
                         try:
