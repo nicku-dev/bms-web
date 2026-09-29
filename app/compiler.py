@@ -48,6 +48,9 @@ class FastMatrixCompiler:
                 {'vessel_name': 'Total', 'period': 'ytd'},
             ]
 
+        # Environment for evaluating algebraic formulas (one dict per column)
+        env_vars = [{} for _ in col_map]
+
         # 2. Iterate rows
         for row in matrix.get('body', []):
             tag_name = None
@@ -110,7 +113,28 @@ class FastMatrixCompiler:
 
                         # Convert numpy float64 to python float to avoid JSON serialization errors
                         val = float(val)
+                        
+                        # Expenses are normally positive balance in accounting.
+                        # engine.py returns -balance, so normal expenses are negative here.
+                        # We multiply by -1 to make normal expenses positive for the dashboard.
+                        label_upper = str(row.get('label', '')).upper()
+                        is_expense = False
+                        if 'BIAYA' in label_upper or 'BEBAN' in label_upper:
+                            is_expense = True
+                        elif account_code and str(account_code)[0] in ['5', '6', '7', '8', '9']:
+                            is_expense = True
                             
+                        if is_expense:
+                            val = -val
+                            
+                        # Save to env_vars for algebraic formulas later
+                        if row.get('cells') and i < len(row['cells']):
+                            val_c_for_var = str(row['cells'][i].get('val_c', ''))
+                            if '=' in val_c_for_var:
+                                var_name_step2 = val_c_for_var.split('=')[0].split('.')[0].strip()
+                                if var_name_step2:
+                                    env_vars[i][var_name_step2] = val
+                                    
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val)
                         
@@ -211,6 +235,48 @@ class FastMatrixCompiler:
                             
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100)
+                        
+        # 4. Evaluate Algebraic Formulas
+        for row in matrix.get('body', []):
+            is_algebraic = False
+            expr = ""
+            var_name = ""
+            
+            # Check if this row is an algebraic formula
+            for c in row.get('cells', []):
+                val_c = str(c.get('val_c', ''))
+                if '=' in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq1' not in val_c:
+                    parts = val_c.split('=', 1)
+                    if len(parts) == 2:
+                        var_name = parts[0].split('.')[0].strip()
+                        expr = parts[1].strip()
+                        if '.' not in expr:
+                            is_algebraic = True
+                        break
+                        
+            if is_algebraic and expr:
+                for i, cell in enumerate(row.get('cells', [])):
+                    if i < len(col_map):
+                        try:
+                            val = eval(expr, {}, env_vars[i])
+                            val = float(val)
+                        except Exception:
+                            val = 0.0
+                            
+                        # Format as percentage if it contains % or persentase
+                        label_upper = str(row.get('label', '')).upper()
+                        if '%' in label_upper or 'PERSENTASE' in label_upper:
+                            cell['val'] = val
+                            cell['val_r'] = "{:,.2f} %".format(val * 100)
+                        else:
+                            # Flip sign for expenses
+                            if 'BIAYA' in label_upper or 'BEBAN' in label_upper:
+                                val = -val
+                            cell['val'] = val
+                            cell['val_r'] = "{:,.2f}".format(val)
+                            
+                        if var_name:
+                            env_vars[i][var_name] = val
                             
         self.engine.close()
         return matrix
