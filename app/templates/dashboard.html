@@ -796,7 +796,7 @@
                       bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70"></td>`;
                       return;
                   }
-                  let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
+                  let val = (cell.val_r !== undefined && cell.val_r !== null) ? cell.val_r : (cell.val !== null ? cell.val : '');
                   if (val === 'undefined' || val === '#ERR') val = '';
                   if (typeof val === 'number') {
                     val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
