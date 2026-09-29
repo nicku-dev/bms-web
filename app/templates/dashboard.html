@@ -555,13 +555,18 @@
                   downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
                   
                   try {
+                      // Determine year from template name, or default to current year
+                      let templateName = document.getElementById('laporan-select').options[document.getElementById('laporan-select').selectedIndex].text;
+                      let yearMatch = templateName.match(/\d{4}/);
+                      let year = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear();
+                      
                       let res = await fetch('/api/export_excel', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                              company_id: parseInt(document.getElementById('company-select').value),
-                              template_name: document.getElementById('laporan-select').options[document.getElementById('laporan-select').selectedIndex].text,
-                              year: parseInt(document.getElementById('year-select').value),
+                              company_id: parseInt(document.getElementById('perusahaan-select').value),
+                              template_name: templateName,
+                              year: year,
                               matrix: window.filteredMatrixData
                           })
                       });
