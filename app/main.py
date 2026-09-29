@@ -659,54 +659,64 @@ class ExportExcelRequest(BaseModel):
     matrix: dict
 
 @app.post("/api/export_excel")
-def export_excel(req: ExportExcelRequest, request: Request, db: Session = Depends(get_db)):
-    user = validate_token(request.cookies.get("session_token"), db)
-    
-    company = db.query(Company).filter(Company.id == req.company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
+async def export_excel(req: ExportExcelRequest, request: Request):
+    db = SessionLocal()
+    try:
+        username = request.cookies.get("session_token")
+        user = None
+        if username:
+            user = db.query(User).filter(User.username == username).first()
+        
+        company = db.query(Company).filter(Company.id == req.company_id).first()
+        if not company:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Company not found"})
 
-    matrix = req.matrix
+        matrix = req.matrix
 
-    import datetime
-    import os
-    from app.excel_writer import ExcelWriter
+        import datetime
+        import os
+        from app.excel_writer import ExcelWriter
 
-    clean_name = req.template_name.replace(' ', '_').replace('/', '_')
-    if str(req.year) in clean_name:
-        clean_name = clean_name.replace(f"_{req.year}", "")
-        clean_name = clean_name.replace(str(req.year), "")
-    clean_name = clean_name.strip('_')
-    
-    timestamp_seq = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_filename = f"{clean_name}_{req.year}_{timestamp_seq}.xlsx"
-    
-    os.makedirs("app/static/reports", exist_ok=True)
-    output_path = f"app/static/reports/{output_filename}"
-    
-    writer = ExcelWriter(
-        output_path=output_path,
-        matrix_data=matrix,
-        report_name=req.template_name,
-        company_name=company.name,
-        year=req.year
-    )
-    writer.generate()
-    
-    from app.models import ReportHistory
-    now_str = datetime.datetime.now().strftime("%d %b %Y %H:%M")
-    history = ReportHistory(
-        user_id=user.id if user else None,
-        company_id=company.id,
-        template_name=req.template_name,
-        file_name=output_filename,
-        file_path=output_path,
-        generated_at=now_str
-    )
-    db.add(history)
-    db.commit()
-    
-    return {"status": "success", "file_url": f"/static/reports/{output_filename}"}
+        clean_name = req.template_name.replace(' ', '_').replace('/', '_')
+        if str(req.year) in clean_name:
+            clean_name = clean_name.replace(f"_{req.year}", "")
+            clean_name = clean_name.replace(str(req.year), "")
+        clean_name = clean_name.strip('_')
+        
+        timestamp_seq = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"{clean_name}_{req.year}_{timestamp_seq}.xlsx"
+        
+        os.makedirs("app/static/reports", exist_ok=True)
+        output_path = f"app/static/reports/{output_filename}"
+        
+        writer = ExcelWriter(
+            output_path=output_path,
+            matrix_data=matrix,
+            report_name=req.template_name,
+            company_name=company.name,
+            year=req.year
+        )
+        writer.generate()
+        
+        from app.models import ReportHistory
+        now_str = datetime.datetime.now().strftime("%d %b %Y %H:%M")
+        history = ReportHistory(
+            user_id=user.id if user else None,
+            company_id=company.id,
+            template_name=req.template_name,
+            file_name=output_filename,
+            file_path=output_path,
+            generated_at=now_str
+        )
+        db.add(history)
+        db.commit()
+        
+        return {"status": "success", "file_url": f"/static/reports/{output_filename}"}
+        
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    finally:
+        db.close()
 
 
 @app.get("/api/audit_trail")
