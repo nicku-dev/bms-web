@@ -741,13 +741,13 @@
                   }
                   
                   tpj_semua_row.cells[idx].val = periodSum;
-                  tpj_semua_row.cells[idx].val_r = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(periodSum);
+                  tpj_semua_row.cells[idx].val_r = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(periodSum);
               }
               
               if (prop_tpj_row.cells[idx]) {
                   let prop = periodSum !== 0 ? (tpj_kapal / periodSum) * 100 : 0;
                   prop_tpj_row.cells[idx].val = prop;
-                  prop_tpj_row.cells[idx].val_r = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(prop) + ' %';
+                  prop_tpj_row.cells[idx].val_r = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(prop) + ' %';
               }
           });
           
