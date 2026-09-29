@@ -84,23 +84,30 @@ class FastMatrixCompiler:
                         vessel = col_map[i]['vessel_name']
                         period = col_map[i]['period']
                         
-                        vessel_df = df
-                        # If the column header belongs to a specific vessel, filter it.
-                        if vessel and vessel.lower() != 'total':
+                        val = 0
+                        if vessel and 'total' not in vessel.lower():
+                            vessel_df = df
                             clean_vessel = vessel.replace('Kapal - ', '').strip()
                             vessel_df = df[df['vessel_name'] == clean_vessel]
                             
                             # Fallback to contains if exact match fails
                             if vessel_df.empty:
                                 vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
-                        
-                        val = 0
-                        if period in ['q1', 'q2', 'q3', 'q4']:
-                            q_num = int(period[1])
-                            val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
-                        elif period == 'ytd' or period == 'total':
-                            val = vessel_df['value'].sum()
-                            
+                                
+                            if period in ['q1', 'q2', 'q3', 'q4']:
+                                q_num = int(period[1])
+                                val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
+                            elif period == 'ytd' or period == 'total':
+                                val = vessel_df['value'].sum()
+                        else:
+                            # It's a Total column (e.g., 'Total Kapal Terpilih')
+                            # Sum all preceding cells in this row that have the same period and are NOT a total column
+                            val = sum(
+                                row.get('cells', [])[j].get('val', 0.0)
+                                for j in range(i)
+                                if col_map[j]['period'] == period and 'total' not in col_map[j]['vessel_name'].lower()
+                            )
+
                         # Convert numpy float64 to python float to avoid JSON serialization errors
                         val = float(val)
                             
