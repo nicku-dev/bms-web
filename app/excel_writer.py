@@ -147,8 +147,6 @@ class ExcelWriter:
                 if '%' in str(val_r):
                     num_format = '0.00%'
                     # Odoo gives % as 0.75 for 75% or sometimes 75.0 for 75%. Let's trust the val for numeric operations
-                    if isinstance(val, (int, float)):
-                        val = val / 100.0
                 
                 cell_fmt = self._get_format(workbook, merged_style, num_format=num_format)
                 
