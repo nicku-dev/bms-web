@@ -602,8 +602,16 @@ async def api_generate_report(req: ReportRequest, request: Request):
             print("FastMatrixCompiler fallback to pure skeleton: ", e)
 
         
+        import datetime
         clean_name = req.template_name.replace(' ', '_').replace('/', '_')
-        output_filename = f"{clean_name}_{year}.xlsx"
+        
+        if str(year) in clean_name:
+            clean_name = clean_name.replace(f"_{year}", "")
+            clean_name = clean_name.replace(str(year), "")
+            
+        clean_name = clean_name.strip('_')
+        timestamp_seq = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"{clean_name}_{year}_{timestamp_seq}.xlsx"
         
         os.makedirs("app/static/reports", exist_ok=True)
         output_path = f"app/static/reports/{output_filename}"
