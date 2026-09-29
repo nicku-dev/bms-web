@@ -135,11 +135,8 @@ class FastMatrixCompiler:
                                 if var_name_step2 and var_name_step2 not in env_vars[i]:
                                     env_vars[i][var_name_step2] = val
                                     
-                        if abs(val) < 0.005:
-                            cell['val_r'] = ""
-                            cell['val'] = 0.0
-                        else:
-                            cell['val_r'] = "{:,.2f}".format(val)
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f}".format(val)
                         
         # 3. Post-process pure formula rows (TPJ)
         # Grab PENDAPATAN JASA cells to copy into TPJ Per Kapal
