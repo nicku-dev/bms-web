@@ -127,6 +127,10 @@ class FastMatrixCompiler:
                     # We ONLY sum the specific ship columns, not the 'Total' column if it exists
                     if vessel and vessel.lower() != 'total':
                         val = cell.get('val', 0.0)
+                        try:
+                            val = float(val)
+                        except (ValueError, TypeError):
+                            val = 0.0
                         if period == 'total': period = 'ytd'
                         total_pj_report[period] += val
 
@@ -155,6 +159,11 @@ class FastMatrixCompiler:
                         if period == 'total': period = 'ytd'
                         
                         tpj_per_kapal = pendapatan_jasa_cells[i].get('val', 0.0) if (pendapatan_jasa_cells and i < len(pendapatan_jasa_cells)) else 0.0
+                        try:
+                            tpj_per_kapal = float(tpj_per_kapal)
+                        except (ValueError, TypeError):
+                            tpj_per_kapal = 0.0
+                            
                         tpj_semua = total_pj_report.get(period, 0.0)
                         
                         val = 0.0
