@@ -808,14 +808,14 @@
                       let acc_code = '';
                       
                       if (val_c.includes('tag_ids.name')) {
-                          let m1 = val_c.match(/'tag_ids\.name',\s*'=',\s*'([^']+)'/);
+                          let m1 = val_c.match(/['"]tag_ids\.name['"],\s*['"]=['"],\s*['"]([^'"]+)['"]/);
                           if (m1) tag_name = m1[1];
                       }
                       if (val_c.includes('account_id.code')) {
-                          let m2 = val_c.match(/'account_id\.code',\s*'=',\s*'([^']+)'/);
+                          let m2 = val_c.match(/['"]account_id\.code['"],\s*['"]=['"],\s*['"]([^'"]+)['"]/);
                           if (m2) acc_code = m2[1];
                           if (!m2) {
-                              m2 = val_c.match(/'account_id\.code',\s*'=like',\s*'([^']+)'/);
+                              m2 = val_c.match(/['"]account_id\.code['"],\s*['"]=like['"],\s*['"]([^'"]+)['"]/);
                               if (m2) acc_code = m2[1].replace(/%/g,'');
                           }
                       }

@@ -189,10 +189,12 @@ class ReportEngine:
             
         vessel_filter = ""
         if vessel_name and vessel_name != 'Head Office':
+            if vessel_name.startswith("Kapal - "):
+                vessel_name = vessel_name[8:]
             vessel_filter = f"AND fc.name = '{vessel_name}'"
             
         quarter_filter = ""
-        if quarter and quarter != 'ytd':
+        if quarter and str(quarter).lower() != 'ytd':
             # quarter is e.g. 'q1' or 'Q1'
             q_num = str(quarter).lower().replace('q', '')
             if q_num in ['1', '2', '3', '4']:
