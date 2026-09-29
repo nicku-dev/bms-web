@@ -163,7 +163,7 @@ class FastMatrixCompiler:
                     period = col_map[i].get('period', '').lower()
                     
                     # We ONLY sum the specific ship columns, not the 'Total' column if it exists
-                    if vessel and vessel.lower() != 'total':
+                    if vessel and 'total' not in vessel.lower():
                         val = cell.get('val', 0.0)
                         try:
                             val = float(val)
