@@ -55,7 +55,7 @@ class ReportEngine:
             
         acc_filter = ""
         if account_code:
-            acc_filter = f"AND aa.code_store LIKE '{account_code}%'"
+            acc_filter = f"AND aa.code_store::text LIKE '%\"{account_code}%'"
             
         if report_type == 'ho':
             query = f"""
@@ -163,7 +163,7 @@ class ReportEngine:
             
         acc_filter = ""
         if account_code:
-            acc_filter = f"AND aa.code_store LIKE '{account_code}%'"
+            acc_filter = f"AND aa.code_store::text LIKE '%\"{account_code}%'"
             
         vessel_filter = ""
         if vessel_name and vessel_name != 'Head Office':
