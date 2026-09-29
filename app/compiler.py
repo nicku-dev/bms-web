@@ -132,7 +132,7 @@ class FastMatrixCompiler:
                             val_c_for_var = str(row['cells'][i].get('val_c', ''))
                             if '=' in val_c_for_var:
                                 var_name_step2 = val_c_for_var.split('=')[0].split('.')[0].strip()
-                                if var_name_step2:
+                                if var_name_step2 and var_name_step2 not in env_vars[i]:
                                     env_vars[i][var_name_step2] = val
                                     
                         cell['val'] = val
