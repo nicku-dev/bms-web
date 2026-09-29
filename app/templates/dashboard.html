@@ -754,9 +754,7 @@
       
       if (pendapatan_jasa_row && tpj_semua_row && prop_tpj_row) {
           let sums_per_period = {};
-          
-          activeIndexes.forEach(idx => {
-              let m = meta[idx];
+          meta.forEach((m, idx) => {
               if (m && m.ship.toLowerCase() !== 'total') {
                   let cell = pendapatan_jasa_row.cells[idx];
                   let val = (cell && cell.val) ? parseFloat(cell.val) : 0;
