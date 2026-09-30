@@ -176,6 +176,14 @@ class ReportEngine:
         """
         Fetches detailed journal items for a specific vessel, quarter, and account/tag.
         """
+        if tag_name == 'undefined' or tag_name == 'null':
+            tag_name = None
+        if account_code == 'undefined' or account_code == 'null':
+            account_code = None
+            
+        if vessel_name:
+            vessel_name = vessel_name.replace('Kapal - ', '').strip()
+            
         tag_filter = ""
         if tag_name:
             tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
