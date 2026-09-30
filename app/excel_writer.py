@@ -154,10 +154,21 @@ class ExcelWriter:
                 
                 if val is None or str(val) == '':
                     worksheet.write_string(current_row, col_idx, '', cell_fmt)
-                elif isinstance(val, (int, float)):
-                    worksheet.write_number(current_row, col_idx, val, cell_fmt)
                 else:
-                    worksheet.write_string(current_row, col_idx, str(val), cell_fmt)
+                    # Attempt to safely convert to float to prevent string numbers in Excel
+                    try:
+                        # Clean commas in case value is passed as formatted string like "1,000.50"
+                        cleaned_val = str(val).replace(',', '')
+                        numeric_val = float(cleaned_val)
+                        
+                        # Eliminate -0.00 or floating point inaccuracies around zero
+                        if abs(numeric_val) < 0.005:
+                            numeric_val = 0.0
+                            
+                        worksheet.write_number(current_row, col_idx, numeric_val, cell_fmt)
+                    except (ValueError, TypeError):
+                        # Fallback: It is a genuine text string (e.g., "#ERR", "Total")
+                        worksheet.write_string(current_row, col_idx, str(val), cell_fmt)
                     
                 col_idx += 1
                 
