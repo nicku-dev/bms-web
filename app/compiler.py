@@ -275,5 +275,26 @@ class FastMatrixCompiler:
                         if var_name:
                             env_vars[i][var_name] = val
                             
+
+        # 5. Final Pass: Clean up ALL zeroes across the entire matrix (including Odoo skeleton leftovers)
+        for row in matrix.get('body', []):
+            for cell in row.get('cells', []):
+                val = cell.get('val')
+                val_r = str(cell.get('val_r', '')).strip()
+                
+                # Check string representations first
+                if val_r in ['0.00', '-0.00', '0', '-0', '0.00 %', '-0.00 %']:
+                    cell['val_r'] = "-"
+                    cell['val'] = 0.0
+                elif val is not None and val != '':
+                    try:
+                        num_val = float(str(val).replace(',', ''))
+                        if abs(num_val) < 0.005:
+                            cell['val_r'] = "-"
+                            cell['val'] = 0.0
+                    except (ValueError, TypeError):
+                        pass
+
         self.engine.close()
+
         return matrix
