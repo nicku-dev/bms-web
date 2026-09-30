@@ -65,15 +65,17 @@ class FastMatrixCompiler:
             for cell in row.get('cells', []):
                 val_c = cell.get('val_c', '')
                 if val_c and type(val_c) == str:
-                    tag_match = re.search(r"'tag_ids\.name',\s*'=',\s*'([^']+)'", val_c)
+                    tag_match = re.search(r"['\"]tag_ids\.name['\"],\s*['\"]=like['\"],\s*['\"]([^'\"]+)['\"]", val_c)
+                    if not tag_match:
+                        tag_match = re.search(r"['\"]tag_ids\.name['\"],\s*['\"]=[\"'],\s*['\"]([^'\"]+)['\"]", val_c)
                     if tag_match:
                         tag_name = tag_match.group(1)
                         
                     # Also try from val_c if not found in label (just in case)
                     if not account_code:
-                        acc_match = re.search(r"'account_id\.code',\s*'=like',\s*'([^']+)'", val_c)
+                        acc_match = re.search(r"['\"]account_id\.code['\"],\s*['\"]=like['\"],\s*['\"]([^'\"]+)['\"]", val_c)
                         if not acc_match:
-                            acc_match = re.search(r"'account_id\.code',\s*'=',\s*'([^']+)'", val_c)
+                            acc_match = re.search(r"['\"]account_id\.code['\"],\s*['\"]=[\"'],\s*['\"]([^'\"]+)['\"]", val_c)
                         if acc_match:
                             account_code = acc_match.group(1).replace('%', '')
                         
@@ -87,6 +89,13 @@ class FastMatrixCompiler:
                         vessel = col_map[i]['vessel_name']
                         period = col_map[i]['period']
                         
+                        is_expense = False
+                        label_upper = str(row.get('label', '')).upper()
+                        if 'BIAYA' in label_upper or 'BEBAN' in label_upper:
+                            is_expense = True
+                        elif account_code and str(account_code)[0] in ['5', '6', '7', '8', '9']:
+                            is_expense = True
+                            
                         val = 0
                         if vessel and 'total' not in vessel.lower():
                             vessel_df = df
@@ -102,6 +111,10 @@ class FastMatrixCompiler:
                                 val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
                             elif period == 'ytd' or period == 'total':
                                 val = vessel_df['value'].sum()
+                                
+                            val = float(val)
+                            if is_expense:
+                                val = -val
                         else:
                             # It's a Total column (e.g., 'Total Kapal Terpilih')
                             # Sum all preceding cells in this row that have the same period and are NOT a total column
@@ -110,22 +123,7 @@ class FastMatrixCompiler:
                                 for j in range(i)
                                 if col_map[j]['period'] == period and 'total' not in col_map[j]['vessel_name'].lower()
                             )
-
-                        # Convert numpy float64 to python float to avoid JSON serialization errors
-                        val = float(val)
-                        
-                        # Expenses are normally positive balance in accounting.
-                        # engine.py returns -balance, so normal expenses are negative here.
-                        # We multiply by -1 to make normal expenses positive for the dashboard.
-                        label_upper = str(row.get('label', '')).upper()
-                        is_expense = False
-                        if 'BIAYA' in label_upper or 'BEBAN' in label_upper:
-                            is_expense = True
-                        elif account_code and str(account_code)[0] in ['5', '6', '7', '8', '9']:
-                            is_expense = True
-                            
-                        if is_expense:
-                            val = -val
+                            val = float(val)
                             
                         # Save to env_vars for algebraic formulas later
                         if row.get('cells') and i < len(row['cells']):
@@ -258,7 +256,9 @@ class FastMatrixCompiler:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(col_map):
                         try:
-                            val = eval(expr, {}, env_vars[i])
+                            from collections import defaultdict
+                            safe_env = defaultdict(float, env_vars[i])
+                            val = eval(expr, {}, safe_env)
                             val = float(val)
                         except Exception:
                             val = 0.0
@@ -269,9 +269,6 @@ class FastMatrixCompiler:
                             cell['val'] = val
                             cell['val_r'] = "{:,.2f} %".format(val * 100)
                         else:
-                            # Flip sign for expenses
-                            if 'BIAYA' in label_upper or 'BEBAN' in label_upper:
-                                val = -val
                             cell['val'] = val
                             cell['val_r'] = "{:,.2f}".format(val)
                             

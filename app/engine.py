@@ -66,8 +66,13 @@ class ReportEngine:
         grouped by vessel and quarter.
         """
         tag_filter = ""
+        join_tags = ""
         if tag_name:
             tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            join_tags = """
+                JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+                JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            """
             
         acc_filter = ""
         if account_code:
@@ -87,8 +92,7 @@ class ReportEngine:
                 JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
                 JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN account_account aa ON aa.id = aml.account_id
-                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                {join_tags}
                 WHERE aml.parent_state = 'posted'
                   {tag_filter}
                   {acc_filter}
@@ -108,8 +112,7 @@ class ReportEngine:
                 JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN fleet_combination fc ON fc.analytic_account_id = aaa.id
                 JOIN account_account aa ON aa.id = aml.account_id
-                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                {join_tags}
                 WHERE aml.parent_state = 'posted'
                   {tag_filter}
                   {acc_filter}
@@ -185,8 +188,13 @@ class ReportEngine:
             vessel_name = vessel_name.replace('Kapal - ', '').strip()
             
         tag_filter = ""
+        join_tags = ""
         if tag_name:
             tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            join_tags = """
+                JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+                JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            """
             
         acc_filter = ""
         if account_code:
@@ -231,8 +239,7 @@ class ReportEngine:
                 JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
                 JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN account_account aa ON aa.id = aml.account_id
-                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                {join_tags}
                 WHERE aml.parent_state = 'posted'
                   {tag_filter}
                   {acc_filter}
@@ -263,8 +270,7 @@ class ReportEngine:
                 JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN fleet_combination fc ON fc.analytic_account_id = aaa.id
                 JOIN account_account aa ON aa.id = aml.account_id
-                LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-                LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+                {join_tags}
                 WHERE aml.parent_state = 'posted'
                   {tag_filter}
                   {acc_filter}
