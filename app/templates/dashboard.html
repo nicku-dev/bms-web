@@ -1096,7 +1096,7 @@
           title.innerText = `Audit Trail: ${rowLabel}`;
           subtitle.innerText = `Kapal: ${vessel} | ${quarter} ${year} | Total Laporan: ${reportValue}`;
           
-          let companyId = document.getElementById('company-select').value;
+          let companyId = document.getElementById('perusahaan-select').value;
           
           let url = `/api/audit_trail?company_id=${companyId}&year=${year}&quarter=${quarter}&vessel_name=${encodeURIComponent(vessel)}`;
           if (tag_name) url += `&tag_name=${encodeURIComponent(tag_name)}`;
