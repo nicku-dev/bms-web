@@ -134,7 +134,7 @@ class FastMatrixCompiler:
                                     env_vars[i][var_name_step2] = val
                                     
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f}".format(val)
+                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
                         
         # 3. Post-process pure formula rows (TPJ)
         # Grab PENDAPATAN JASA cells to copy into TPJ Per Kapal
@@ -177,7 +177,7 @@ class FastMatrixCompiler:
                     if pendapatan_jasa_cells and i < len(pendapatan_jasa_cells):
                         val = pendapatan_jasa_cells[i].get('val', 0.0)
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f}".format(val)
+                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
             
             elif 'TPJ Semua Kapal' in label:
                 for i, cell in enumerate(row.get('cells', [])):
@@ -186,7 +186,7 @@ class FastMatrixCompiler:
                         if period == 'total': period = 'ytd'
                         val = total_pj_report.get(period, 0.0)
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f}".format(val)
+                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
                         
             elif 'Proportional TPJ' in label:
                 for i, cell in enumerate(row.get('cells', [])):
@@ -207,7 +207,7 @@ class FastMatrixCompiler:
                             val = (tpj_per_kapal / tpj_semua)
                             
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f} %".format(val * 100)
+                        cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
                         
             elif '% LABA (RUGI) BERSIH' in label.upper() or '% LABA' in label.upper():
                 pendapatan_cells = total_pendapatan_jasa_cells if total_pendapatan_jasa_cells else pendapatan_jasa_cells
@@ -232,7 +232,7 @@ class FastMatrixCompiler:
                             val = (laba / pendapatan)
                             
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f} %".format(val * 100)
+                        cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
                         
         # 4. Evaluate Algebraic Formulas
         for row in matrix.get('body', []):
@@ -267,10 +267,10 @@ class FastMatrixCompiler:
                         label_upper = str(row.get('label', '')).upper()
                         if '%' in label_upper or 'PERSENTASE' in label_upper:
                             cell['val'] = val
-                            cell['val_r'] = "{:,.2f} %".format(val * 100)
+                            cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
                         else:
                             cell['val'] = val
-                            cell['val_r'] = "{:,.2f}".format(val)
+                            cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
                             
                         if var_name:
                             env_vars[i][var_name] = val
