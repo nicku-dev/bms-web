@@ -103,8 +103,6 @@
     </div>
     
     <div class="p-6">
-      <h4 class="text-sm font-medium text-gray-700 mb-4">Pemetaan Odoo View (tw_biaya_gaji)</h4>
-      
       
       <!-- Filters -->
       <div class="flex flex-col sm:flex-row gap-4 mb-4">
@@ -341,18 +339,7 @@
         </table>
       </div>
 
-      <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h5 class="text-sm font-bold text-blue-900 mb-2">💡 Keterangan &amp; Query SQL Base (Contoh untuk 2025/2026)</h5>
-        <code class="block text-xs font-mono text-blue-800 bg-white p-3 rounded border border-blue-200 mt-2">
-SELECT id, "date", keterangan, sumq1_25, sumq2_25, sumq3_25, sumq4_25, ytd_25<br>
-FROM public.tw_biaya_gaji;
-        </code>
-        <p class="text-xs text-blue-700 mt-2">
-          Nilai-nilai overhead di atas bersifat global per database (BMS/FPS). Web akan mengalikan nilai YTD / per-Q dari view di atas dengan persentase <b>Proportional TPJ (ptpj)</b> untuk dialokasikan ke masing-masing armada kapal.
-        </p>
-      </div>
-
-    </div>
+      
   </div>
 </main>
 
