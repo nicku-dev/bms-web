@@ -243,13 +243,14 @@ class FastMatrixCompiler:
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
                         
-        # 4. Evaluate Algebraic Formulas
-        for row in matrix.get('body', []):
-            is_algebraic = False
-            expr = ""
-            var_name = ""
-            
-            # Check if this row is an algebraic formula
+        # 4. Evaluate Algebraic Formulas (multi-pass to resolve dependencies)
+        for _ in range(3):
+            for row in matrix.get('body', []):
+                is_algebraic = False
+                expr = ""
+                var_name = ""
+                
+                # Check if this row is an algebraic formula
             for c in row.get('cells', []):
                 val_c = str(c.get('val_c', ''))
                 if '=' in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq1' not in val_c:
