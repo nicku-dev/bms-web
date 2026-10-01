@@ -104,7 +104,7 @@ class FastMatrixCompiler:
                         elif account_code and str(account_code)[0] in ['5', '6', '7', '8', '9']:
                             is_expense = True
                             
-                        val = 0
+                        val = cell.get('val', 0.0)
                         if vessel and 'total' not in vessel.lower():
                             vessel_df = df
                             clean_vessel = vessel.replace('Kapal - ', '').strip()
@@ -114,13 +114,17 @@ class FastMatrixCompiler:
                             if vessel_df.empty:
                                 vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
                                 
-                            if period in ['q1', 'q2', 'q3', 'q4']:
-                                q_num = int(period[1])
-                                val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
-                            elif period == 'ytd' or period == 'total':
-                                val = vessel_df['value'].sum()
-                                
-                            val = float(val)
+                            if not vessel_df.empty:
+                                if period in ['q1', 'q2', 'q3', 'q4']:
+                                    q_num = int(period[1])
+                                    val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
+                                elif period == 'ytd' or period == 'total':
+                                    val = vessel_df['value'].sum()
+                                    
+                            try:
+                                val = float(val)
+                            except:
+                                val = 0.0
                             if is_expense:
                                 val = -val
                         else:
