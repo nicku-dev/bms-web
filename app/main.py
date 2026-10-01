@@ -294,8 +294,7 @@ async def api_admin_references(request: Request):
                     print(f"Skipping {sql_view} on {comp.name}: {ex}")
                 
                 results.append(row_data)
-                except Exception as ex:
-                    print(f"Skipping {sql_view} on {comp.name}: {ex}")
+
         except Exception as e:
             print(f"Error fetching from {comp.target_db_name}: {e}")
         finally:
