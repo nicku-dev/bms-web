@@ -253,6 +253,18 @@ async def api_admin_references(request: Request):
             views = con.execute(query).fetchall()
             
             for var_name, odoo_model, sql_view in views:
+                row_data = {
+                    "inisial": comp.initial_pt or "N/A",
+                    "nama_pt": comp.name,
+                    "keterangan": f"KPI: {var_name}",
+                    "nama_tabel": sql_view,
+                    "tahun": "2026" if "26" in sql_view else ("2025" if "25" in sql_view else "Auto"),
+                    "q1": 0.0,
+                    "q2": 0.0,
+                    "q3": 0.0,
+                    "q4": 0.0,
+                    "ytd": 0.0
+                }
                 try:
                     cols = con.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{sql_view}'").fetchall()
                     col_names = [c[0] for c in cols]
@@ -273,18 +285,15 @@ async def api_admin_references(request: Request):
                     data_query = f"SELECT {', '.join(selects)} FROM pg.{sql_view}"
                     data = con.execute(data_query).fetchone()
                     
-                    results.append({
-                        "inisial": comp.initial_pt or "N/A",
-                        "nama_pt": comp.name,
-                        "keterangan": f"KPI: {var_name}",
-                        "nama_tabel": sql_view,
-                        "tahun": "2026" if "26" in sql_view else ("2025" if "25" in sql_view else "Auto"),
-                        "q1": float(data[0] or 0),
-                        "q2": float(data[1] or 0),
-                        "q3": float(data[2] or 0),
-                        "q4": float(data[3] or 0),
-                        "ytd": float(data[4] or 0)
-                    })
+                    row_data["q1"] = float(data[0] or 0)
+                    row_data["q2"] = float(data[1] or 0)
+                    row_data["q3"] = float(data[2] or 0)
+                    row_data["q4"] = float(data[3] or 0)
+                    row_data["ytd"] = float(data[4] or 0)
+                except Exception as ex:
+                    print(f"Skipping {sql_view} on {comp.name}: {ex}")
+                
+                results.append(row_data)
                 except Exception as ex:
                     print(f"Skipping {sql_view} on {comp.name}: {ex}")
         except Exception as e:
