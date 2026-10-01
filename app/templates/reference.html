@@ -105,7 +105,33 @@
     <div class="p-6">
       <h4 class="text-sm font-medium text-gray-700 mb-4">Pemetaan Odoo View (tw_biaya_gaji)</h4>
       
+      
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row gap-4 mb-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Perusahaan</label>
+          <select id="filter-company" onchange="filterTable()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+            <option value="all">Semua Perusahaan</option>
+            <option value="BMS">BMS</option>
+            <option value="FPS">FPS</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Tahun</label>
+          <select id="filter-year" onchange="filterTable()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+            <option value="all">Semua Tahun</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan / Tabel</label>
+          <input type="text" id="filter-search" onkeyup="filterTable()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2" placeholder="Cari keterangan atau view...">
+        </div>
+      </div>
+      
       <div class="overflow-x-auto rounded-lg border border-gray-200">
+
         <table class="w-full text-sm text-left text-gray-600">
           
           <thead class="bg-slate-50 border-b border-gray-200 text-xs uppercase font-semibold text-gray-700">
@@ -119,7 +145,7 @@
             </tr>
           </thead>
 
-          <tbody class="divide-y divide-gray-200">
+          <tbody id="ref-table-body" class="divide-y divide-gray-200">
             <tr class="hover:bg-gray-50 border-t border-gray-100">
               <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
               <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
@@ -329,5 +355,38 @@ FROM public.tw_biaya_gaji;
     </div>
   </div>
 </main>
+
+<script>
+function filterTable() {
+    var company = document.getElementById("filter-company").value.toUpperCase();
+    var year = document.getElementById("filter-year").value;
+    var search = document.getElementById("filter-search").value.toLowerCase();
+    
+    var tbody = document.getElementById("ref-table-body");
+    var trs = tbody.getElementsByTagName("tr");
+    
+    for (var i = 0; i < trs.length; i++) {
+        var tr = trs[i];
+        var tds = tr.getElementsByTagName("td");
+        if (tds.length > 0) {
+            var rowCompany = tds[0].textContent || tds[0].innerText;
+            var rowKet = tds[2].textContent || tds[2].innerText;
+            var rowTable = tds[3].textContent || tds[3].innerText;
+            var rowYear = tds[4].textContent || tds[4].innerText;
+            
+            var matchCompany = (company === "ALL" || rowCompany.toUpperCase().includes(company));
+            var matchYear = (year === "all" || rowYear.includes(year));
+            var matchSearch = (search === "" || rowKet.toLowerCase().includes(search) || rowTable.toLowerCase().includes(search));
+            
+            if (matchCompany && matchYear && matchSearch) {
+                tr.style.display = "";
+            } else {
+                tr.style.display = "none";
+            }
+        }
+    }
+}
+</script>
 </body>
+
 </html>
