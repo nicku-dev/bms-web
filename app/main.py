@@ -212,7 +212,90 @@ async def read_reference(request: Request):
         
     return templates.TemplateResponse(request=request, name="reference.html", context={"request": request, "user": user})
 
+
+@app.get("/api/admin/references")
+async def api_admin_references(request: Request):
+    if "session_token" not in request.cookies:
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
+        
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    
+    if not user or (user.role != 'admin' and user.username not in ["admin_isa", "admin_dev"]):
+        db.close()
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
+        
+    companies = db.query(Company).filter(Company.is_active == True).all()
+    db.close()
+    
+    import duckdb
+    from app.config import settings
+    
+    results = []
+    
+    for comp in companies:
+        if not comp.target_db_name:
+            continue
+            
+        con = duckdb.connect()
+        try:
+            con.execute("INSTALL postgres; LOAD postgres;")
+            pg_url = settings.get_postgres_connection_string(comp.target_db_name)
+            con.execute(f"ATTACH '{pg_url}' AS pg (TYPE postgres, READ_ONLY);")
+            
+            # Fetch all views that start with 'tw' from mis_report_query
+            query = """
+            SELECT DISTINCT q.name AS var_name, m.model AS odoo_model, REPLACE(m.model, '.', '_') AS sql_view
+            FROM pg.mis_report_query q
+            JOIN pg.ir_model m ON q.model_id = m.id
+            WHERE m.model LIKE 'tw%'
+            """
+            views = con.execute(query).fetchall()
+            
+            for var_name, odoo_model, sql_view in views:
+                try:
+                    cols = con.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{sql_view}'").fetchall()
+                    col_names = [c[0] for c in cols]
+                    
+                    q1_col = next((c for c in col_names if 'q1' in c), None)
+                    q2_col = next((c for c in col_names if 'q2' in c), None)
+                    q3_col = next((c for c in col_names if 'q3' in c), None)
+                    q4_col = next((c for c in col_names if 'q4' in c), None)
+                    ytd_col = next((c for c in col_names if 'ytd' in c), None)
+                    
+                    selects = []
+                    selects.append(f"SUM({q1_col}) as q1" if q1_col else "0 as q1")
+                    selects.append(f"SUM({q2_col}) as q2" if q2_col else "0 as q2")
+                    selects.append(f"SUM({q3_col}) as q3" if q3_col else "0 as q3")
+                    selects.append(f"SUM({q4_col}) as q4" if q4_col else "0 as q4")
+                    selects.append(f"SUM({ytd_col}) as ytd" if ytd_col else "0 as ytd")
+                    
+                    data_query = f"SELECT {', '.join(selects)} FROM pg.{sql_view}"
+                    data = con.execute(data_query).fetchone()
+                    
+                    results.append({
+                        "inisial": comp.initial_pt or "N/A",
+                        "nama_pt": comp.name,
+                        "keterangan": f"KPI: {var_name}",
+                        "nama_tabel": sql_view,
+                        "tahun": "2026" if "26" in sql_view else ("2025" if "25" in sql_view else "Auto"),
+                        "q1": float(data[0] or 0),
+                        "q2": float(data[1] or 0),
+                        "q3": float(data[2] or 0),
+                        "q4": float(data[3] or 0),
+                        "ytd": float(data[4] or 0)
+                    })
+                except Exception as ex:
+                    print(f"Skipping {sql_view} on {comp.name}: {ex}")
+        except Exception as e:
+            print(f"Error fetching from {comp.target_db_name}: {e}")
+        finally:
+            con.close()
+            
+    return JSONResponse(content={"status": "success", "data": results})
+
 @app.get("/api/admin/companies")
+
 async def api_admin_companies():
     db = SessionLocal()
     companies = db.query(Company).filter(Company.is_active == True).all()
