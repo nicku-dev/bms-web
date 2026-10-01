@@ -107,48 +107,211 @@
       
       <div class="overflow-x-auto rounded-lg border border-gray-200">
         <table class="w-full text-sm text-left text-gray-600">
+          
           <thead class="bg-slate-50 border-b border-gray-200 text-xs uppercase font-semibold text-gray-700">
             <tr>
               <th class="px-4 py-3">Inisial</th>
-              <th class="px-4 py-3">Nama PT Full Kepanjangan</th>
+              <th class="px-4 py-3">Nama PT</th>
               <th class="px-4 py-3">Keterangan</th>
-              <th class="px-4 py-3">Nama Tabel</th>
+              <th class="px-4 py-3">Nama Tabel (PostgreSQL)</th>
               <th class="px-4 py-3">Tahun</th>
-              <th class="px-4 py-3 text-right">Q1</th>
-              <th class="px-4 py-3 text-right">Q2</th>
-              <th class="px-4 py-3 text-right">Q3</th>
-              <th class="px-4 py-3 text-right">Q4</th>
-              <th class="px-4 py-3 text-right">YTD</th>
+              <th class="px-4 py-3 text-right">Nilai / Status</th>
             </tr>
           </thead>
+
           <tbody class="divide-y divide-gray-200">
-            <!-- BMS Data -->
+            <tr class="hover:bg-gray-50 border-t border-gray-100">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Gaji, jamsostek, THR dan Bonus</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_gaji</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
-              <td class="px-4 py-3">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Gaji, jamsostek, THR dan Bonus</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_gaji</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
               <td class="px-4 py-3 text-xs">Biaya Gaji, jamsostek, THR dan Bonus</td>
               <td class="px-4 py-3 font-mono text-xs">tw_biaya_gaji</td>
-              <td class="px-4 py-3">2026</td>
-              <td class="px-4 py-3 text-right">0.00</td>
-              <td class="px-4 py-3 text-right">1,347,056,088.00</td>
-              <td class="px-4 py-3 text-right">613,806,735.49</td>
-              <td class="px-4 py-3 text-right">0.00</td>
-              <td class="px-4 py-3 text-right font-semibold">1,960,862,823.49</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
             </tr>
-            <!-- FPS Data -->
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Gaji, jamsostek, THR dan Bonus</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_gaji</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 border-t border-gray-100">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Perjalanan Dinas</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_perjalanan_dinas</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
             <tr class="hover:bg-gray-50">
-              <td class="px-4 py-3 font-medium text-gray-900">FPS</td>
-              <td class="px-4 py-3">PT FANGIONOPERKASA SEJATI</td>
-              <td class="px-4 py-3 text-xs">Biaya Gaji, jamsostek, THR dan Bonus</td>
-              <td class="px-4 py-3 font-mono text-xs">tw_biaya_gaji</td>
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Perjalanan Dinas</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_perjalanan_dinas</td>
               <td class="px-4 py-3">2026</td>
-              <td class="px-4 py-3 text-right">768,411,607.20</td>
-              <td class="px-4 py-3 text-right">1,285,991,358.00</td>
-              <td class="px-4 py-3 text-right">545,033,010.00</td>
-              <td class="px-4 py-3 text-right">0.00</td>
-              <td class="px-4 py-3 text-right font-semibold">2,599,435,975.20</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
             </tr>
-          </tbody>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Perjalanan Dinas</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_perjalanan_dinas</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Perjalanan Dinas</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_perjalanan_dinas</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 border-t border-gray-100">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Kantor</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_kantor</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Kantor</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_kantor</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Kantor</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_kantor</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Kantor</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_kantor</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 border-t border-gray-100">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Jasa Konsultan (Profesional)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_konsultan</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Jasa Konsultan (Profesional)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_konsultan</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Jasa Konsultan (Profesional)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_konsultan</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Jasa Konsultan (Profesional)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_konsultan</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 border-t border-gray-100">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Asuransi (Kendaraan)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_asuransi_kendaraan</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Asuransi (Kendaraan)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_asuransi_kendaraan</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Asuransi (Kendaraan)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_biaya_asuransi_kendaraan</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Asuransi (Kendaraan)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_biaya_asuransi_kendaraan</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 border-t border-gray-100">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Penyusutan (GA)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_penyusutan_ga</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-900">BMS</td>
+              <td class="px-4 py-3 text-xs">PT BINA MARITIM SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Penyusutan (GA)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_penyusutan_ga</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Penyusutan (GA)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw_penyusutan_ga</td>
+              <td class="px-4 py-3">2025</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr>
+            <tr class="hover:bg-gray-50 bg-blue-50/20">
+              <td class="px-4 py-3 font-medium text-blue-900">FPS</td>
+              <td class="px-4 py-3 text-xs">PT FANGIONOPERKASA SEJATI</td>
+              <td class="px-4 py-3 text-xs">Biaya Penyusutan (GA)</td>
+              <td class="px-4 py-3 font-mono text-xs">tw26_penyusutan_ga</td>
+              <td class="px-4 py-3">2026</td>
+              <td class="px-4 py-3 text-right text-xs"><i>Auto-Query</i></td>
+            </tr></tbody>
         </table>
       </div>
 
