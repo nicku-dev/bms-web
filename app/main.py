@@ -195,6 +195,23 @@ async def read_config(request: Request):
         
     return templates.TemplateResponse(request=request, name="config.html", context={"request": request, "user": user})
 
+@app.get("/reference", response_class=HTMLResponse)
+async def read_reference(request: Request):
+    if "session_token" not in request.cookies:
+        return RedirectResponse(url="/login", status_code=303)
+        
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    db.close()
+    
+    if not user:
+        return RedirectResponse(url="/logout", status_code=303)
+        
+    if user.role != 'admin' and user.username not in ["admin_isa", "admin_dev"]:
+        return RedirectResponse(url="/dashboard", status_code=303)
+        
+    return templates.TemplateResponse(request=request, name="reference.html", context={"request": request, "user": user})
+
 @app.get("/api/admin/companies")
 async def api_admin_companies():
     db = SessionLocal()

@@ -135,7 +135,11 @@
 
 <!-- Tab Nonaktif: Konfigurasi Sistem -->
 {% if user.role == 'admin' or user.username in ['admin_isa', 'admin_dev'] %}
-<a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
+<a href="/reference" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">📊</span>
+<span class="">Referensi Data</span>
+</a>
+<a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">⚙️</span>
 <span class="">Konfigurasi Sistem</span>
 </a>
