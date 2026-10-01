@@ -61,9 +61,11 @@ class FastMatrixCompiler:
             acc_label_match = re.match(r'^(\d{6,12})\s+', label)
             if acc_label_match:
                 account_code = acc_label_match.group(1)
-                
             for cell in row.get('cells', []):
-                val_c = cell.get('val_c', '')
+                val_c = str(cell.get('val_c', ''))
+                
+                # Default initialize df
+                df = pd.DataFrame()
                 if val_c and type(val_c) == str:
                     tag_match = re.search(r"['\"]tag_ids\.name['\"],\s*['\"]=like['\"],\s*['\"]([^'\"]+)['\"]", val_c)
                     if not tag_match:
@@ -78,10 +80,16 @@ class FastMatrixCompiler:
                             acc_match = re.search(r"['\"]account_id\.code['\"],\s*['\"]=[\"'],\s*['\"]([^'\"]+)['\"]", val_c)
                         if acc_match:
                             account_code = acc_match.group(1).replace('%', '')
-                        
-            if tag_name or account_code:
+                            
+            if not tag_name and not account_code and 'balp' not in val_c:
+                if label.upper() == 'TRIP' or label.upper() == 'TRIP KAPAL':
+                    df = self.engine.get_kpi_trip(self.year, self.report_type)
+                elif label.upper() == 'KAPASITAS' or label.upper() == 'KAPASITAS KAPAL':
+                    df = self.engine.get_kpi_kapasitas(self.year, self.report_type)
+            elif tag_name or account_code:
                 df = self.get_df_by_tag_and_account(tag_name, account_code)
-                if df is not None and not df.empty:
+                
+            if df is not None and not df.empty:
                     for i, cell in enumerate(row.get('cells', [])):
                         if i >= len(col_map):
                             continue
@@ -151,24 +159,8 @@ class FastMatrixCompiler:
             elif label == 'LABA (RUGI) BERSIH':
                 laba_rugi_bersih_cells = row.get('cells', [])
 
-        # Calculate Total PENDAPATAN JASA for the ships IN THIS REPORT ONLY
-        from collections import defaultdict
-        total_pj_report = defaultdict(float)
-        if pendapatan_jasa_cells:
-            for i, cell in enumerate(pendapatan_jasa_cells):
-                if i < len(col_map):
-                    vessel = col_map[i].get('vessel_name', '')
-                    period = col_map[i].get('period', '').lower()
-                    
-                    # We ONLY sum the specific ship columns, not the 'Total' column if it exists
-                    if vessel and 'total' not in vessel.lower():
-                        val = cell.get('val', 0.0)
-                        try:
-                            val = float(val)
-                        except (ValueError, TypeError):
-                            val = 0.0
-                        if period == 'total': period = 'ytd'
-                        total_pj_report[period] += val
+        # Fetch True TPJ Semua Kapal from DuckDB
+        tpj_semua_df = self.engine.get_kpi_tpj_semua(self.year)
 
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).strip()
@@ -177,22 +169,28 @@ class FastMatrixCompiler:
                     if pendapatan_jasa_cells and i < len(pendapatan_jasa_cells):
                         val = pendapatan_jasa_cells[i].get('val', 0.0)
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+                        cell['val_r'] = "{:,.2f}".format(float(val)) if abs(float(val)) >= 0.005 else "-"
             
             elif 'TPJ Semua Kapal' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(col_map):
                         period = col_map[i]['period'].lower()
-                        if period == 'total': period = 'ytd'
-                        val = total_pj_report.get(period, 0.0)
-                        cell['val'] = val
-                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+                        val = 0.0
+                        if period in ['q1', 'q2', 'q3', 'q4']:
+                            q_num = int(period[1])
+                            if not tpj_semua_df.empty:
+                                val = tpj_semua_df[tpj_semua_df['quarter'] == q_num]['value'].sum()
+                        else:
+                            if not tpj_semua_df.empty:
+                                val = tpj_semua_df['value'].sum()
+                                
+                        cell['val'] = float(val)
+                        cell['val_r'] = "{:,.2f}".format(float(val)) if abs(float(val)) >= 0.005 else "-"
                         
             elif 'Proportional TPJ' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(col_map):
                         period = col_map[i]['period'].lower()
-                        if period == 'total': period = 'ytd'
                         
                         tpj_per_kapal = pendapatan_jasa_cells[i].get('val', 0.0) if (pendapatan_jasa_cells and i < len(pendapatan_jasa_cells)) else 0.0
                         try:
@@ -200,8 +198,15 @@ class FastMatrixCompiler:
                         except (ValueError, TypeError):
                             tpj_per_kapal = 0.0
                             
-                        tpj_semua = total_pj_report.get(period, 0.0)
-                        
+                        tpj_semua = 0.0
+                        if period in ['q1', 'q2', 'q3', 'q4']:
+                            q_num = int(period[1])
+                            if not tpj_semua_df.empty:
+                                tpj_semua = tpj_semua_df[tpj_semua_df['quarter'] == q_num]['value'].sum()
+                        else:
+                            if not tpj_semua_df.empty:
+                                tpj_semua = tpj_semua_df['value'].sum()
+                                
                         val = 0.0
                         if tpj_semua != 0:
                             val = (tpj_per_kapal / tpj_semua)

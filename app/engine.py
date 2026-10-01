@@ -168,6 +168,31 @@ class ReportEngine:
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
         return self.conn.execute(duckdb_query).df()
 
+    def get_kpi_tpj_semua(self, year: int) -> pd.DataFrame:
+        query = f"""
+            SELECT EXTRACT(QUARTER FROM aml.date)::int AS quarter, sum(-aml.balance * (jad.value::numeric / 100.0)) AS value
+            FROM account_move_line aml
+            JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
+            JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
+            JOIN account_analytic_account aaa ON aaa.id = split_key::int
+            JOIN fleet_combination fc ON aaa.id = fc.analytic_account_id
+            JOIN account_account aa ON aa.id = aml.account_id
+            JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+            JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            WHERE aml.parent_state = 'posted'
+              AND fc.is_third_party = false
+              AND (aat.name->>'en_US' = 'TW_PENDAPATAN JASA' OR aat.name::text LIKE '%TW_PENDAPATAN JASA%')
+              AND EXTRACT(YEAR FROM aml.date) = {year}
+            GROUP BY EXTRACT(QUARTER FROM aml.date)
+        """
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
+        try:
+            return self.conn.execute(duckdb_query).df()
+        except Exception as e:
+            print("Error get_kpi_tpj_semua:", e)
+            return pd.DataFrame(columns=['quarter', 'value'])
+
+
     def get_audit_trail(
         self, 
         year: int,
