@@ -275,7 +275,7 @@ async def api_admin_odoo_reports(company_id: int):
             username=company.odoo_user, 
             password=company.odoo_password
         )
-        reports = api.search_read('mis.report.instance', [], ['id', 'name'])
+        reports = api.search_read('mis.report.instance', ['|', ('active', '=', True), ('active', '=', False)], ['id', 'name', 'active'])
         return {"status": "success", "data": reports}
     except Exception as e:
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal terhubung ke Odoo ({company.name}): {str(e)}"})
