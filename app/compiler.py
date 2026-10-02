@@ -91,7 +91,7 @@ class FastMatrixCompiler:
                         if acc_match:
                             account_code = acc_match.group(1).replace('%', '')
                             
-            if not tag_name and not account_code and 'balp' not in val_c:
+            if not tag_name and not account_code:
                 if label.upper() == 'TRIP' or label.upper() == 'TRIP KAPAL':
                     df = self.engine.get_kpi_trip(self.year, self.report_type)
                 elif label.upper() == 'KAPASITAS' or label.upper() == 'KAPASITAS KAPAL':
@@ -265,7 +265,7 @@ class FastMatrixCompiler:
                         
                     val_c = str(cell.get('val_c', ''))
                     # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
-                    if '=' in val_c and '[' not in val_c:
+                    if '=' in val_c and '[' not in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq1' not in val_c:
                         parts = val_c.split('=', 1)
                         if len(parts) == 2:
                             var_name = parts[0].split('.')[0].strip()
