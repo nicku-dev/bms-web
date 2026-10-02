@@ -125,6 +125,8 @@ class FastMatrixCompiler:
                                 
                         try:
                             val = float(val)
+                            if is_expense:
+                                val = abs(val)
                         except (ValueError, TypeError):
                             val = 0.0
                             
@@ -139,7 +141,7 @@ class FastMatrixCompiler:
                     continue
                     
                 val_c = str(cell.get('val_c', ''))
-                if '=' in val_c and '[' not in val_c:
+                if '=' in val_c:
                     parts = val_c.split('=', 1)
                     if len(parts) == 2:
                         var_name = parts[0].strip()
@@ -148,7 +150,7 @@ class FastMatrixCompiler:
                         env_vars[i][var_name_clean] = cell.get('val', 0.0)
                         env_vars[i][var_name] = cell.get('val', 0.0)
 
-                if 'TPJ' in label and 'TOTAL PENDAPATAN JASA' in label:
+                if label == 'PENDAPATAN JASA':
                     env_vars[i]['tpj'] = cell.get('val', 0.0)
 
         # Build tpj_semua values to the environment
