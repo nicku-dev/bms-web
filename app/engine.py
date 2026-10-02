@@ -192,6 +192,75 @@ class ReportEngine:
             print("Error get_kpi_tpj_semua:", e)
             return pd.DataFrame(columns=['quarter', 'value'])
 
+    def get_mis_report_queries(self, report_id: int) -> dict:
+        """
+        Dynamically fetches the queries defined in the MIS Report template in Odoo.
+        Returns a nested dict: { query_name: { field_name: value } }
+        """
+        if not report_id:
+            return {}
+            
+        query = f"""
+            SELECT 
+                q.name AS query_name, 
+                REPLACE(m.model, '.', '_') AS sql_view,
+                f.name AS field_name,
+                q.aggregate
+            FROM mis_report_query q
+            JOIN ir_model m ON q.model_id = m.id
+            JOIN ir_model_fields_mis_report_query_rel rel ON rel.mis_report_query_id = q.id
+            JOIN ir_model_fields f ON f.id = rel.ir_model_fields_id
+            WHERE q.report_id = {report_id}
+        """
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query}')"
+        try:
+            df = self.conn.execute(duckdb_query).df()
+        except Exception as e:
+            print(f"Error fetching mis_report_query metadata for report {report_id}: {e}")
+            return {}
+            
+        queries = {}
+        for _, row in df.iterrows():
+            q_name = row['query_name']
+            if q_name not in queries:
+                queries[q_name] = {
+                    'view': row['sql_view'],
+                    'fields': []
+                }
+            queries[q_name]['fields'].append({
+                'name': row['field_name'],
+                'agg': row['aggregate']
+            })
+            
+        results = {}
+        for q_name, q_info in queries.items():
+            view = q_info['view']
+            fields = q_info['fields']
+            selects = []
+            for f in fields:
+                agg = str(f['agg']).upper() if f['agg'] else 'SUM'
+                if agg == 'NONE' or agg == 'NAN':
+                    agg = 'SUM'
+                selects.append(f"{agg}({f['name']}) as {f['name']}")
+                
+            select_str = ", ".join(selects)
+            
+            try:
+                fetch_sql = f"SELECT {select_str} FROM pg.{view}"
+                data = self.conn.execute(fetch_sql).fetchone()
+                
+                results[q_name] = {}
+                for i, f in enumerate(fields):
+                    val = data[i] if data else 0.0
+                    try:
+                        results[q_name][f['name']] = float(val or 0)
+                    except:
+                        results[q_name][f['name']] = 0.0
+            except Exception as e:
+                print(f"Error fetching query {q_name} from {view}: {e}")
+                
+        return results
+
 
     def get_audit_trail(
         self, 

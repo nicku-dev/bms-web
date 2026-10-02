@@ -2,11 +2,21 @@ import re
 import pandas as pd
 from app.engine import ReportEngine
 
+from types import SimpleNamespace
+
 class FastMatrixCompiler:
-    def __init__(self, db_name, year, report_type='fps'):
+    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None):
         self.engine = ReportEngine(db_name)
         self.year = year
         self.report_type = report_type
+        self.odoo_report_id = odoo_report_id
+        
+        # Fetch MIS Report Queries as Objects for eval()
+        self.query_vars = {}
+        if self.odoo_report_id:
+            queries_data = self.engine.get_mis_report_queries(self.odoo_report_id)
+            for q_name, q_fields in queries_data.items():
+                self.query_vars[q_name] = SimpleNamespace(**q_fields)
         
         # Precompute common KPIs to memory to avoid multiple queries
         self.cache = {}
@@ -253,13 +263,13 @@ class FastMatrixCompiler:
                 # Check if this row is an algebraic formula
             for c in row.get('cells', []):
                 val_c = str(c.get('val_c', ''))
-                if '=' in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq1' not in val_c:
+                # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
+                if '=' in val_c and '[' not in val_c:
                     parts = val_c.split('=', 1)
                     if len(parts) == 2:
                         var_name = parts[0].split('.')[0].strip()
                         expr = parts[1].strip()
-                        if '.' not in expr:
-                            is_algebraic = True
+                        is_algebraic = True
                         break
                         
             if is_algebraic and expr:
@@ -268,6 +278,7 @@ class FastMatrixCompiler:
                         try:
                             from collections import defaultdict
                             safe_env = defaultdict(float, env_vars[i])
+                            safe_env.update(self.query_vars) # Inject MIS queries (e.g. tbab.sumq1_25)
                             val = eval(expr, {}, safe_env)
                             val = float(val)
                         except Exception:

@@ -705,7 +705,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
                 report_type = 'ho'
                 
             from app.compiler import FastMatrixCompiler
-            compiler = FastMatrixCompiler(db_name=company.target_db_name, year=year, report_type=report_type)
+            compiler = FastMatrixCompiler(db_name=company.target_db_name, year=year, report_type=report_type, odoo_report_id=item.odoo_report_id)
             matrix = compiler.compile(matrix)
         except Exception as e:
             compile_status = f"FALLBACK SKELETON (Error: {str(e)})"
