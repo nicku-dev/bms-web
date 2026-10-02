@@ -212,7 +212,8 @@ class ReportEngine:
             JOIN ir_model_fields f ON f.id = rel.ir_model_fields_id
             WHERE q.report_id = {report_id}
         """
-        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query}')"
+        escaped_query = query.replace("'", "''")
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{escaped_query}')"
         try:
             df = self.conn.execute(duckdb_query).df()
         except Exception as e:
