@@ -133,6 +133,34 @@ class FastMatrixCompiler:
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
 
+        # STEP 2.5: Calculate "Total Kapal Terpilih" base values by summing ship columns and copying val_c
+        for row in matrix.get('body', []):
+            cells = row.get('cells', [])
+            if not cells: continue
+            
+            base_val_c = str(cells[0].get('val_c', ''))
+            
+            for i, col in enumerate(col_map):
+                if i >= len(cells): continue
+                
+                # Copy val_c if missing (to ensure Step 4 evaluates formulas for Total columns)
+                if 'val_c' not in cells[i] or not cells[i]['val_c']:
+                    cells[i]['val_c'] = base_val_c
+
+                if 'TOTAL KAPAL TERPILIH' in col['vessel_name'].upper():
+                    period = col['period']
+                    # Find all ship columns for this period
+                    ship_cols = [j for j, c in enumerate(col_map) if c['period'] == period and 'TOTAL' not in c['vessel_name'].upper()]
+                    
+                    total_val = 0.0
+                    for j in ship_cols:
+                        v = cells[j].get('val', 0.0)
+                        if v is not None:
+                            total_val += v
+                            
+                    cells[i]['val'] = total_val
+                    cells[i]['val_r'] = "{:,.2f}".format(total_val) if abs(total_val) >= 0.005 else "-"
+
         # STEP 3: Store variables to env_vars for step 4
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).upper()
