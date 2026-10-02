@@ -117,7 +117,7 @@ class FastMatrixCompiler:
                             if is_expense:
                                 val = -abs(val)
                         except (ValueError, TypeError):
-                            pass
+                            val = 0.0
                             
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
