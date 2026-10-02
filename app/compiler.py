@@ -287,7 +287,7 @@ class FastMatrixCompiler:
                                         val = val * safe_env.get('prop_tpj', 0.0)
                                         
                             except Exception:
-                                val = 0.0
+                                continue
                                 
                             # Format as percentage if it contains % or persentase
                             label_upper = str(row.get('label', '')).upper()
