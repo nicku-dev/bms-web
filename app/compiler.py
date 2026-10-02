@@ -214,6 +214,11 @@ class FastMatrixCompiler:
         for _ in range(3):
             for row in matrix.get('body', []):
                 label_upper = str(row.get('label', '')).upper()
+                
+                # Prevent Odoo algebraic formulas from overwriting KPI data
+                if label_upper in ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL']:
+                    continue
+                    
                 is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)
                 
                 for i, cell in enumerate(row.get('cells', [])):
