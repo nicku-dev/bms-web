@@ -62,10 +62,21 @@ class FastMatrixCompiler:
             if tag_match:
                 tag_name = tag_match.group(1).replace('%', '')
                 
+            if label == 'PENDAPATAN JASA':
+                tag_name = 'TW_PENDAPATAN JASA'
+                
             if not tag_name:
                 acc_match = re.search(r'^(\d+)', label)
                 if acc_match:
                     account_code = acc_match.group(1).replace('%', '')
+
+            # Also check if val_c contains a balp tag
+            if not tag_name and len(row.get('cells', [])) > 0:
+                val_c = str(row['cells'][0].get('val_c', ''))
+                if 'balp' in val_c:
+                    tag_match_c = re.search(r'\[\("tag_ids\.name","=","(.*?)"\)\]', val_c.replace("'", '"'))
+                    if tag_match_c:
+                        tag_name = tag_match_c.group(1)
 
             if not tag_name and not account_code:
                 if label == 'TRIP' or label == 'TRIP KAPAL':
@@ -114,8 +125,6 @@ class FastMatrixCompiler:
                                 
                         try:
                             val = float(val)
-                            if is_expense:
-                                val = -abs(val)
                         except (ValueError, TypeError):
                             val = 0.0
                             
