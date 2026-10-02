@@ -181,7 +181,7 @@ class FastMatrixCompiler:
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
             
-            elif 'PROPORSIONAL TPJ' in label:
+            elif 'PROPORTIONAL TPJ' in label or 'PROPORSIONAL TPJ' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
                         val = env_vars[i].get('prop_tpj', 0.0)
