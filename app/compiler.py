@@ -247,8 +247,16 @@ class FastMatrixCompiler:
                             expr = parts[1].strip()
                             
                             try:
-                                # USE THE ISOLATED EVALUATOR
-                                val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
+                                # YTD Override for indirect costs: sum Q1..Q4 instead of formula
+                                if col_map[i]['period'] == 'ytd' and is_expense and 'ptpj' in expr:
+                                    q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4']]
+                                    if q_cols:
+                                        val = sum(row['cells'][j].get('val', 0.0) for j in q_cols)
+                                    else:
+                                        val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
+                                else:
+                                    # USE THE ISOLATED EVALUATOR
+                                    val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
                             except ValueError:
                                 # DO NOT overwrite if evaluation fails cleanly!
                                 continue
