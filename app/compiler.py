@@ -225,6 +225,9 @@ class FastMatrixCompiler:
                         if tpj_semua != 0:
                             val = (tpj_per_kapal / tpj_semua)
                             
+                        # Save to env_vars so it can be used in algebraic formulas like `tbab.sumq3_25 * prop_tpj`
+                        env_vars[i]['prop_tpj'] = val
+                        
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
                         
@@ -256,45 +259,47 @@ class FastMatrixCompiler:
         # 4. Evaluate Algebraic Formulas (multi-pass to resolve dependencies)
         for _ in range(3):
             for row in matrix.get('body', []):
-                is_algebraic = False
-                expr = ""
-                var_name = ""
-                
-                # Check if this row is an algebraic formula
-            for c in row.get('cells', []):
-                val_c = str(c.get('val_c', ''))
-                # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
-                if '=' in val_c and '[' not in val_c:
-                    parts = val_c.split('=', 1)
-                    if len(parts) == 2:
-                        var_name = parts[0].split('.')[0].strip()
-                        expr = parts[1].strip()
-                        is_algebraic = True
-                        break
-                        
-            if is_algebraic and expr:
                 for i, cell in enumerate(row.get('cells', [])):
-                    if i < len(col_map):
-                        try:
-                            from collections import defaultdict
-                            safe_env = defaultdict(float, env_vars[i])
-                            safe_env.update(self.query_vars) # Inject MIS queries (e.g. tbab.sumq1_25)
-                            val = eval(expr, {}, safe_env)
-                            val = float(val)
-                        except Exception:
-                            val = 0.0
+                    if i >= len(col_map):
+                        continue
+                        
+                    val_c = str(cell.get('val_c', ''))
+                    # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
+                    if '=' in val_c and '[' not in val_c:
+                        parts = val_c.split('=', 1)
+                        if len(parts) == 2:
+                            var_name = parts[0].split('.')[0].strip()
+                            expr = parts[1].strip()
                             
-                        # Format as percentage if it contains % or persentase
-                        label_upper = str(row.get('label', '')).upper()
-                        if '%' in label_upper or 'PERSENTASE' in label_upper:
-                            cell['val'] = val
-                            cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
-                        else:
-                            cell['val'] = val
-                            cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
-                            
-                        if var_name:
-                            env_vars[i][var_name] = val
+                            try:
+                                from collections import defaultdict
+                                safe_env = defaultdict(float, env_vars[i])
+                                safe_env.update(self.query_vars) # Inject MIS queries (e.g. tbab.sumq1_25)
+                                val = eval(expr, {}, safe_env)
+                                val = float(val)
+                                
+                                # Auto-proportional logic for Indirect Costs
+                                label_upper = str(row.get('label', '')).upper()
+                                is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)
+                                
+                                if is_expense and 'prop_tpj' not in expr:
+                                    if any(q in expr for q in self.query_vars.keys()):
+                                        val = val * safe_env.get('prop_tpj', 0.0)
+                                        
+                            except Exception:
+                                val = 0.0
+                                
+                            # Format as percentage if it contains % or persentase
+                            label_upper = str(row.get('label', '')).upper()
+                            if '%' in label_upper or 'PERSENTASE' in label_upper:
+                                cell['val'] = val
+                                cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
+                            else:
+                                cell['val'] = val
+                                cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+                                
+                            if var_name:
+                                env_vars[i][var_name] = val
                             
 
         # 5. Final Pass: Clean up ALL zeroes across the entire matrix (including Odoo skeleton leftovers)
