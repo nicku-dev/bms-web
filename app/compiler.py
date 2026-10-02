@@ -121,7 +121,10 @@ class FastMatrixCompiler:
                                 q_num = int(period[1])
                                 val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
                             elif period == 'ytd' or period == 'total':
-                                val = vessel_df['value'].sum()
+                                if label == 'KAPASITAS' or label == 'KAPASITAS KAPAL':
+                                    pass  # Do not modify YTD for Kapasitas
+                                else:
+                                    val = vessel_df['value'].sum()
                                 
                         try:
                             val = float(val)
