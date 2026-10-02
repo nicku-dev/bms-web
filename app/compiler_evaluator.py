@@ -24,12 +24,6 @@ class CompilerEvaluator:
             val = eval(expr, {}, safe_env)
             val = float(val)
             
-            # Auto-proportional logic for Indirect Costs
-            if is_expense and 'prop_tpj' not in expr:
-                # If the formula references any query variable, we multiply by prop_tpj
-                if any(q in expr for q in self.query_vars.keys()):
-                    val = val * safe_env.get('prop_tpj', 0.0)
-                    
             return val
         except Exception as e:
             # We must raise it so the caller (compiler) can catch it and `continue`,

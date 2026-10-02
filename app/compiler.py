@@ -168,8 +168,10 @@ class FastMatrixCompiler:
                 tpj_s = env_vars[i].get('tpj_semua', 0.0)
                 if tpj_s != 0:
                     env_vars[i]['prop_tpj'] = tpj / tpj_s
+                    env_vars[i]['ptpj'] = tpj / tpj_s
                 else:
                     env_vars[i]['prop_tpj'] = 0.0
+                    env_vars[i]['ptpj'] = 0.0
 
         # Proporsional TPJ row insertion logic
         for row in matrix.get('body', []):
