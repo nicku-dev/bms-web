@@ -675,19 +675,27 @@ async def api_odoo_compute_booster_direct(req: Request):
         year = int(year_match.group()) if year_match else datetime.date.today().year
         
         import json
-        with open("/tmp/skeleton_debug.json", "w") as f:
+        with open("skeleton_debug.json", "w") as f:
             json.dump(skeleton_matrix, f, indent=2)
+            
+        pg_kwargs = {
+            'db_host': data.get('db_host'),
+            'db_port': data.get('db_port'),
+            'db_user': data.get('db_user'),
+            'db_password': data.get('db_password'),
+        }
             
         from app.compiler import FastMatrixCompiler
         compiler = FastMatrixCompiler(
             db_name=db_name, 
             year=year, 
             report_type=report_type, 
-            odoo_report_id=0 # 0 because we don't query it from DB anymore
+            odoo_report_id=0, # 0 because we don't query it from DB anymore
+            pg_kwargs=pg_kwargs
         )
         compiled = compiler.compile(skeleton_matrix)
         
-        with open("/tmp/compiled_debug.json", "w") as f:
+        with open("compiled_debug.json", "w") as f:
             json.dump(compiled, f, indent=2)
             
         return compiled

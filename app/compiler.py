@@ -7,8 +7,8 @@ from app.compiler_fetcher import CompilerFetcher
 from app.compiler_evaluator import CompilerEvaluator
 
 class FastMatrixCompiler:
-    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None):
-        self.engine = ReportEngine(db_name)
+    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None, pg_kwargs=None):
+        self.engine = ReportEngine(db_name, pg_kwargs=pg_kwargs)
         self.year = year
         self.report_type = report_type
         self.odoo_report_id = odoo_report_id

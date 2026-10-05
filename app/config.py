@@ -26,10 +26,14 @@ class Settings(BaseSettings):
         pwd_part = f":{self.db_password}" if self.db_password else ""
         return f"postgresql://{self.db_user}{pwd_part}@{self.db_host}:{self.db_port}/{self.db_name}"
         
-    def get_postgres_connection_string(self, override_db_name: str = None) -> str:
-        """Returns the PostgreSQL connection string with an optional database override."""
-        pwd_part = f":{self.db_password}" if self.db_password else ""
-        target_db = override_db_name if override_db_name else self.db_name
-        return f"postgresql://{self.db_user}{pwd_part}@{self.db_host}:{self.db_port}/{target_db}"
-
+    def get_postgres_connection_string(self, override_db_name: str = None, override_host: str = None, override_port: int = None, override_user: str = None, override_password: str = None) -> str:
+        """Returns the PostgreSQL connection string with optional overrides."""
+        host = override_host or self.db_host
+        port = override_port or self.db_port
+        user = override_user or self.db_user
+        pwd = override_password if override_password is not None else self.db_password
+        db_name = override_db_name or self.db_name
+        
+        pwd_part = f":{pwd}" if pwd else ""
+        return f"postgresql://{user}{pwd_part}@{host}:{port}/{db_name}"
 settings = Settings()

@@ -4,16 +4,22 @@ from typing import Optional
 from app.config import settings
 
 class ReportEngine:
-    def __init__(self, db_name: Optional[str] = None):
+    def __init__(self, db_name: Optional[str] = None, pg_kwargs: dict = None):
         self.conn = duckdb.connect(database=':memory:')
-        self._init_postgres(db_name)
+        self._init_postgres(db_name, pg_kwargs or {})
 
-    def _init_postgres(self, db_name: Optional[str] = None):
+    def _init_postgres(self, db_name: Optional[str] = None, pg_kwargs: dict = None):
         """Initializes the PostgreSQL extension and attaches to the target database."""
         self.conn.execute("INSTALL postgres;")
         self.conn.execute("LOAD postgres;")
         
-        pg_url = settings.get_postgres_connection_string(db_name)
+        pg_url = settings.get_postgres_connection_string(
+            override_db_name=db_name,
+            override_host=pg_kwargs.get('db_host'),
+            override_port=pg_kwargs.get('db_port'),
+            override_user=pg_kwargs.get('db_user'),
+            override_password=pg_kwargs.get('db_password'),
+        )
         self.conn.execute(f"ATTACH '{pg_url}' AS pg (TYPE postgres, READ_ONLY);")
 
     @property

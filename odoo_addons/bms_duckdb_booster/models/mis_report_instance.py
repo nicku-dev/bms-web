@@ -66,10 +66,15 @@ class MisReportInstance(models.Model):
         bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
         api_endpoint = f"{bms_web_url}/api/odoo/compute_booster_direct"
         
+        import odoo.tools.config as config
         payload = {
             "skeleton_json": skeleton_matrix,
             "target_db_name": self.env.cr.dbname,
             "report_name": self.name,
+            "db_host": config['db_host'] or '10.100.1.58', # Fallback to server IP if local
+            "db_port": config['db_port'] or 5432,
+            "db_user": config['db_user'],
+            "db_password": config['db_password'],
         }
         
         import requests
