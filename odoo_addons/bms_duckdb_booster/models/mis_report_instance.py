@@ -28,26 +28,36 @@ class MisReportInstance(models.Model):
         if not self.duckdb_boost_enabled:
             return super().compute()
 
-        # Hack: To get the skeleton matrix without running slow PostgreSQL queries,
+        # Hack: To get the skeleton matrix without running slow PostgreSQL queries and without OOM,
         # we temporarily change all period dates to '1970-01-01' where no data exists.
         old_dates = {}
-        # Avoid constraint errors by writing all at once, or bypassing check
-        # Actually mis.report.instance.period doesn't have strict constraints on 1970 usually
         for period in self.period_ids:
             old_dates[period.id] = {
                 'date_from': period.date_from,
                 'date_to': period.date_to,
             }
-            # We use sudo/write to bypass some UI constraints if any
             period.sudo().write({
                 'date_from': '1970-01-01',
                 'date_to': '1970-01-01',
             })
             
+        # Monkey patch mis_safe_eval to avoid ast.parse MemoryError
+        import odoo.addons.mis_builder.models.mis_safe_eval as mse
+        original_eval = mse.mis_safe_eval
+        mse.mis_safe_eval = lambda expr, locals_dict: 0.0
+
+        # Monkey patch KpiMatrixRow.is_empty to avoid hiding rows
+        import odoo.addons.mis_builder.models.kpimatrix as kpimatrix
+        original_is_empty = kpimatrix.KpiMatrixRow.is_empty
+        kpimatrix.KpiMatrixRow.is_empty = lambda self: False
+
         try:
-            # This is now lightning fast because Postgres finds 0 move lines!
+            # This is now lightning fast and OOM-proof!
             skeleton_matrix = super().compute()
         finally:
+            # Revert monkey patches
+            mse.mis_safe_eval = original_eval
+            kpimatrix.KpiMatrixRow.is_empty = original_is_empty
             # Revert the dates back immediately
             for period in self.period_ids:
                 period.sudo().write(old_dates[period.id])
