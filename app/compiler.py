@@ -35,6 +35,9 @@ class FastMatrixCompiler:
             h0 = matrix['header'][0]
             h1 = matrix['header'][1]
             
+            if isinstance(h0, dict): h0 = h0.get('cols', [])
+            if isinstance(h1, dict): h1 = h1.get('cols', [])
+            
             vessels = []
             for h in h0:
                 colspan = h.get('colspan', 1)
