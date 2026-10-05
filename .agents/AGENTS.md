@@ -32,3 +32,10 @@ There are two instances managed in this project on the same server (10.100.1.58)
    - URL: `odoo-bms.lenterateknologi.com`
    - Odoo IP: `10.110.1.5`
    - Postgres IP: `10.100.1.61`
+
+## FastMatrixCompiler & Odoo MIS Builder Nuances
+When working on `FastMatrixCompiler` and `skeleton_json` logic in this project, adhere strictly to these rules:
+
+1. **Variable Shadowing:** Odoo MIS Builder templates repeat the same `val_c` variable assignment (e.g., `pendapatan.q1 = ...`) for parent rows (like 'PENDAPATAN JASA') and all their child COA rows. Always ensure variables in `env_vars` are locked by the first occurrence (the parent) to prevent child rows from overwriting aggregate values.
+2. **YTD Exceptions:** Static metrics like 'KAPASITAS' (ship capacity) must NOT have their YTD values aggregated/summed across quarters. YTD for these static metrics should retain the original Odoo value.
+3. **Total Kapal Terpilih:** Odoo strips/corrupts formula data for the "Total Kapal Terpilih" columns. Always rebuild "Total Kapal Terpilih" columns by summing up individual ships manually within the compiler (Step 2.5) before evaluating formulas (Step 4).
