@@ -178,8 +178,10 @@ class FastMatrixCompiler:
                         var_name = parts[0].strip()
                         # Some names have prefixes (e.g. tpj.balp), strip them for env var name
                         var_name_clean = var_name.split('.')[0]
-                        env_vars[i][var_name_clean] = cell.get('val', 0.0)
-                        env_vars[i][var_name] = cell.get('val', 0.0)
+                        if var_name_clean not in env_vars[i]:
+                            env_vars[i][var_name_clean] = cell.get('val', 0.0)
+                        if var_name not in env_vars[i]:
+                            env_vars[i][var_name] = cell.get('val', 0.0)
 
                 if label == 'PENDAPATAN JASA':
                     env_vars[i]['tpj'] = cell.get('val', 0.0)
@@ -254,6 +256,10 @@ class FastMatrixCompiler:
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
 
+        # STEP 3.5
+        for i in range(len(env_vars)):
+            if env_vars[i].get("pendapatan") == 514981997.0:
+                print(f"WOW! col {i} has pendapatan=514981997.0")
         # STEP 4: Evaluate Algebraic Formulas with ISOLATED Evaluator
         for _ in range(3):
             for row in matrix.get('body', []):
