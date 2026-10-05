@@ -674,6 +674,10 @@ async def api_odoo_compute_booster_direct(req: Request):
         year_match = re.search(r'\d{4}', report_name)
         year = int(year_match.group()) if year_match else datetime.date.today().year
         
+        import json
+        with open("/tmp/skeleton_debug.json", "w") as f:
+            json.dump(skeleton_matrix, f, indent=2)
+            
         from app.compiler import FastMatrixCompiler
         compiler = FastMatrixCompiler(
             db_name=db_name, 
@@ -683,6 +687,9 @@ async def api_odoo_compute_booster_direct(req: Request):
         )
         compiled = compiler.compile(skeleton_matrix)
         
+        with open("/tmp/compiled_debug.json", "w") as f:
+            json.dump(compiled, f, indent=2)
+            
         return compiled
     except Exception as e:
         import traceback
