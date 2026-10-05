@@ -106,7 +106,11 @@ class MisReportInstance(models.Model):
                     
                     import logging
                     _logger = logging.getLogger(__name__)
-                    _logger.info(f"[DUCKDB_BOOST] Injecting row {comp_idx}: {comp_row.get('label')}")
+                    
+                    if comp_idx == 0:
+                        _logger.warning(f"[DUCKDB_BOOST] Starting injection! len(compiled_body)={len(compiled_body)}")
+                        
+                    _logger.warning(f"[DUCKDB_BOOST] Injecting row {comp_idx}: {comp_row.get('label')}")
                     
                     for i, cell in enumerate(row.iter_cells()):
                         if i < len(compiled_cells):
@@ -124,7 +128,7 @@ class MisReportInstance(models.Model):
                                 cell.val_comment = comp_cell.get('val_c', '')
                                 
                                 if comp_idx == 4 and i == 2:
-                                    _logger.info(f"[DUCKDB_BOOST] cell={cell} val={val} cell.val={cell.val} val_rendered={cell.val_rendered}")
+                                    _logger.warning(f"[DUCKDB_BOOST] cell={cell} val={val} cell.val={cell.val} val_rendered={cell.val_rendered}")
                     comp_idx += 1
 
         finally:
