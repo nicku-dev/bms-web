@@ -103,6 +103,11 @@ class MisReportInstance(models.Model):
                 if comp_idx < len(compiled_body):
                     comp_row = compiled_body[comp_idx]
                     compiled_cells = comp_row.get('cells', [])
+                    
+                    import logging
+                    _logger = logging.getLogger(__name__)
+                    _logger.info(f"[DUCKDB_BOOST] Injecting row {comp_idx}: {comp_row.get('label')}")
+                    
                     for i, cell in enumerate(row.iter_cells()):
                         if i < len(compiled_cells):
                             comp_cell = compiled_cells[i]
@@ -115,7 +120,11 @@ class MisReportInstance(models.Model):
                                         cell.val = float(val) if val != "" else AccountingNone
                                     except ValueError:
                                         cell.val = AccountingNone
-                                cell.val_rendered = comp_cell.get('val_formatted', '')
+                                cell.val_rendered = comp_cell.get('val_r', '')
+                                cell.val_comment = comp_cell.get('val_c', '')
+                                
+                                if comp_idx == 4 and i == 2:
+                                    _logger.info(f"[DUCKDB_BOOST] cell={cell} val={val} cell.val={cell.val} val_rendered={cell.val_rendered}")
                     comp_idx += 1
 
         finally:
