@@ -39,3 +39,8 @@ When working on `FastMatrixCompiler` and `skeleton_json` logic in this project, 
 1. **Variable Shadowing:** Odoo MIS Builder templates repeat the same `val_c` variable assignment (e.g., `pendapatan.q1 = ...`) for parent rows (like 'PENDAPATAN JASA') and all their child COA rows. Always ensure variables in `env_vars` are locked by the first occurrence (the parent) to prevent child rows from overwriting aggregate values.
 2. **YTD Exceptions:** Static metrics like 'KAPASITAS' (ship capacity) must NOT have their YTD values aggregated/summed across quarters. YTD for these static metrics should retain the original Odoo value.
 3. **Total Kapal Terpilih:** Odoo strips/corrupts formula data for the "Total Kapal Terpilih" columns. Always rebuild "Total Kapal Terpilih" columns by summing up individual ships manually within the compiler (Step 2.5) before evaluating formulas (Step 4).
+
+## Architectural Philosophy: Odoo vs DuckDB
+- **Separation of Concerns:** Odoo 18 is strictly used as the transactional source of truth (OLTP) and for storing report skeletons (`skeleton_json`). 
+- **Avoid Odoo ORM for Analytics:** Do NOT attempt to run heavy aggregations or matrix calculations via Odoo XML-RPC or ORM. Odoo workers will timeout.
+- **DuckDB for OLAP:** All heavy financial data (e.g., General Ledger, MIS Builder values) is synced to `app_cache.duckdb`. Always use DuckDB (via `app.engine.ReportEngine`) for fast, vectorized aggregations. The Python backend (`bms-web`) handles the heavy lifting to keep Odoo safe from CPU exhaustion.

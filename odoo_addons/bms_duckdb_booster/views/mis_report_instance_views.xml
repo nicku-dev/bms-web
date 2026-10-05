@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mis_report_instance_form_booster" model="ir.ui.view">
+        <field name="name">mis.report.instance.form.booster</field>
+        <field name="model">mis.report.instance</field>
+        <!-- We inherit the standard mis_builder form view. Make sure the ref is correct in actual Odoo -->
+        <field name="inherit_id" ref="mis_builder.mis_report_instance_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Add a button to the header to trigger our DuckDB fast compile -->
+            <xpath expr="//header" position="inside">
+                <button name="action_compute_via_duckdb" 
+                        string="⚡ Preview via DuckDB (Fast)" 
+                        type="object" 
+                        class="btn-primary" 
+                        icon="fa-bolt"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
