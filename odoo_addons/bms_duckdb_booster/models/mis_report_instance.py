@@ -18,6 +18,14 @@ class MisReportInstance(models.Model):
         self.duckdb_boost_enabled = True
         return self.preview()
 
+    def export_xls(self):
+        """
+        Intercept Excel export to ensure DuckDB flag is enabled.
+        """
+        self.ensure_one()
+        self.duckdb_boost_enabled = True
+        return super().export_xls()
+
     def _compute_matrix(self):
         """
         Override the core MIS Builder _compute_matrix method.
@@ -82,18 +90,22 @@ class MisReportInstance(models.Model):
         except requests.exceptions.RequestException as e:
             raise exceptions.UserError(_("Failed to connect to BMS-Web DuckDB Engine: \n%s") % str(e))
             
-        # Inject the values back into the KpiMatrix object
-        compiled_rows_by_id = {r.get('row_id'): r for r in compiled_matrix.get('body', []) if r.get('row_id')}
-        
         try:
             from odoo.addons.mis_builder.models.accounting_none import AccountingNone
         except ImportError:
             AccountingNone = None
 
+        compiled_body = compiled_matrix.get('body', [])
+        comp_idx = 0
+        
         for row in matrix.iter_rows():
-            row_id = row.row_id
-            if row_id in compiled_rows_by_id:
-                compiled_cells = compiled_rows_by_id[row_id].get('cells', [])
+            # Skip rows exactly like as_dict() does
+            if (row.style_props.hide_empty and row.is_empty()) or row.style_props.hide_always:
+                continue
+                
+            if comp_idx < len(compiled_body):
+                comp_row = compiled_body[comp_idx]
+                compiled_cells = comp_row.get('cells', [])
                 for i, cell in enumerate(row.iter_cells()):
                     if i < len(compiled_cells):
                         comp_cell = compiled_cells[i]
@@ -107,5 +119,6 @@ class MisReportInstance(models.Model):
                                 except ValueError:
                                     cell.val = AccountingNone
                             cell.val_rendered = comp_cell.get('val_formatted', '')
+                comp_idx += 1
 
         return matrix
