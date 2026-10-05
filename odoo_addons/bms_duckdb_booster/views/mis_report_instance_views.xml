@@ -6,8 +6,8 @@
         <!-- We inherit the standard mis_builder form view. Make sure the ref is correct in actual Odoo -->
         <field name="inherit_id" ref="mis_builder.mis_report_instance_view_form"/>
         <field name="arch" type="xml">
-            <!-- Add a button to the header to trigger our DuckDB fast compile -->
-            <xpath expr="//header" position="inside">
+            <!-- Add a button to the div name buttons to trigger our DuckDB fast compile -->
+            <xpath expr="//div[@name='buttons']" position="inside">
                 <button name="action_compute_via_duckdb" 
                         string="⚡ Preview via DuckDB (Fast)" 
                         type="object" 
