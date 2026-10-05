@@ -11,6 +11,8 @@ mendelegasikan komputasi matriks yang sangat berat sehingga menghindari OOM dan 
     'author': 'Lentera Teknologi',
     'depends': ['mis_builder', 'base'],
     'data': [
+        'security/ir.model.access.csv',
+        'wizard/preview_wizard_views.xml',
         'views/mis_report_instance_views.xml',
     ],
     'installable': True,

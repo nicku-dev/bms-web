@@ -14,8 +14,23 @@ class MisReportInstance(models.Model):
         # Hardcoded for now. Can be moved to ir.config_parameter
         bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
         
+        # Build the iframe HTML
+        # Ensure iframe takes full width and height
+        iframe_html = f'''
+        <div style="width: 100%; height: 80vh;">
+            <iframe src="{bms_web_url}" width="100%" height="100%" frameborder="0" style="border: 0; min-height: 80vh;"></iframe>
+        </div>
+        '''
+        
+        wizard = self.env['bms.duckdb.preview.wizard'].create({
+            'iframe_html': iframe_html
+        })
+        
         return {
-            'type': 'ir.actions.act_url',
+            'name': 'BMS DuckDB Report Preview',
+            'type': 'ir.actions.act_window',
+            'res_model': 'bms.duckdb.preview.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
             'target': 'new',
-            'url': bms_web_url,
         }

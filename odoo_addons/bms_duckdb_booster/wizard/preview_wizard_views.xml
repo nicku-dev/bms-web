@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bms_duckdb_preview_wizard_form" model="ir.ui.view">
+        <field name="name">bms.duckdb.preview.wizard.form</field>
+        <field name="model">bms.duckdb.preview.wizard</field>
+        <field name="arch" type="xml">
+            <form string="BMS DuckDB Report Preview">
+                <field name="iframe_html" widget="html" nolabel="1" options="{'cssReadonly': True}"/>
+                <footer>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
