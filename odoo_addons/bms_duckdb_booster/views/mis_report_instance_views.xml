@@ -9,10 +9,13 @@
             <!-- Add a button to the div name buttons to trigger our DuckDB fast compile -->
             <xpath expr="//div[@name='buttons']" position="inside">
                 <button name="action_compute_via_duckdb" 
-                        string="⚡ Preview via DuckDB (Fast)" 
+                        string="⚡ Preview via DuckDB (Native)" 
                         type="object" 
                         class="btn-primary" 
                         icon="fa-bolt"/>
+            </xpath>
+            <xpath expr="//field[@name='report_id']" position="after">
+                <field name="duckdb_boost_enabled" widget="boolean_toggle"/>
             </xpath>
         </field>
     </record>

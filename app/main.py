@@ -647,6 +647,56 @@ class ReportRequest(BaseModel):
 @app.post("/api/generate_report")
 async def api_generate_report(req: ReportRequest, request: Request):
     username = request.cookies.get("session_token")
+
+@app.post("/api/odoo/compute_booster")
+async def api_odoo_compute_booster(req: Request):
+    # This endpoint is called directly by Odoo backend (BMS DuckDB Booster module).
+    # It takes odoo_report_id, finds the template, runs FastMatrixCompiler, and returns the dict.
+    data = await req.json()
+    odoo_report_id = data.get("odoo_report_instance_id")
+    if not odoo_report_id:
+        return JSONResponse(status_code=400, content={"detail": "Missing odoo_report_instance_id"})
+        
+    db = SessionLocal()
+    try:
+        from app.models import ReportTemplate, Company
+        t = db.query(ReportTemplate).filter(ReportTemplate.odoo_report_id == odoo_report_id).first()
+        if not t:
+            return JSONResponse(status_code=404, content={"detail": "Report template not found in bms-web database. Please sync templates first."})
+            
+        company = db.query(Company).filter(Company.id == t.company_id).first()
+        import json
+        matrix = json.loads(t.skeleton_json)
+        
+        # Determine report type
+        report_type = 'fps'
+        if 'BMS' in t.report_name.upper(): 
+            report_type = 'non_fps'
+            
+        # Determine year from name (basic fallback)
+        import re, datetime
+        year_match = re.search(r'\d{4}', t.report_name)
+        year = int(year_match.group()) if year_match else datetime.date.today().year
+        
+        from app.compiler import FastMatrixCompiler
+        compiler = FastMatrixCompiler(
+            db_name=company.target_db_name, 
+            year=year, 
+            report_type=report_type, 
+            odoo_report_id=t.odoo_report_id
+        )
+        compiled = compiler.compile(matrix)
+        
+        # Odoo's mis_builder expects the raw dictionary from kpi_matrix.as_dict()
+        # FastMatrixCompiler mutates and returns the exact dictionary structure!
+        return compiled
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"detail": str(e)})
+    finally:
+        db.close()
+
     if not username:
         return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
 
