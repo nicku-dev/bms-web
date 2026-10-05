@@ -15,16 +15,20 @@ class MisReportInstance(models.Model):
         Preview using DuckDB. We ensure the flag is enabled.
         """
         self.ensure_one()
-        self.duckdb_boost_enabled = True
-        return self.preview()
+        res = self.preview()
+        if isinstance(res, dict) and 'context' in res:
+            res['context']['duckdb_boost_enabled'] = True
+        return res
 
     def export_xls(self):
         """
         Intercept Excel export to ensure DuckDB flag is enabled.
         """
         self.ensure_one()
-        self.duckdb_boost_enabled = True
-        return super().export_xls()
+        res = super().export_xls()
+        if isinstance(res, dict) and 'context' in res:
+            res['context']['duckdb_boost_enabled'] = True
+        return res
 
     def _compute_matrix(self):
         """
@@ -32,7 +36,10 @@ class MisReportInstance(models.Model):
         This allows both the Web Preview and Excel Export to magically use DuckDB.
         """
         self.ensure_one()
-        if not getattr(self, 'duckdb_boost_enabled', False):
+        
+        duckdb_enabled = self.env.context.get('duckdb_boost_enabled') or getattr(self, 'duckdb_boost_enabled', False)
+        
+        if not duckdb_enabled:
             return super()._compute_matrix()
 
         # Monkey patch mis_safe_eval to avoid ast.parse MemoryError
