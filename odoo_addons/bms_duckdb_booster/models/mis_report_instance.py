@@ -18,15 +18,15 @@ class MisReportInstance(models.Model):
         self.duckdb_boost_enabled = True
         return self.preview()
 
-    def compute(self):
+    def _compute_matrix(self):
         """
-        Override the core MIS Builder compute method.
-        Instead of running slow PostgreSQL queries and Python math,
-        we fetch the pre-compiled JSON dictionary from DuckDB (BMS-Web).
+        Override the core MIS Builder _compute_matrix method.
+        This allows both the Web Preview and Excel Export to magically use DuckDB.
         """
         self.ensure_one()
         if not getattr(self, 'duckdb_boost_enabled', False):
-            return super().compute()
+            return super()._compute_matrix()
+
         # Monkey patch mis_safe_eval to avoid ast.parse MemoryError
         import odoo.addons.mis_builder.models.mis_safe_eval as mse
         import odoo.addons.mis_builder.models.expression_evaluator as ee
@@ -44,14 +44,16 @@ class MisReportInstance(models.Model):
         kpimatrix.KpiMatrixRow.is_empty = lambda self: False
 
         try:
-            # This is now OOM-proof because python eval is disabled!
-            # We let Postgres query the move lines so that account details are populated!
-            skeleton_matrix = super().compute()
+            # Let Odoo build the empty KpiMatrix object
+            matrix = super()._compute_matrix()
         finally:
             # Revert monkey patches
             mse.mis_safe_eval = original_eval
             ee.mis_safe_eval = original_ee_eval
             kpimatrix.KpiMatrixRow.is_empty = original_is_empty
+
+        # Convert matrix to dictionary for DuckDB
+        skeleton_matrix = matrix.as_dict()
 
         # Hardcoded for now. Can be moved to ir.config_parameter
         bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
@@ -69,16 +71,41 @@ class MisReportInstance(models.Model):
         }
         
         import requests
+        from odoo import exceptions, _
         try:
-            response = requests.post(api_endpoint, json=payload, timeout=30)
+            response = requests.post(api_endpoint, json=payload, timeout=300)
             if response.status_code == 200:
-                result_data = response.json()
-                # Inject notes if any (following standard Odoo behavior)
-                result_data["notes"] = self.get_notes_by_cell_id()
-                return result_data
+                compiled_matrix = response.json().get('data', {})
             else:
-                error_msg = response.json().get('detail', 'Unknown error')
+                error_msg = response.json().get('detail', 'Unknown error') if response.headers.get('content-type') == 'application/json' else response.text
                 raise exceptions.UserError(_("DuckDB Native Compilation failed: %s") % error_msg)
-                
         except requests.exceptions.RequestException as e:
             raise exceptions.UserError(_("Failed to connect to BMS-Web DuckDB Engine: \n%s") % str(e))
+            
+        # Inject the values back into the KpiMatrix object
+        compiled_rows_by_id = {r.get('row_id'): r for r in compiled_matrix.get('body', []) if r.get('row_id')}
+        
+        try:
+            from odoo.addons.mis_builder.models.accounting_none import AccountingNone
+        except ImportError:
+            AccountingNone = None
+
+        for row in matrix.iter_rows():
+            row_id = row.row_id
+            if row_id in compiled_rows_by_id:
+                compiled_cells = compiled_rows_by_id[row_id].get('cells', [])
+                for i, cell in enumerate(row.iter_cells()):
+                    if i < len(compiled_cells):
+                        comp_cell = compiled_cells[i]
+                        if cell is not None and comp_cell:
+                            val = comp_cell.get('val')
+                            if val is None:
+                                cell.val = AccountingNone
+                            else:
+                                try:
+                                    cell.val = float(val) if val != "" else AccountingNone
+                                except ValueError:
+                                    cell.val = AccountingNone
+                            cell.val_rendered = comp_cell.get('val_formatted', '')
+
+        return matrix
