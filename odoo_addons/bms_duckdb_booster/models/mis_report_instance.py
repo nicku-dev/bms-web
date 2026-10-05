@@ -29,8 +29,14 @@ class MisReportInstance(models.Model):
             return super().compute()
         # Monkey patch mis_safe_eval to avoid ast.parse MemoryError
         import odoo.addons.mis_builder.models.mis_safe_eval as mse
+        import odoo.addons.mis_builder.models.expression_evaluator as ee
+        
         original_eval = mse.mis_safe_eval
-        mse.mis_safe_eval = lambda expr, locals_dict: 0.0
+        original_ee_eval = ee.mis_safe_eval
+        
+        mock_eval = lambda expr, locals_dict: 0.0
+        mse.mis_safe_eval = mock_eval
+        ee.mis_safe_eval = mock_eval
 
         # Monkey patch KpiMatrixRow.is_empty to avoid hiding rows
         import odoo.addons.mis_builder.models.kpimatrix as kpimatrix
@@ -44,6 +50,7 @@ class MisReportInstance(models.Model):
         finally:
             # Revert monkey patches
             mse.mis_safe_eval = original_eval
+            ee.mis_safe_eval = original_ee_eval
             kpimatrix.KpiMatrixRow.is_empty = original_is_empty
 
         # Hardcoded for now. Can be moved to ir.config_parameter
