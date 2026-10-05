@@ -648,6 +648,47 @@ class ReportRequest(BaseModel):
 async def api_generate_report(req: ReportRequest, request: Request):
     username = request.cookies.get("session_token")
 
+@app.post("/api/odoo/compute_booster_direct")
+async def api_odoo_compute_booster_direct(req: Request):
+    """
+    Direct endpoint for Odoo Booster.
+    Odoo generates the skeleton by temporarily switching dates to 1970.
+    Odoo sends the skeleton here, and we just compile it and return it.
+    """
+    data = await req.json()
+    skeleton_matrix = data.get("skeleton_json")
+    db_name = data.get("target_db_name")
+    report_name = data.get("report_name", "")
+    
+    if not skeleton_matrix or not db_name:
+        return JSONResponse(status_code=400, content={"detail": "Missing skeleton_json or target_db_name"})
+        
+    try:
+        # Determine report type
+        report_type = 'fps'
+        if 'BMS' in report_name.upper(): 
+            report_type = 'non_fps'
+            
+        # Determine year from name (basic fallback)
+        import re, datetime
+        year_match = re.search(r'\d{4}', report_name)
+        year = int(year_match.group()) if year_match else datetime.date.today().year
+        
+        from app.compiler import FastMatrixCompiler
+        compiler = FastMatrixCompiler(
+            db_name=db_name, 
+            year=year, 
+            report_type=report_type, 
+            odoo_report_id=0 # 0 because we don't query it from DB anymore
+        )
+        compiled = compiler.compile(skeleton_matrix)
+        
+        return compiled
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"detail": str(e)})
+
 @app.post("/api/odoo/compute_booster")
 async def api_odoo_compute_booster(req: Request):
     # This endpoint is called directly by Odoo backend (BMS DuckDB Booster module).

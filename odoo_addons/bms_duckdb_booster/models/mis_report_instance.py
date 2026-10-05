@@ -28,12 +28,38 @@ class MisReportInstance(models.Model):
         if not self.duckdb_boost_enabled:
             return super().compute()
 
+        # Hack: To get the skeleton matrix without running slow PostgreSQL queries,
+        # we temporarily change all period dates to '1970-01-01' where no data exists.
+        old_dates = {}
+        # Avoid constraint errors by writing all at once, or bypassing check
+        # Actually mis.report.instance.period doesn't have strict constraints on 1970 usually
+        for period in self.period_ids:
+            old_dates[period.id] = {
+                'date_from': period.date_from,
+                'date_to': period.date_to,
+            }
+            # We use sudo/write to bypass some UI constraints if any
+            period.sudo().write({
+                'date_from': '1970-01-01',
+                'date_to': '1970-01-01',
+            })
+            
+        try:
+            # This is now lightning fast because Postgres finds 0 move lines!
+            skeleton_matrix = super().compute()
+        finally:
+            # Revert the dates back immediately
+            for period in self.period_ids:
+                period.sudo().write(old_dates[period.id])
+
         # Hardcoded for now. Can be moved to ir.config_parameter
         bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
-        api_endpoint = f"{bms_web_url}/api/odoo/compute_booster"
+        api_endpoint = f"{bms_web_url}/api/odoo/compute_booster_direct"
         
         payload = {
-            "odoo_report_instance_id": self.id,
+            "skeleton_json": skeleton_matrix,
+            "target_db_name": self.env.cr.dbname,
+            "report_name": self.name,
         }
         
         import requests
