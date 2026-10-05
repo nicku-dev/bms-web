@@ -16,8 +16,8 @@ class MisReportInstance(models.Model):
         """
         self.ensure_one()
         res = self.preview()
-        if isinstance(res, dict) and 'context' in res:
-            res['context']['duckdb_boost_enabled'] = True
+        if isinstance(res, dict):
+            res['context'] = dict(res.get('context', {}), duckdb_boost_enabled=True)
         return res
 
     def export_xls(self):
@@ -26,8 +26,8 @@ class MisReportInstance(models.Model):
         """
         self.ensure_one()
         res = super().export_xls()
-        if isinstance(res, dict) and 'context' in res:
-            res['context']['duckdb_boost_enabled'] = True
+        if isinstance(res, dict):
+            res['context'] = dict(res.get('context', {}), duckdb_boost_enabled=True)
         return res
 
     def _compute_matrix(self):
