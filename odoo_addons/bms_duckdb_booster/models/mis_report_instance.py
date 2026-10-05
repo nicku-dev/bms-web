@@ -15,20 +15,16 @@ class MisReportInstance(models.Model):
         Preview using DuckDB. We ensure the flag is enabled.
         """
         self.ensure_one()
-        res = self.preview()
-        if isinstance(res, dict):
-            res['context'] = dict(res.get('context', {}), duckdb_boost_enabled=True)
-        return res
+        self.env['ir.config_parameter'].sudo().set_param('bms_duckdb.active_report_id', str(self.id))
+        return self.preview()
 
     def export_xls(self):
         """
         Intercept Excel export to ensure DuckDB flag is enabled.
         """
         self.ensure_one()
-        res = super().export_xls()
-        if isinstance(res, dict):
-            res['context'] = dict(res.get('context', {}), duckdb_boost_enabled=True)
-        return res
+        self.env['ir.config_parameter'].sudo().set_param('bms_duckdb.active_report_id', str(self.id))
+        return super().export_xls()
 
     def _compute_matrix(self):
         """
@@ -37,8 +33,13 @@ class MisReportInstance(models.Model):
         """
         self.ensure_one()
         
+        # Check ir.config_parameter or context or db field
         duckdb_enabled = self.env.context.get('duckdb_boost_enabled') or getattr(self, 'duckdb_boost_enabled', False)
-        
+        if not duckdb_enabled:
+            active_id = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.active_report_id')
+            if active_id == str(self.id):
+                duckdb_enabled = True
+                
         if not duckdb_enabled:
             return super()._compute_matrix()
 
