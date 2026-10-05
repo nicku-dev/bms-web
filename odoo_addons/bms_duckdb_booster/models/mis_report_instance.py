@@ -54,71 +54,74 @@ class MisReportInstance(models.Model):
         try:
             # Let Odoo build the empty KpiMatrix object
             matrix = super()._compute_matrix()
+
+            # Convert matrix to dictionary for DuckDB while is_empty is still patched to False!
+            # This ensures DuckDB receives all rows (except hide_always) regardless of them being 0.0 right now.
+            skeleton_matrix = matrix.as_dict()
+
+            # Hardcoded for now. Can be moved to ir.config_parameter
+            bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
+            api_endpoint = f"{bms_web_url}/api/odoo/compute_booster_direct"
+            
+            import odoo.tools.config as config
+            payload = {
+                "skeleton_json": skeleton_matrix,
+                "target_db_name": self.env.cr.dbname,
+                "report_name": self.name,
+                "db_host": config['db_host'] or '10.100.1.58',
+                "db_port": config['db_port'] or 5432,
+                "db_user": config['db_user'],
+                "db_password": config['db_password'],
+            }
+            
+            import requests
+            from odoo import exceptions, _
+            try:
+                response = requests.post(api_endpoint, json=payload, timeout=300)
+                if response.status_code == 200:
+                    compiled_matrix = response.json().get('data', {})
+                else:
+                    error_msg = response.json().get('detail', 'Unknown error') if response.headers.get('content-type') == 'application/json' else response.text
+                    raise exceptions.UserError(_("DuckDB Native Compilation failed: %s") % error_msg)
+            except requests.exceptions.RequestException as e:
+                raise exceptions.UserError(_("Failed to connect to BMS-Web DuckDB Engine: \n%s") % str(e))
+                
+            try:
+                from odoo.addons.mis_builder.models.accounting_none import AccountingNone
+            except ImportError:
+                AccountingNone = None
+
+            compiled_body = compiled_matrix.get('body', [])
+            comp_idx = 0
+            
+            for row in matrix.iter_rows():
+                # Since is_empty() is patched to False, as_dict() above only skipped hide_always.
+                # So we must perfectly align with it!
+                if row.style_props.hide_always:
+                    continue
+                    
+                if comp_idx < len(compiled_body):
+                    comp_row = compiled_body[comp_idx]
+                    compiled_cells = comp_row.get('cells', [])
+                    for i, cell in enumerate(row.iter_cells()):
+                        if i < len(compiled_cells):
+                            comp_cell = compiled_cells[i]
+                            if cell is not None and comp_cell:
+                                val = comp_cell.get('val')
+                                if val is None:
+                                    cell.val = AccountingNone
+                                else:
+                                    try:
+                                        cell.val = float(val) if val != "" else AccountingNone
+                                    except ValueError:
+                                        cell.val = AccountingNone
+                                cell.val_rendered = comp_cell.get('val_formatted', '')
+                    comp_idx += 1
+
         finally:
-            # Revert monkey patches
+            # Revert monkey patches at the very end so Odoo's engine returns to normal!
             mse.mis_safe_eval = original_eval
             ee.mis_safe_eval = original_ee_eval
             kpimatrix.KpiMatrixRow.is_empty = original_is_empty
-
-        # Convert matrix to dictionary for DuckDB
-        skeleton_matrix = matrix.as_dict()
-
-        # Hardcoded for now. Can be moved to ir.config_parameter
-        bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
-        api_endpoint = f"{bms_web_url}/api/odoo/compute_booster_direct"
-        
-        import odoo.tools.config as config
-        payload = {
-            "skeleton_json": skeleton_matrix,
-            "target_db_name": self.env.cr.dbname,
-            "report_name": self.name,
-            "db_host": config['db_host'] or '10.100.1.58', # Fallback to server IP if local
-            "db_port": config['db_port'] or 5432,
-            "db_user": config['db_user'],
-            "db_password": config['db_password'],
-        }
-        
-        import requests
-        from odoo import exceptions, _
-        try:
-            response = requests.post(api_endpoint, json=payload, timeout=300)
-            if response.status_code == 200:
-                compiled_matrix = response.json().get('data', {})
-            else:
-                error_msg = response.json().get('detail', 'Unknown error') if response.headers.get('content-type') == 'application/json' else response.text
-                raise exceptions.UserError(_("DuckDB Native Compilation failed: %s") % error_msg)
-        except requests.exceptions.RequestException as e:
-            raise exceptions.UserError(_("Failed to connect to BMS-Web DuckDB Engine: \n%s") % str(e))
-            
-        try:
-            from odoo.addons.mis_builder.models.accounting_none import AccountingNone
-        except ImportError:
-            AccountingNone = None
-
-        compiled_body = compiled_matrix.get('body', [])
-        comp_idx = 0
-        
-        for row in matrix.iter_rows():
-            # Skip rows exactly like as_dict() does
-            if (row.style_props.hide_empty and row.is_empty()) or row.style_props.hide_always:
-                continue
-                
-            if comp_idx < len(compiled_body):
-                comp_row = compiled_body[comp_idx]
-                compiled_cells = comp_row.get('cells', [])
-                for i, cell in enumerate(row.iter_cells()):
-                    if i < len(compiled_cells):
-                        comp_cell = compiled_cells[i]
-                        if cell is not None and comp_cell:
-                            val = comp_cell.get('val')
-                            if val is None:
-                                cell.val = AccountingNone
-                            else:
-                                try:
-                                    cell.val = float(val) if val != "" else AccountingNone
-                                except ValueError:
-                                    cell.val = AccountingNone
-                            cell.val_rendered = comp_cell.get('val_formatted', '')
-                comp_idx += 1
 
         return matrix
