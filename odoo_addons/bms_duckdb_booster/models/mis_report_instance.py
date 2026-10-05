@@ -1,5 +1,5 @@
 import requests
-from odoo import models, exceptions, _
+from odoo import models, fields, exceptions, _
 
 class MisReportInstance(models.Model):
     _inherit = 'mis.report.instance'
