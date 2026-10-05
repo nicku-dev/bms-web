@@ -25,22 +25,8 @@ class MisReportInstance(models.Model):
         we fetch the pre-compiled JSON dictionary from DuckDB (BMS-Web).
         """
         self.ensure_one()
-        if not self.duckdb_boost_enabled:
+        if not getattr(self, 'duckdb_boost_enabled', False):
             return super().compute()
-
-        # Hack: To get the skeleton matrix without running slow PostgreSQL queries and without OOM,
-        # we temporarily change all period dates to '1970-01-01' where no data exists.
-        old_dates = {}
-        for period in self.period_ids:
-            old_dates[period.id] = {
-                'date_from': period.date_from,
-                'date_to': period.date_to,
-            }
-            period.sudo().write({
-                'date_from': '1970-01-01',
-                'date_to': '1970-01-01',
-            })
-            
         # Monkey patch mis_safe_eval to avoid ast.parse MemoryError
         import odoo.addons.mis_builder.models.mis_safe_eval as mse
         original_eval = mse.mis_safe_eval
@@ -52,15 +38,13 @@ class MisReportInstance(models.Model):
         kpimatrix.KpiMatrixRow.is_empty = lambda self: False
 
         try:
-            # This is now lightning fast and OOM-proof!
+            # This is now OOM-proof because python eval is disabled!
+            # We let Postgres query the move lines so that account details are populated!
             skeleton_matrix = super().compute()
         finally:
             # Revert monkey patches
             mse.mis_safe_eval = original_eval
             kpimatrix.KpiMatrixRow.is_empty = original_is_empty
-            # Revert the dates back immediately
-            for period in self.period_ids:
-                period.sudo().write(old_dates[period.id])
 
         # Hardcoded for now. Can be moved to ir.config_parameter
         bms_web_url = self.env['ir.config_parameter'].sudo().get_param('bms_duckdb.url', 'http://10.100.1.58:3000')
