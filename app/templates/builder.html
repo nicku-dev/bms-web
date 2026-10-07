@@ -116,10 +116,10 @@
         try {
             let res = await fetch('/api/companies');
             let data = await res.json();
-            if (data.status === 'success' && data.data) {
+            if (data.status === 'success' && data.companies) {
                 let sel = document.getElementById('company-select');
                 sel.innerHTML = '<option value="">-- Pilih Perusahaan --</option>';
-                data.data.forEach(c => {
+                data.companies.forEach(c => {
                     sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
                 });
                 
