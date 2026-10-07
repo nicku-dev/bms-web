@@ -1211,7 +1211,7 @@ async def execute_checker_query(payload: CheckerQuery):
         if payload.tag_name:
             # We must escape single quotes in tag names just in case
             safe_tag = payload.tag_name.replace("'", "''")
-            query += f" AND t.name->>'en_US' = '{safe_tag}'"
+            query += f" AND t.name::VARCHAR LIKE '%\"en_US\": \"{safe_tag}\"%' "
         
         query += " ORDER BY m.date, m.name"
         
