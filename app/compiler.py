@@ -330,8 +330,9 @@ class FastMatrixCompiler:
                             if var_owner.get((i, var_name)) == row_idx:
                                 env_vars[i][var_name] = val
 
-                            # Format as percentage if it contains % or persentase
-                            if '%' in label_upper or 'PERSENTASE' in label_upper:
+                            # Format as percentage only if the label starts or ends with %
+                            # (Avoids matching descriptive labels like "Beban Pajak Final (1,2% dari Pendapatan)")
+                            if label_upper.strip().startswith('%') or label_upper.strip().endswith('%'):
                                 cell['val'] = val
                                 cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
                             else:
