@@ -217,6 +217,7 @@ class ReportEngine:
             JOIN ir_model_fields_mis_report_query_rel rel ON rel.mis_report_query_id = q.id
             JOIN ir_model_fields f ON f.id = rel.ir_model_fields_id
             WHERE q.report_id = {report_id}
+              AND (q.domain IS NULL OR q.domain = '' OR q.domain = '[]')
         """
         escaped_query = query.replace("'", "''")
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{escaped_query}')"
@@ -253,7 +254,38 @@ class ReportEngine:
             select_str = ", ".join(selects)
             
             try:
-                fetch_sql = f"SELECT {select_str} FROM pg.{view}"
+                custom_tags = {
+                    'tpbb': 'TW_Pendapatan bunga bank',
+                    'tpll': 'TW_Pendapatan lain-lain',
+                    'tlsk': 'TW_Laba selisih kurs',
+                    'tbll': 'TW_Biaya Lain-lain',
+                    'tbab': 'TW_Biaya admin bank',
+                    'trsk': 'TW_Rugi selisih kurs'
+                }
+                
+                if q_name in custom_tags:
+                    tag_name = custom_tags[q_name]
+                    fetch_sql = f"""
+                        WITH custom_view AS (
+                            SELECT 
+                                1 as id,
+                                '2026-12-31'::date as date,
+                                '{tag_name}' as keterangan,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 1 THEN aml.balance ELSE 0 END), 0) as sumq1_25,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 2 THEN aml.balance ELSE 0 END), 0) as sumq2_25,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 3 THEN aml.balance ELSE 0 END), 0) as sumq3_25,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 4 THEN aml.balance ELSE 0 END), 0) as sumq4_25,
+                                COALESCE(SUM(aml.balance), 0) as ytd_25
+                            FROM pg.account_move_line aml
+                            JOIN pg.account_account_account_tag aaat ON aaat.account_account_id = aml.account_id 
+                            JOIN pg.account_account_tag aat ON aat.id = aaat.account_account_tag_id 
+                            WHERE aat.name->>'en_US' ILIKE '%{tag_name}%' 
+                              AND aml.parent_state = 'posted'
+                        )
+                        SELECT {select_str} FROM custom_view
+                    """
+                else:
+                    fetch_sql = f"SELECT {select_str} FROM pg.{view}"
                 data = self.conn.execute(fetch_sql).fetchone()
                 
                 results[q_name] = {}

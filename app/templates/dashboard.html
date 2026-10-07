@@ -135,6 +135,7 @@
 
 <!-- Tab Nonaktif: Konfigurasi Sistem -->
 {% if user.role == 'admin' or user.username in ['admin_isa', 'admin_dev'] %}
+<!-- Tab Nonaktif: Referensi Data -->
 <a href="/reference" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">📊</span>
 <span class="">Referensi Data</span>
@@ -405,6 +406,47 @@
         </div>
       </div>
   </div>
+  <!-- BEGIN: Reference Tab Content -->
+  <div id="tab-content-reference" class="hidden space-y-6 min-w-0 mt-8">
+    <div class="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-subtle-card overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200/90 bg-slate-50/50 flex justify-between items-center">
+        <h3 class="text-base font-bold text-slate-800">Tabel Referensi Query Kalkulasi</h3>
+        <button onclick="loadReferenceData()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+          🔄 Refresh
+        </button>
+      </div>
+      <div class="p-6">
+        <div class="overflow-auto max-h-[600px] relative custom-scrollbar border border-slate-200 rounded-xl">
+          <table class="w-max min-w-full text-left text-xs border-collapse font-sans">
+            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+              <tr>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Perusahaan</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Date / Tahun</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Keterangan</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Model Name</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Code</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-right">Q1 2026</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-right">Q2 2026</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-right">Q3 2026</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-right">Q4 2026</th>
+                <th class="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-right">YTD 2026</th>
+              </tr>
+            </thead>
+            <tbody id="reference-tbody" class="divide-y divide-slate-200/70 tabular-nums font-mono text-[12px] bg-white">
+              <tr>
+                <td colspan="9" class="px-4 py-8 text-center text-slate-500">
+                  <div class="flex flex-col items-center justify-center">
+                    <p class="text-sm">Klik Refresh untuk memuat data Query Kalkulasi.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- END: Reference Tab Content -->
 </main>
 <!-- END: MainContentArea -->
 <!-- BEGIN: Footer -->
@@ -1003,31 +1045,116 @@
   function switchMainTab(tabName) {
       const btnGenerate = document.getElementById('tab-btn-generate');
       const btnHistory = document.getElementById('tab-btn-history');
+      const btnReference = document.getElementById('tab-btn-reference');
+      
       const indGenerate = document.getElementById('tab-indicator-generate');
       const indHistory = document.getElementById('tab-indicator-history');
+      const indReference = document.getElementById('tab-indicator-reference');
+      
       const contentGenerate = document.getElementById('tab-content-generate');
       const contentHistory = document.getElementById('tab-content-history');
+      const contentReference = document.getElementById('tab-content-reference');
       
       if (tabName === 'generate') {
           // Tab active styles
           btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition";
           btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2";
+          if (btnReference) btnReference.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto";
+          
           indGenerate.classList.remove('hidden');
           indHistory.classList.add('hidden');
+          if (indReference) indReference.classList.add('hidden');
           
           // Content visibility
           contentGenerate.classList.remove('hidden');
           contentHistory.classList.add('hidden');
+          if (contentReference) contentReference.classList.add('hidden');
+          
       } else if (tabName === 'history') {
           // Tab active styles
           btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition";
           btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2";
+          if (btnReference) btnReference.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto";
+          
           indHistory.classList.remove('hidden');
           indGenerate.classList.add('hidden');
+          if (indReference) indReference.classList.add('hidden');
           
           // Content visibility
           contentHistory.classList.remove('hidden');
           contentGenerate.classList.add('hidden');
+          if (contentReference) contentReference.classList.add('hidden');
+          
+      } else if (tabName === 'reference') {
+          if (btnReference) btnReference.className = "relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition ml-auto";
+          btnGenerate.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2";
+          btnHistory.className = "relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2";
+          
+          if (indReference) indReference.classList.remove('hidden');
+          indGenerate.classList.add('hidden');
+          indHistory.classList.add('hidden');
+          
+          if (contentReference) contentReference.classList.remove('hidden');
+          contentGenerate.classList.add('hidden');
+          contentHistory.classList.add('hidden');
+          
+          loadReferenceData();
+      }
+      
+      const url = new URL(window.location);
+      url.searchParams.set('tab', tabName);
+      window.history.replaceState({}, '', url);
+  }
+  
+  function formatNumberRef(num) {
+      if (!num && num !== 0) return '0.00';
+      return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+  }
+
+  async function loadReferenceData() {
+      const tbody = document.getElementById('reference-tbody');
+      tbody.innerHTML = `<tr>
+          <td colspan="10" class="px-4 py-8 text-center text-slate-500">
+              <div class="flex flex-col items-center justify-center">
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                  <p class="text-sm">Menarik data referensi kalkulasi...</p>
+              </div>
+          </td>
+      </tr>`;
+      
+      try {
+          const response = await fetch('/api/reference_queries');
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+              if (data.data.length === 0) {
+                  tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-4 text-center text-slate-500">Tidak ada data.</td></tr>`;
+                  return;
+              }
+              
+              tbody.innerHTML = '';
+              data.data.forEach(item => {
+                  const tr = document.createElement('tr');
+                  tr.className = 'hover:bg-blue-50/50 transition-colors group';
+                  tr.innerHTML = `
+                      <td class="px-4 py-3 whitespace-nowrap text-slate-900 font-semibold">${item.perusahaan}</td>
+                      <td class="px-4 py-3 whitespace-nowrap">${item.date_tahun}</td>
+                      <td class="px-4 py-3 text-slate-900 font-sans">${item.keterangan}</td>
+                      <td class="px-4 py-3 text-slate-600 font-sans">${item.model_name}</td>
+                      <td class="px-4 py-3 text-indigo-600 font-semibold">${item.code}</td>
+                      <td class="px-4 py-3 text-right">${formatNumberRef(item.q1)}</td>
+                      <td class="px-4 py-3 text-right">${formatNumberRef(item.q2)}</td>
+                      <td class="px-4 py-3 text-right">${formatNumberRef(item.q3)}</td>
+                      <td class="px-4 py-3 text-right">${formatNumberRef(item.q4)}</td>
+                      <td class="px-4 py-3 text-right font-bold text-slate-800">${formatNumberRef(item.ytd)}</td>
+                  `;
+                  tbody.appendChild(tr);
+              });
+          } else {
+              tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-4 text-center text-red-500">Gagal: ${data.message}</td></tr>`;
+          }
+      } catch (err) {
+          tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-4 text-center text-red-500">Error: ${err.message}</td></tr>`;
       }
   }
 </script>

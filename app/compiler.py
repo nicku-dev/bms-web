@@ -125,7 +125,9 @@ class FastMatrixCompiler:
                                 val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
                             elif period == 'ytd' or period == 'total':
                                 if label == 'KAPASITAS' or label == 'KAPASITAS KAPAL':
-                                    pass  # Do not modify YTD for Kapasitas
+                                    # Static metric: YTD must NOT be summed across quarters.
+                                    # Odoo's own YTD value is unusable (0.0), so use the static ship capacity.
+                                    val = vessel_df['value'].max()
                                 else:
                                     val = vessel_df['value'].sum()
                                 
@@ -168,7 +170,17 @@ class FastMatrixCompiler:
                     cells[i]['val_r'] = "{:,.2f}".format(total_val) if abs(total_val) >= 0.005 else "-"
 
         # STEP 3: Store variables to env_vars for step 4
-        for row in matrix.get('body', []):
+        # var_owner remembers which row first defined a variable (first occurrence wins),
+        # so only that row may refresh the variable after its formula is evaluated in Step 4.
+        var_owner = {}
+
+        def _num(v):
+            try:
+                return 0.0 if v is None else float(v)
+            except (ValueError, TypeError):
+                return 0.0
+
+        for row_idx, row in enumerate(matrix.get('body', [])):
             label = str(row.get('label', '')).upper()
             for i, cell in enumerate(row.get('cells', [])):
                 if i >= len(col_map):
@@ -181,10 +193,16 @@ class FastMatrixCompiler:
                         var_name = parts[0].strip()
                         # Some names have prefixes (e.g. tpj.balp), strip them for env var name
                         var_name_clean = var_name.split('.')[0]
-                        if var_name_clean not in env_vars[i]:
-                            env_vars[i][var_name_clean] = cell.get('val', 0.0)
-                        if var_name not in env_vars[i]:
-                            env_vars[i][var_name] = cell.get('val', 0.0)
+                        
+                        # Only claim ownership if the RHS is not empty.
+                        # Empty RHS means it's a parent text header that shouldn't shadow child data.
+                        if parts[1].strip() != "":
+                            if var_name_clean not in env_vars[i]:
+                                env_vars[i][var_name_clean] = _num(cell.get('val', 0.0))
+                                var_owner[(i, var_name_clean)] = row_idx
+                            if var_name not in env_vars[i]:
+                                env_vars[i][var_name] = _num(cell.get('val', 0.0))
+                                var_owner[(i, var_name)] = row_idx
 
                 if label == 'PENDAPATAN JASA':
                     env_vars[i]['tpj'] = cell.get('val', 0.0)
@@ -264,8 +282,9 @@ class FastMatrixCompiler:
             if env_vars[i].get("pendapatan") == 514981997.0:
                 print(f"WOW! col {i} has pendapatan=514981997.0")
         # STEP 4: Evaluate Algebraic Formulas with ISOLATED Evaluator
-        for _ in range(3):
-            for row in matrix.get('body', []):
+        # Multiple passes so chained formulas (e.g. Langsung -> Operasional) settle.
+        for _ in range(5):
+            for row_idx, row in enumerate(matrix.get('body', [])):
                 label_upper = str(row.get('label', '')).upper()
                 
                 # Prevent Odoo algebraic formulas from overwriting KPI data
@@ -281,7 +300,7 @@ class FastMatrixCompiler:
                     val_c = str(cell.get('val_c', ''))
                     
                     # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
-                    if '=' in val_c and '[' not in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq1' not in val_c:
+                    if '=' in val_c and '[' not in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq' not in val_c.split('=', 1)[0]:
                         parts = val_c.split('=', 1)
                         if len(parts) == 2:
                             expr = parts[1].strip()
@@ -302,6 +321,15 @@ class FastMatrixCompiler:
                                 # DO NOT overwrite if evaluation fails cleanly!
                                 continue
                                 
+                            # Feed the evaluated result back so dependent formulas see real values
+                            # (only the row that owns the variable; children never overwrite parents).
+                            var_name = parts[0].strip()
+                            var_name_clean = var_name.split('.')[0]
+                            if var_owner.get((i, var_name_clean)) == row_idx:
+                                env_vars[i][var_name_clean] = val
+                            if var_owner.get((i, var_name)) == row_idx:
+                                env_vars[i][var_name] = val
+
                             # Format as percentage if it contains % or persentase
                             if '%' in label_upper or 'PERSENTASE' in label_upper:
                                 cell['val'] = val

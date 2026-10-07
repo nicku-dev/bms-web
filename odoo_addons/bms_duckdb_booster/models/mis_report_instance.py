@@ -76,6 +76,7 @@ class MisReportInstance(models.Model):
                 "skeleton_json": skeleton_matrix,
                 "target_db_name": self.env.cr.dbname,
                 "report_name": self.name,
+                "report_id": self.report_id.id,
                 "db_host": config['db_host'] or '10.100.1.58',
                 "db_port": config['db_port'] or 5432,
                 "db_user": config['db_user'],
@@ -87,7 +88,7 @@ class MisReportInstance(models.Model):
             try:
                 response = requests.post(api_endpoint, json=payload, timeout=300)
                 if response.status_code == 200:
-                    compiled_matrix = response.json().get('data', {})
+                    compiled_matrix = response.json()
                 else:
                     error_msg = response.json().get('detail', 'Unknown error') if response.headers.get('content-type') == 'application/json' else response.text
                     raise exceptions.UserError(_("DuckDB Native Compilation failed: %s") % error_msg)

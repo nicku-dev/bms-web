@@ -282,7 +282,37 @@ async def api_admin_references(request: Request):
                     selects.append(f"SUM({q4_col}) as q4" if q4_col else "0 as q4")
                     selects.append(f"SUM({ytd_col}) as ytd" if ytd_col else "0 as ytd")
                     
-                    data_query = f"SELECT {', '.join(selects)} FROM pg.{sql_view}"
+                    custom_tags = {
+                        'tpbb': 'TW_Pendapatan bunga bank',
+                        'tpll': 'TW_Pendapatan lain-lain',
+                        'tlsk': 'TW_Laba selisih kurs',
+                        'tbll': 'TW_Biaya Lain-lain',
+                        'tbab': 'TW_Biaya admin bank',
+                        'trsk': 'TW_Rugi selisih kurs'
+                    }
+                    if var_name in custom_tags:
+                        tag_name = custom_tags[var_name]
+                        data_query = f"""
+                            WITH custom_view AS (
+                                SELECT 
+                                    1 as id,
+                                    '2026-12-31'::date as date,
+                                    '{tag_name}' as keterangan,
+                                    COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 1 THEN aml.balance ELSE 0 END), 0) as {q1_col or 'sumq1_25'},
+                                    COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 2 THEN aml.balance ELSE 0 END), 0) as {q2_col or 'sumq2_25'},
+                                    COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 3 THEN aml.balance ELSE 0 END), 0) as {q3_col or 'sumq3_25'},
+                                    COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 4 THEN aml.balance ELSE 0 END), 0) as {q4_col or 'sumq4_25'},
+                                    COALESCE(SUM(aml.balance), 0) as {ytd_col or 'ytd_25'}
+                                FROM pg.account_move_line aml
+                                JOIN pg.account_account_account_tag aaat ON aaat.account_account_id = aml.account_id 
+                                JOIN pg.account_account_tag aat ON aat.id = aaat.account_account_tag_id 
+                                WHERE aat.name->>'en_US' ILIKE '%{tag_name}%' 
+                                  AND aml.parent_state = 'posted'
+                            )
+                            SELECT {', '.join(selects)} FROM custom_view
+                        """
+                    else:
+                        data_query = f"SELECT {', '.join(selects)} FROM pg.{sql_view}"
                     data = con.execute(data_query).fetchone()
                     
                     row_data["q1"] = float(data[0] or 0)
@@ -644,10 +674,6 @@ class ReportRequest(BaseModel):
     template_name: str
     force_refresh: bool = False
 
-@app.post("/api/generate_report")
-async def api_generate_report(req: ReportRequest, request: Request):
-    username = request.cookies.get("session_token")
-
 @app.post("/api/odoo/compute_booster_direct")
 async def api_odoo_compute_booster_direct(req: Request):
     """
@@ -690,7 +716,7 @@ async def api_odoo_compute_booster_direct(req: Request):
             db_name=db_name, 
             year=year, 
             report_type=report_type, 
-            odoo_report_id=0, # 0 because we don't query it from DB anymore
+            odoo_report_id=data.get('report_id') or 0, # mis.report template id (for MIS query vars like tbg.sumq3_25)
             pg_kwargs=pg_kwargs
         )
         compiled = compiler.compile(skeleton_matrix)
@@ -752,6 +778,10 @@ async def api_odoo_compute_booster(req: Request):
         return JSONResponse(status_code=500, content={"detail": str(e)})
     finally:
         db.close()
+
+@app.post("/api/generate_report")
+async def api_generate_report(req: ReportRequest, request: Request):
+    username = request.cookies.get("session_token")
 
     if not username:
         return JSONResponse(status_code=401, content={"status": "error", "message": "Unauthorized"})
@@ -1064,3 +1094,75 @@ async def api_admin_delete_user(user_id: int):
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
     finally:
         db.close()
+
+@app.get("/api/reference_queries")
+async def api_reference_queries(request: Request):
+    db = SessionLocal()
+    companies = db.query(Company).filter(Company.is_active == True).all()
+    db.close()
+    
+    if not companies:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "No active companies found"})
+        
+    try:
+        from app.engine import ReportEngine
+        
+        results = []
+        target_queries = ['tbab', 'tbak', 'tbg', 'tbj', 'tbk', 'tbll', 'tbp', 'tbpga', 'tbpll', 'tlsk', 'tpbb', 'tpll', 'trsk']
+        
+        for comp in companies:
+            if not comp.target_db_name:
+                continue
+                
+            try:
+                engine = ReportEngine(comp.target_db_name)
+                
+                try:
+                    # Look for BMS or FPS report
+                    report_name_match = "%BMS%2026%" if "BMS" in comp.name else "%FPS%2026%"
+                    duckdb_query = f"SELECT id FROM postgres_query('pg', 'SELECT id FROM mis_report WHERE name ILIKE ''{report_name_match}'' LIMIT 1')"
+                    report_id = engine.conn.execute(duckdb_query).fetchone()[0]
+                except Exception:
+                    report_id = 18 # fallback
+                    
+                queries_data = engine.get_mis_report_queries(report_id)
+                
+                kpi_query = f"SELECT name, description FROM postgres_query('pg', 'SELECT name, description FROM mis_report_kpi WHERE report_id = {report_id}')"
+                try:
+                    kpi_rows = engine.conn.execute(kpi_query).fetchall()
+                    kpi_map = {r[0]: r[1] for r in kpi_rows}
+                except Exception:
+                    kpi_map = {}
+                    
+                for q_code in target_queries:
+                    keterangan = kpi_map.get(q_code, "Unknown")
+                    vals = queries_data.get(q_code, {})
+                    
+                    q1 = 0; q2 = 0; q3 = 0; q4 = 0; ytd = 0
+                    for k, v in vals.items():
+                        k_lower = k.lower()
+                        val_float = float(v) if v else 0.0
+                        if 'q1' in k_lower: q1 += val_float
+                        elif 'q2' in k_lower: q2 += val_float
+                        elif 'q3' in k_lower: q3 += val_float
+                        elif 'q4' in k_lower: q4 += val_float
+                        elif 'ytd' in k_lower: ytd += val_float
+                        
+                    results.append({
+                        "perusahaan": comp.name,
+                        "date_tahun": "2026",
+                        "keterangan": keterangan,
+                        "model_name": f"tw.{q_code}",
+                        "code": q_code,
+                        "q1": q1,
+                        "q2": q2,
+                        "q3": q3,
+                        "q4": q4,
+                        "ytd": ytd
+                    })
+            except Exception as e:
+                print(f"Failed to fetch for {comp.name}: {e}")
+                
+        return {"status": "success", "data": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})

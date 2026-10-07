@@ -28,4 +28,5 @@ class CompilerEvaluator:
         except Exception as e:
             # We must raise it so the caller (compiler) can catch it and `continue`,
             # thereby NOT overwriting the existing cell value with 0.0 or None.
+            print(f"Failed to evaluate '{expr}': {str(e)}")
             raise ValueError(f"Failed to evaluate '{expr}': {str(e)}")
