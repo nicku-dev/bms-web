@@ -1169,7 +1169,7 @@ async def api_reference_queries(request: Request):
 
 @app.get("/checker", response_class=HTMLResponse)
 async def checker_ui(request: Request):
-    return templates.TemplateResponse("checker.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="checker.html", context={"request": request})
 
 class CheckerQuery(BaseModel):
     db_name: str
