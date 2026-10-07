@@ -1190,7 +1190,7 @@ async def execute_checker_query(payload: CheckerQuery):
                 m.date,
                 m.name as move_name,
                 l.name as label,
-                a.code as account_code,
+                a.code_store as account_code,
                 a.name->>'en_US' as account_name,
                 t.name->>'en_US' as tag_name,
                 l.debit,
