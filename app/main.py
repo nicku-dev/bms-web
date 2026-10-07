@@ -1166,3 +1166,96 @@ async def api_reference_queries(request: Request):
         return {"status": "success", "data": results}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@app.get("/api/v1/mis_report_native")
+def get_mis_report_native(report_id: int, year: str = "2026", db_name: str = "BMS_26_PRODUCTION"):
+    """
+    Test endpoint for Native BMS Report Builder
+    It fetches rows from bms_report_rows and generates the skeleton directly.
+    """
+    try:
+        import os
+        from pathlib import Path
+        from app.native_builder import NativeSkeletonGenerator
+        from app.compiler import FastMatrixCompiler
+        
+        # Hardcode vessel for testing
+        vessels = ["GRAND HIJAU LESTARI"]
+        
+        gen = NativeSkeletonGenerator(
+            db_path=str(Path(os.getcwd()) / "app_config.db"),
+            report_id=report_id,
+            vessels=vessels,
+            year=year
+        )
+        skeleton = gen.generate()
+        
+        compiler = FastMatrixCompiler(db_name=db_name, year=year)
+        compiled_matrix = compiler.compile(skeleton)
+        
+        return compiled_matrix
+    except Exception as e:
+        return {"error": str(e)}
+
+
+from pydantic import BaseModel
+class BuilderTemplateRequest(BaseModel):
+    company_id: int
+    name: str
+    config: dict
+
+@app.get("/api/builder/vessels")
+def get_builder_vessels(company_id: int):
+    # Hardcoded for now, could be fetched from DB
+    return [{"id": 1, "name": "GRAND HIJAU LESTARI"}, {"id": 2, "name": "MANDIRI JAYA"}, {"id": 3, "name": "BINTANG LAUT"}]
+
+@app.get("/api/builder/tags")
+def get_builder_tags(company_id: int):
+    import duckdb
+    import os
+    db_path = os.path.join(os.getcwd(), 'app_cache.duckdb')
+    try:
+        conn = duckdb.connect(db_path, read_only=True)
+        res = conn.execute("SELECT DISTINCT name->>'en_US' FROM pg.account_account_tag WHERE name->>'en_US' LIKE 'TW_%'").fetchall()
+        tags = [r[0] for r in res if r[0]]
+        conn.close()
+        return tags
+    except Exception as e:
+        return ["TW_PENDAPATAN JASA", "TW_BIAYA LAIN-LAIN", "TW_BIAYA GAJI"]
+
+@app.post("/api/builder/templates")
+def save_builder_template(payload: BuilderTemplateRequest):
+    import sqlite3
+    import os
+    db_path = os.path.join(os.getcwd(), 'app_config.db')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO bms_reports (name, description) VALUES (?, ?)", (payload.name, "From Builder UI"))
+        report_id = cursor.lastrowid
+        
+        seq = 10
+        for row in payload.config.get('rows', []):
+            row_type = 'tag_query' if row.get('type') == 'data' else 'formula'
+            tag_name = row.get('expression') if row_type == 'tag_query' else None
+            formula = row.get('expression') if row_type == 'formula' else None
+            
+            # Simple sanitization of formula: builder.html gives "R1 + R2", we need "R1 + R2" but wait, the variable_name is the "code" (e.g. R1)
+            # We strip out the "code = " prefix if it exists in the formula
+            if formula and formula.startswith(row.get('code') + " ="):
+                formula = formula.split("=", 1)[1].strip()
+                
+            cursor.execute("""
+                INSERT INTO bms_report_rows (report_id, sequence, label, variable_name, row_type, tag_name, formula)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (report_id, seq, row.get('label'), row.get('code'), row_type, tag_name, formula))
+            seq += 10
+            
+        conn.commit()
+        return {"status": "success", "id": report_id}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
