@@ -109,6 +109,7 @@
     let selectedVessels = [];
     let reportRows = [];
     let rowCounter = 0;
+    let currentTemplateId = null;
 
     async function initBuilder() {
         // Load companies
@@ -127,6 +128,17 @@
                         await loadCompanyData(e.target.value);
                     }
                 });
+                
+                // Check if we are editing an existing template
+                const urlParams = new URLSearchParams(window.location.search);
+                const id = urlParams.get('id');
+                if (id) {
+                    currentTemplateId = parseInt(id);
+                    // Force select company 1 for now (assuming single company setup)
+                    sel.value = "1";
+                    await loadCompanyData(1);
+                    await loadTemplate(currentTemplateId);
+                }
             }
         } catch(e) { console.error(e); }
     }
@@ -144,6 +156,28 @@
         } catch(e) {
             console.error(e);
             alert("Gagal memuat data dari database!");
+        }
+    }
+
+    async function loadTemplate(id) {
+        try {
+            let res = await fetch(`/api/builder/templates/${id}`);
+            let json = await res.json();
+            if (json.status === 'success') {
+                let data = json.data;
+                document.getElementById('template-name').value = data.name;
+                reportRows = data.config.rows || [];
+                // Update row counter to the max ID
+                if (reportRows.length > 0) {
+                    rowCounter = Math.max(...reportRows.map(r => r.id));
+                }
+                renderRows();
+            } else {
+                alert("Gagal memuat template: " + json.message);
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Gagal menarik data template dari server.");
         }
     }
 
@@ -251,14 +285,19 @@
         statusDiv.className = "text-xs text-center font-medium mt-2 text-blue-600 block";
 
         try {
+            let payload = {
+                company_id: parseInt(companyId),
+                name: name,
+                config: config
+            };
+            if (currentTemplateId) {
+                payload.id = currentTemplateId;
+            }
+            
             let res = await fetch('/api/builder/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company_id: parseInt(companyId),
-                    name: name,
-                    config: config
-                })
+                body: JSON.stringify(payload)
             });
             let data = await res.json();
             if (data.status === 'success') {

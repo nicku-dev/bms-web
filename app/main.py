@@ -1203,6 +1203,7 @@ class BuilderTemplateRequest(BaseModel):
     company_id: int
     name: str
     config: dict
+    id: int = None
 
 @app.get("/api/builder/vessels")
 def get_builder_vessels(company_id: int):
@@ -1231,8 +1232,13 @@ def save_builder_template(payload: BuilderTemplateRequest):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO bms_reports (name, description) VALUES (?, ?)", (payload.name, "From Builder UI"))
-        report_id = cursor.lastrowid
+        if payload.id:
+            cursor.execute("UPDATE bms_reports SET name = ? WHERE id = ?", (payload.name, payload.id))
+            report_id = payload.id
+            cursor.execute("DELETE FROM bms_report_rows WHERE report_id = ?", (report_id,))
+        else:
+            cursor.execute("INSERT INTO bms_reports (name, description) VALUES (?, ?)", (payload.name, "From Builder UI"))
+            report_id = cursor.lastrowid
         
         seq = 10
         for row in payload.config.get('rows', []):
@@ -1255,6 +1261,55 @@ def save_builder_template(payload: BuilderTemplateRequest):
         return {"status": "success", "id": report_id}
     except Exception as e:
         conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+
+
+@app.get("/api/builder/templates/{template_id}")
+def get_builder_template(template_id: int):
+    import sqlite3
+    import os
+    db_path = os.path.join(os.getcwd(), 'app_config.db')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM bms_reports WHERE id = ?", (template_id,))
+        report = cursor.fetchone()
+        if not report:
+            return {"status": "error", "message": "Report not found"}
+            
+        cursor.execute("SELECT * FROM bms_report_rows WHERE report_id = ? ORDER BY sequence ASC", (template_id,))
+        rows = cursor.fetchall()
+        
+        ui_rows = []
+        for r in rows:
+            # Map SQLite row back to UI row format
+            row_type = 'data' if r['row_type'] == 'tag_query' else 'formula'
+            expr = r['tag_name'] if r['row_type'] == 'tag_query' else r['formula']
+            
+            ui_rows.append({
+                "id": r['id'],
+                "code": r['variable_name'],
+                "type": row_type,
+                "label": r['label'],
+                "expression": expr
+            })
+            
+        return {
+            "status": "success",
+            "data": {
+                "id": report['id'],
+                "name": report['name'],
+                "config": {
+                    "vessels": [], # Vessels are dynamic for now
+                    "rows": ui_rows
+                }
+            }
+        }
+    except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:
         conn.close()
