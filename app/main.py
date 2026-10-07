@@ -1196,9 +1196,3 @@ def get_mis_report_native(report_id: int, year: str = "2026", db_name: str = "BM
         return compiled_matrix
     except Exception as e:
         return {"error": str(e)}
-
-
-from pydantic import BaseModel
-    except Exception as e:
-        return {"error": str(e)}
-
