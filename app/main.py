@@ -1166,3 +1166,66 @@ async def api_reference_queries(request: Request):
         return {"status": "success", "data": results}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+@app.get("/checker", response_class=HTMLResponse)
+async def checker_ui(request: Request):
+    return templates.TemplateResponse("checker.html", {"request": request})
+
+class CheckerQuery(BaseModel):
+    db_name: str
+    date_from: str
+    date_to: str
+    tag_name: str = None
+
+@app.post("/api/checker/query")
+async def execute_checker_query(payload: CheckerQuery):
+    from app.engine import ReportEngine
+    import math
+    try:
+        engine = ReportEngine(payload.db_name)
+        
+        # Base query
+        query = """
+            SELECT 
+                m.date,
+                m.name as move_name,
+                l.name as label,
+                a.code as account_code,
+                a.name->>'en_US' as account_name,
+                t.name->>'en_US' as tag_name,
+                l.debit,
+                l.credit,
+                (l.debit - l.credit) as balance
+            FROM pg.account_move_line l
+            JOIN pg.account_move m ON l.move_id = m.id
+            JOIN pg.account_account a ON l.account_id = a.id
+            JOIN pg.account_account_account_tag rel ON a.id = rel.account_account_id
+            JOIN pg.account_account_tag t ON rel.account_account_tag_id = t.id
+            WHERE m.state = 'posted'
+        """
+        
+        # Add date filters
+        query += f" AND m.date >= '{payload.date_from}' AND m.date <= '{payload.date_to}'"
+        
+        # Add tag filter if provided
+        if payload.tag_name:
+            # We must escape single quotes in tag names just in case
+            safe_tag = payload.tag_name.replace("'", "''")
+            query += f" AND t.name->>'en_US' = '{safe_tag}'"
+        
+        query += " ORDER BY m.date, m.name"
+        
+        df = engine.conn.execute(query).df()
+        engine.close()
+        
+        # Convert nan/NaT to None for JSON serialization
+        df = df.where(df.notnull(), None)
+        
+        # Convert date to string
+        if not df.empty:
+            df['date'] = df['date'].astype(str)
+            
+        data = df.to_dict('records')
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
