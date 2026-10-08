@@ -1203,7 +1203,7 @@ async def checker_ui(request: Request):
     if not is_admin and 'checker' not in perms:
         return RedirectResponse(url="/dashboard", status_code=303)
 
-    return templates.TemplateResponse(request=request, name="checker.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="checker.html", context={"request": request, "user": user})
 
 class CheckerQuery(BaseModel):
     db_name: str

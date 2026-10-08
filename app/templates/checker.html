@@ -23,20 +23,99 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
-    <!-- Navbar -->
-    <nav class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">Q</div>
-            <div>
-                <h1 class="font-bold text-slate-800 leading-tight">Query Checker</h1>
-                <p class="text-xs text-slate-500">BMS Data Validator</p>
-            </div>
+<body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-blue-600 selection:text-white relative">
+<!-- Ambient background glow mesh -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-70">
+<div class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[1200px] h-[450px] bg-gradient-to-b from-blue-100/60 via-indigo-50/40 to-transparent blur-3xl rounded-full"></div>
+<div class="absolute top-[35%] -left-[10%] w-[600px] h-[600px] bg-cyan-100/30 blur-3xl rounded-full"></div>
+<div class="absolute bottom-[10%] -right-[10%] w-[550px] h-[550px] bg-blue-100/30 blur-3xl rounded-full"></div>
+</div>
+
+<!-- BEGIN: MainHeader -->
+<header class="bg-white/80 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-40 transition shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]">
+<div class="max-w-[1600px] mx-auto px-6 lg:px-12 py-3.5 flex items-center justify-between">
+<!-- Sisi Kiri: Branding & Title -->
+<div class="flex items-center space-x-4">
+<div>
+<div class="flex items-center space-x-2.5">
+<h1 class="text-xl font-black tracking-tight text-slate-900 leading-tight">
+            ISA Fleet Report
+          </h1>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+            PRO
+          </span>
+</div>
+<p class="text-xs font-medium text-slate-500 mt-0.5 tracking-normal">
+          Enterprise Maritime Reporting Dashboard
+        </p>
+</div>
+</div>
+<!-- Sisi Kanan: User Status & Logout -->
+<div class="flex items-center space-x-3.5">
+<div class="flex items-center space-x-2.5 bg-slate-100/90 hover:bg-slate-100 transition px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-2xs">
+<div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xs font-bold shadow-2xs">
+          {{ user.username[0].upper() if user else 'U' }}
         </div>
-        <div>
-            <a href="/dashboard" class="text-sm text-slate-600 hover:text-indigo-600 font-medium px-4 py-2 rounded-md hover:bg-slate-50 transition-colors">Kembali ke Dashboard</a>
-        </div>
-    </nav>
+<span class="text-sm font-semibold text-slate-800 tracking-tight">{{ user.username if user else 'Unknown' }}</span>
+</div>
+<a href="/logout" class="inline-flex items-center space-x-2 px-3.5 py-1.5 border border-slate-300/80 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition shadow-2xs active:scale-[0.98]" type="button">
+<span class="text-slate-500">🚪</span>
+<span class="font-medium">Logout</span>
+</a>
+</div>
+</div>
+</header>
+<!-- END: MainHeader -->
+
+<!-- BEGIN: NavigationTabs -->
+<nav aria-label="Main Navigation" class="bg-white/70 backdrop-blur-md border-b border-slate-200/90 relative z-30">
+<div class="max-w-[1600px] mx-auto px-6 lg:px-12 flex space-x-2">
+{% set perms = user.permissions.split(',') if user and user.permissions else [] %}
+{% set is_admin = (user.role == 'admin' or user.permissions == '*' or user.username in ['admin_isa', 'admin_dev']) if user else False %}
+
+{% if is_admin or 'generate' in perms %}
+<!-- Tab Nonaktif: Buat Laporan -->
+<a href="/dashboard" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🚀</span>
+<span class="">Buat Laporan</span>
+</a>
+{% endif %}
+
+{% if is_admin or 'history' in perms %}
+<!-- Tab Nonaktif: Riwayat Laporan -->
+<a href="/dashboard?tab=history" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🕒</span>
+<span class="">Riwayat Laporan</span>
+</a>
+{% endif %}
+
+{% if is_admin or 'checker' in perms %}
+<!-- Tab Aktif: Query Checker -->
+<button class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition ml-2" type="button">
+<span class="mr-2 text-base filter drop-shadow-xs">🔎</span>
+<span class="">Query Checker</span>
+<div class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
+</button>
+{% endif %}
+
+{% if is_admin or 'reference' in perms %}
+<!-- Tab Nonaktif: Referensi Data -->
+<a href="/reference" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">📊</span>
+<span class="">Referensi Data</span>
+</a>
+{% endif %}
+
+{% if is_admin or 'config' in perms %}
+<!-- Tab Nonaktif: Konfigurasi Sistem -->
+<a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
+<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">⚙️</span>
+<span class="">Konfigurasi Sistem</span>
+</a>
+{% endif %}
+</div>
+</nav>
+<!-- END: NavigationTabs -->
 
     <main class="p-6 max-w-[1400px] mx-auto">
         <!-- Filter Section -->
