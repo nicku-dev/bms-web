@@ -229,7 +229,13 @@ async def api_admin_references(request: Request):
         db.close()
         return JSONResponse(status_code=403, content={"status": "error", "message": "Forbidden"})
         
-    companies = db.query(Company).filter(Company.is_active == True).all()
+    company_filter = request.query_params.get("company", "all")
+    year_filter = request.query_params.get("year", "all")
+    
+    if company_filter != "all":
+        companies = db.query(Company).filter(Company.is_active == True, Company.initial_pt == company_filter).all()
+    else:
+        companies = db.query(Company).filter(Company.is_active == True).all()
     db.close()
     
     import duckdb
@@ -257,12 +263,16 @@ async def api_admin_references(request: Request):
             views = con.execute(query).fetchall()
             
             for var_name, odoo_model, sql_view in views:
+                view_year = "2026" if "26" in sql_view else ("2025" if "25" in sql_view else "Auto")
+                if year_filter != "all" and year_filter != view_year:
+                    continue
+                
                 row_data = {
                     "inisial": comp.initial_pt or "N/A",
                     "nama_pt": comp.name,
                     "keterangan": f"KPI: {var_name}",
                     "nama_tabel": sql_view,
-                    "tahun": "2026" if "26" in sql_view else ("2025" if "25" in sql_view else "Auto"),
+                    "tahun": view_year,
                     "q1": 0.0,
                     "q2": 0.0,
                     "q3": 0.0,

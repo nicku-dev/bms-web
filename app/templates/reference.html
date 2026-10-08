@@ -108,7 +108,7 @@
       <div class="flex flex-col sm:flex-row gap-4 mb-4">
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1">Perusahaan</label>
-          <select id="filter-company" onchange="filterTable()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+          <select id="filter-company" onchange="loadData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
             <option value="all">Semua Perusahaan</option>
             <option value="BMS">BMS</option>
             <option value="FPS">FPS</option>
@@ -116,7 +116,7 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1">Tahun</label>
-          <select id="filter-year" onchange="filterTable()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+          <select id="filter-year" onchange="loadData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
             <option value="all">Semua Tahun</option>
             <option value="2025">2025</option>
             <option value="2026">2026</option>
@@ -126,9 +126,6 @@
           <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan / Tabel</label>
           <div class="flex gap-2">
             <input type="text" id="filter-search" onkeyup="filterTable()" class="flex-1 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2" placeholder="Cari keterangan atau view...">
-            <button onclick="loadData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm whitespace-nowrap">
-              Tarik Data
-            </button>
           </div>
         </div>
       </div>
@@ -160,7 +157,7 @@
           <tbody id="ref-table-body" class="divide-y divide-gray-200">
             <tr>
               <td colspan="10" id="initial-message" class="px-4 py-8 text-center text-gray-500">
-                Silakan klik tombol "Tarik Data" untuk memuat referensi SQL Views.
+                Silakan pilih Perusahaan atau Tahun di atas untuk memuat referensi SQL Views.
               </td>
             </tr>
           </tbody>
@@ -179,6 +176,9 @@ function formatNumber(num) {
 }
 
 function loadData() {
+    var company = document.getElementById("filter-company").value;
+    var year = document.getElementById("filter-year").value;
+    
     const tbody = document.getElementById('ref-table-body');
     tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">
         <div class="flex flex-col items-center justify-center">
@@ -187,23 +187,12 @@ function loadData() {
         </div>
     </td></tr>`;
 
-    fetch('/api/admin/references')
+    fetch(`/api/admin/references?company=${company}&year=${year}`)
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 allData = data.data;
                 renderTable();
-                
-                // Update filters based on data
-                const companies = [...new Set(allData.map(item => item.inisial))];
-                const filterCompany = document.getElementById('filter-company');
-                filterCompany.innerHTML = '<option value="all">Semua Perusahaan</option>' + 
-                    companies.map(c => `<option value="${c}">${c}</option>`).join('');
-                    
-                const years = [...new Set(allData.map(item => item.tahun))].sort().reverse();
-                const filterYear = document.getElementById('filter-year');
-                filterYear.innerHTML = '<option value="all">Semua Tahun</option>' + 
-                    years.map(y => `<option value="${y}">${y}</option>`).join('');
             }
         })
         .catch(err => {
