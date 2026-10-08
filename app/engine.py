@@ -137,17 +137,22 @@ class ReportEngine:
             FROM (
                 SELECT 
                     fc.name AS vessel_name,
-                    EXTRACT(QUARTER FROM am.invoice_date)::int AS quarter,
+                    EXTRACT(QUARTER FROM fo_inv.min_invoice_date)::int AS quarter,
                     count(DISTINCT so.fo_number_id) AS trip_count
-                FROM account_move am
-                JOIN account_move_line aml ON am.id = aml.move_id
-                JOIN sale_order_line_invoice_rel sil ON sil.invoice_line_id = aml.id
-                JOIN sale_order_line sol ON sil.order_line_id = sol.id
-                JOIN sale_order so ON so.id = sol.order_id
+                FROM sale_order so
+                JOIN (
+                    SELECT sol.order_id, min(am.invoice_date) AS min_invoice_date
+                    FROM account_move am
+                    JOIN account_move_line aml ON am.id = aml.move_id
+                    JOIN sale_order_line_invoice_rel sil ON sil.invoice_line_id = aml.id
+                    JOIN sale_order_line sol ON sil.order_line_id = sol.id
+                    WHERE am.state = 'posted' AND am.invoice_date IS NOT NULL
+                    GROUP BY sol.order_id
+                ) fo_inv ON fo_inv.order_id = so.id
                 JOIN fleet_combination fc ON fc.id = so.nama_kapal_id
-                WHERE am.state = 'posted'
-                  AND EXTRACT(YEAR FROM am.invoice_date) = {year}
-                GROUP BY am.id, so.name, fc.name, EXTRACT(QUARTER FROM am.invoice_date)
+                WHERE so.fo_number_id IS NOT NULL
+                  AND EXTRACT(YEAR FROM fo_inv.min_invoice_date) = {year}
+                GROUP BY fc.name, EXTRACT(QUARTER FROM fo_inv.min_invoice_date)
             ) sub
             GROUP BY vessel_name, quarter
         """
@@ -257,10 +262,11 @@ class ReportEngine:
                 custom_tags = {
                     'tpbb': 'TW_Pendapatan bunga bank',
                     'tpll': 'TW_Pendapatan lain-lain',
-                    'tlsk': 'TW_Laba selisih kurs',
+                    'tlsk': 'TW_Laba selisih Kurs',
                     'tbll': 'TW_Biaya Lain-lain',
-                    'tbab': 'TW_Biaya admin bank',
-                    'trsk': 'TW_Rugi selisih kurs'
+                    'tbab': 'TW_Biaya Admin Bank',
+                    'trsk': 'TW_Rugi selisih Kurs',
+                    'tbpll': 'TW_Beban Pajak Lain-lain'
                 }
                 
                 if q_name in custom_tags:
@@ -279,7 +285,7 @@ class ReportEngine:
                             FROM pg.account_move_line aml
                             JOIN pg.account_account_account_tag aaat ON aaat.account_account_id = aml.account_id 
                             JOIN pg.account_account_tag aat ON aat.id = aaat.account_account_tag_id 
-                            WHERE aat.name->>'en_US' ILIKE '%{tag_name}%' 
+                            WHERE aat.name->>'en_US' = '{tag_name}' 
                               AND aml.parent_state = 'posted'
                         )
                         SELECT {select_str} FROM custom_view

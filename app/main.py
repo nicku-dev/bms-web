@@ -299,10 +299,11 @@ async def api_admin_references(request: Request):
                     custom_tags = {
                         'tpbb': 'TW_Pendapatan bunga bank',
                         'tpll': 'TW_Pendapatan lain-lain',
-                        'tlsk': 'TW_Laba selisih kurs',
+                        'tlsk': 'TW_Laba selisih Kurs',
                         'tbll': 'TW_Biaya Lain-lain',
-                        'tbab': 'TW_Biaya admin bank',
-                        'trsk': 'TW_Rugi selisih kurs'
+                        'tbab': 'TW_Biaya Admin Bank',
+                        'trsk': 'TW_Rugi selisih Kurs',
+                        'tbpll': 'TW_Beban Pajak Lain-lain'
                     }
                     if var_name in custom_tags:
                         tag_name = custom_tags[var_name]
@@ -320,7 +321,7 @@ async def api_admin_references(request: Request):
                                 FROM pg.account_move_line aml
                                 JOIN pg.account_account_account_tag aaat ON aaat.account_account_id = aml.account_id 
                                 JOIN pg.account_account_tag aat ON aat.id = aaat.account_account_tag_id 
-                                WHERE aat.name->>'en_US' ILIKE '%{tag_name}%' 
+                                WHERE aat.name->>'en_US' = '{tag_name}' 
                                   AND aml.parent_state = 'posted'
                             )
                             SELECT {', '.join(selects)} FROM custom_view
