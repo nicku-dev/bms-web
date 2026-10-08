@@ -11,6 +11,7 @@ class User(Base):
     role = Column(String(20), nullable=False, default='user')
     company_id = Column(Integer, ForeignKey('companies.id'), nullable=True)
     is_active = Column(Boolean, default=True)
+    permissions = Column(String(255), default='*')
     
     company = relationship('Company', back_populates='users')
 

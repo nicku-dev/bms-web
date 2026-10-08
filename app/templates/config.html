@@ -264,6 +264,17 @@
               <input type="checkbox" id="form-user-active" class="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded" checked>
               <label class="ml-2 block text-sm text-gray-900 font-semibold">User Aktif</label>
             </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Akses Menu Khusus (Selain Dashboard Utama)</label>
+              <div class="grid grid-cols-2 gap-2 text-sm text-gray-700">
+                <label class="flex items-center space-x-2"><input type="checkbox" value="generate" class="form-perm-cb h-4 w-4 text-emerald-600 rounded"><span>Buat Laporan</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" value="history" class="form-perm-cb h-4 w-4 text-emerald-600 rounded"><span>Riwayat Laporan</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" value="checker" class="form-perm-cb h-4 w-4 text-emerald-600 rounded"><span>Query Checker</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" value="reference" class="form-perm-cb h-4 w-4 text-emerald-600 rounded"><span>Referensi Data</span></label>
+                <label class="flex items-center space-x-2"><input type="checkbox" value="config" class="form-perm-cb h-4 w-4 text-emerald-600 rounded"><span>Konfigurasi Sistem</span></label>
+              </div>
+              <p class="text-[10px] text-gray-500 mt-1">Admin memiliki akses ke semua menu secara default.</p>
+            </div>
           </div>
         </div>
         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
@@ -847,6 +858,7 @@
         document.getElementById('form-user-role').value = "user";
         document.getElementById('form-user-company').value = "";
         document.getElementById('form-user-active').checked = true;
+        document.querySelectorAll('.form-perm-cb').forEach(cb => cb.checked = false);
         
         // Populate companies dropdown
         populateUserCompanies();
@@ -864,6 +876,12 @@
         document.getElementById('form-user-pass').value = "";
         document.getElementById('form-user-role').value = u.role;
         document.getElementById('form-user-active').checked = u.is_active;
+        
+        let perms = u.permissions ? u.permissions.split(',') : [];
+        if (u.permissions === '*') perms = ['generate', 'history', 'checker', 'reference', 'config'];
+        document.querySelectorAll('.form-perm-cb').forEach(cb => {
+            cb.checked = perms.includes(cb.value);
+        });
         
         populateUserCompanies(u.company_id);
         document.getElementById('user-modal').classList.remove('hidden');
@@ -891,7 +909,8 @@
             username: document.getElementById('form-user-name').value,
             role: document.getElementById('form-user-role').value,
             company_id: document.getElementById('form-user-company').value ? parseInt(document.getElementById('form-user-company').value) : null,
-            is_active: document.getElementById('form-user-active').checked
+            is_active: document.getElementById('form-user-active').checked,
+            permissions: Array.from(document.querySelectorAll('.form-perm-cb:checked')).map(cb => cb.value).join(',')
         };
         
         const pass = document.getElementById('form-user-pass').value;

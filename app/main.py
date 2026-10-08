@@ -190,7 +190,9 @@ async def read_config(request: Request):
     if not user:
         return RedirectResponse(url="/logout", status_code=303)
         
-    if user.role != 'admin' and user.username not in ["admin_isa", "admin_dev"]:
+    perms = user.permissions.split(',') if user.permissions else []
+    is_admin = (user.role == 'admin' or user.permissions == '*' or user.username in ["admin_isa", "admin_dev"])
+    if not is_admin and 'config' not in perms:
         return RedirectResponse(url="/dashboard", status_code=303)
         
     return templates.TemplateResponse(request=request, name="config.html", context={"request": request, "user": user})
@@ -207,7 +209,9 @@ async def read_reference(request: Request):
     if not user:
         return RedirectResponse(url="/logout", status_code=303)
         
-    if user.role != 'admin' and user.username not in ["admin_isa", "admin_dev"]:
+    perms = user.permissions.split(',') if user.permissions else []
+    is_admin = (user.role == 'admin' or user.permissions == '*' or user.username in ["admin_isa", "admin_dev"])
+    if not is_admin and 'reference' not in perms:
         return RedirectResponse(url="/dashboard", status_code=303)
         
     return templates.TemplateResponse(request=request, name="reference.html", context={"request": request, "user": user})
@@ -1009,6 +1013,7 @@ class UserCreateRequest(BaseModel):
     role: str = 'user'
     company_id: Optional[int] = None
     is_active: bool = True
+    permissions: str = '*'
 
 class UserUpdateRequest(BaseModel):
     username: str
@@ -1016,6 +1021,7 @@ class UserUpdateRequest(BaseModel):
     role: str = 'user'
     company_id: Optional[int] = None
     is_active: bool = True
+    permissions: str = '*'
 
 @app.get("/api/admin/users")
 async def api_admin_users():
@@ -1029,7 +1035,8 @@ async def api_admin_users():
             "role": u.role,
             "company_id": u.company_id,
             "company_name": u.company.name if u.company else "Semua",
-            "is_active": u.is_active
+            "is_active": u.is_active,
+            "permissions": u.permissions
         })
     db.close()
     return {"status": "success", "data": data}
@@ -1046,7 +1053,8 @@ async def api_admin_create_user(req: UserCreateRequest):
             password=req.password,
             role=req.role,
             company_id=req.company_id,
-            is_active=req.is_active
+            is_active=req.is_active,
+            permissions=req.permissions
         )
         db.add(u)
         db.commit()
@@ -1073,6 +1081,7 @@ async def api_admin_update_user(user_id: int, req: UserUpdateRequest):
         u.role = req.role
         u.company_id = req.company_id
         u.is_active = req.is_active
+        u.permissions = req.permissions
         db.commit()
         return {"status": "success", "message": "User berhasil diupdate"}
     except Exception as e:
@@ -1169,6 +1178,21 @@ async def api_reference_queries(request: Request):
 
 @app.get("/checker", response_class=HTMLResponse)
 async def checker_ui(request: Request):
+    if "session_token" not in request.cookies:
+        return RedirectResponse(url="/login", status_code=303)
+        
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    db.close()
+    
+    if not user:
+        return RedirectResponse(url="/logout", status_code=303)
+        
+    perms = user.permissions.split(',') if user.permissions else []
+    is_admin = (user.role == 'admin' or user.permissions == '*' or user.username in ["admin_isa", "admin_dev"])
+    if not is_admin and 'checker' not in perms:
+        return RedirectResponse(url="/dashboard", status_code=303)
+
     return templates.TemplateResponse(request=request, name="checker.html", context={"request": request})
 
 class CheckerQuery(BaseModel):

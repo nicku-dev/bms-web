@@ -119,33 +119,44 @@
 <!-- BEGIN: NavigationTabs -->
 <nav aria-label="Main Navigation" class="bg-white/70 backdrop-blur-md border-b border-slate-200/90 relative z-30">
 <div class="max-w-[1600px] mx-auto px-6 lg:px-12 flex space-x-2">
+{% set perms = user.permissions.split(',') if user.permissions else [] %}
+{% set is_admin = (user.role == 'admin' or user.permissions == '*' or user.username in ['admin_isa', 'admin_dev']) %}
+
+{% if is_admin or 'generate' in perms %}
 <!-- Tab Aktif: Buat Laporan -->
 <button id="tab-btn-generate" onclick="switchMainTab('generate')" class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition" type="button">
 <span class="mr-2 text-base filter drop-shadow-xs">🚀</span>
 <span class="">Buat Laporan</span>
 <div id="tab-indicator-generate" class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
 </button>
+{% endif %}
 
+{% if is_admin or 'history' in perms %}
 <!-- Tab: Riwayat Laporan -->
 <button id="tab-btn-history" onclick="switchMainTab('history')" class="relative group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2" type="button">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🕒</span>
 <span class="">Riwayat Laporan</span>
 <div id="tab-indicator-history" class="hidden absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
 </button>
+{% endif %}
 
+{% if is_admin or 'checker' in perms %}
 <!-- Tab: Query Checker -->
 <a href="/checker" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🔎</span>
 <span class="">Query Checker</span>
 </a>
+{% endif %}
 
-<!-- Tab Nonaktif: Konfigurasi Sistem -->
-{% if user.role == 'admin' or user.username in ['admin_isa', 'admin_dev'] %}
+{% if is_admin or 'reference' in perms %}
 <!-- Tab Nonaktif: Referensi Data -->
 <a href="/reference" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">📊</span>
 <span class="">Referensi Data</span>
 </a>
+{% endif %}
+
+{% if is_admin or 'config' in perms %}
 <a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
 <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">⚙️</span>
 <span class="">Konfigurasi Sistem</span>
