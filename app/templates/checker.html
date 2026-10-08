@@ -39,6 +39,19 @@
     </nav>
 
     <main class="p-6 max-w-[1400px] mx-auto">
+        
+        <div class="mb-6">
+            <h2 class="text-xl font-bold text-slate-800 mb-6">Referensi Data</h2>
+            <nav class="-mb-px flex space-x-8 border-b border-gray-200" aria-label="Tabs">
+                <a href="/reference" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 border-b-2 font-medium text-sm">
+                SQL Views (Laporan)
+                </a>
+                <a href="/checker" class="border-blue-500 text-blue-600 whitespace-nowrap py-2 border-b-2 font-medium text-sm" aria-current="page">
+                Query Checker (General Ledger &amp; KPI)
+                </a>
+            </nav>
+        </div>
+
         <!-- Filter Section -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
             <h2 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -134,6 +147,12 @@
                 tags.forEach(t => {
                     sel.innerHTML += `<option value="${t}">${t}</option>`;
                 });
+                
+                // Add Operational KPIs
+                sel.innerHTML += `<optgroup label="Operasional (KPI)">
+                    <option value="KPI_KAPASITAS">Kapasitas Kapal (BMS/FPS)</option>
+                    <option value="KPI_TRIP">Jumlah Trip (BMS/FPS)</option>
+                </optgroup>`;
             } catch(e) {
                 console.error("Failed to load tags", e);
                 document.getElementById('tag_name').innerHTML = '<option value="">Gagal memuat tags</option>';

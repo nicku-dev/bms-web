@@ -140,13 +140,7 @@
 </button>
 {% endif %}
 
-{% if is_admin or 'checker' in perms %}
-<!-- Tab: Query Checker -->
-<a href="/checker" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
-<span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🔎</span>
-<span class="">Query Checker</span>
-</a>
-{% endif %}
+
 
 {% if is_admin or 'reference' in perms %}
 <!-- Tab Nonaktif: Referensi Data -->

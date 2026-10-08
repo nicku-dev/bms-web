@@ -1208,36 +1208,78 @@ async def execute_checker_query(payload: CheckerQuery):
     try:
         engine = ReportEngine(payload.db_name)
         
-        # Base query
-        query = """
-            SELECT 
-                m.date,
-                m.name as move_name,
-                l.name as label,
-                a.code_store as account_code,
-                a.name->>'en_US' as account_name,
-                t.name->>'en_US' as tag_name,
-                l.debit,
-                l.credit,
-                (l.debit - l.credit) as balance
-            FROM pg.account_move_line l
-            JOIN pg.account_move m ON l.move_id = m.id
-            JOIN pg.account_account a ON l.account_id = a.id
-            JOIN pg.account_account_account_tag rel ON a.id = rel.account_account_id
-            JOIN pg.account_account_tag t ON rel.account_account_tag_id = t.id
-            WHERE m.state = 'posted'
-        """
-        
-        # Add date filters
-        query += f" AND m.date >= '{payload.date_from}' AND m.date <= '{payload.date_to}'"
-        
-        # Add tag filter if provided
-        if payload.tag_name:
-            # We must escape single quotes in tag names just in case
-            safe_tag = payload.tag_name.replace("'", "''")
-            query += f" AND t.name::VARCHAR LIKE '%\"en_US\": \"{safe_tag}\"%' "
-        
-        query += " ORDER BY m.date, m.name"
+        if payload.tag_name == 'KPI_KAPASITAS':
+            query = f"""
+                SELECT 
+                    current_date::date as date,
+                    fc.name as move_name,
+                    fv.name as label,
+                    'KPI' as account_code,
+                    'KAPASITAS' as account_name,
+                    'KAPASITAS' as tag_name,
+                    COALESCE(NULLIF(fvm3.cargo_capacity::numeric, 0), NULLIF(fvm.cargo_capacity::numeric, 0), 0) as debit,
+                    0 as credit,
+                    COALESCE(NULLIF(fvm3.cargo_capacity::numeric, 0), NULLIF(fvm.cargo_capacity::numeric, 0), 0) as balance
+                FROM pg.fleet_combination fc
+                JOIN pg.account_analytic_account aaa ON aaa.id = fc.analytic_account_id
+                JOIN pg.fleet_vehicle fv ON fc.primary_ship = fv.id
+                JOIN pg.fleet_vehicle_model fvm ON fv.model_id = fvm.id
+                LEFT JOIN pg.fleet_vehicle fv3 ON fc.secondary_ship = fv3.id
+                LEFT JOIN pg.fleet_vehicle_model fvm3 ON fv3.model_id = fvm3.id
+                ORDER BY fc.name
+            """
+        elif payload.tag_name == 'KPI_TRIP':
+            query = f"""
+                SELECT 
+                    am.invoice_date as date,
+                    am.name as move_name,
+                    MAX(so.name) as label,
+                    'KPI' as account_code,
+                    'JUMLAH TRIP' as account_name,
+                    fc.name as tag_name,
+                    1 as debit,
+                    0 as credit,
+                    1 as balance
+                FROM pg.account_move am
+                JOIN pg.account_move_line aml ON am.id = aml.move_id
+                JOIN pg.sale_order_line_invoice_rel sil ON sil.invoice_line_id = aml.id
+                JOIN pg.sale_order_line sol ON sil.order_line_id = sol.id
+                JOIN pg.sale_order so ON so.id = sol.order_id
+                JOIN pg.fleet_combination fc ON fc.id = so.nama_kapal_id
+                WHERE am.state = 'posted'
+                  AND am.invoice_date >= '{payload.date_from}' AND am.invoice_date <= '{payload.date_to}'
+                GROUP BY am.invoice_date, am.name, fc.name, so.fo_number_id
+                ORDER BY am.invoice_date, am.name
+            """
+        else:
+            # Base query for GL
+            query = """
+                SELECT 
+                    m.date,
+                    m.name as move_name,
+                    l.name as label,
+                    a.code_store as account_code,
+                    a.name->>'en_US' as account_name,
+                    t.name->>'en_US' as tag_name,
+                    l.debit,
+                    l.credit,
+                    (l.debit - l.credit) as balance
+                FROM pg.account_move_line l
+                JOIN pg.account_move m ON l.move_id = m.id
+                JOIN pg.account_account a ON l.account_id = a.id
+                JOIN pg.account_account_account_tag rel ON a.id = rel.account_account_id
+                JOIN pg.account_account_tag t ON rel.account_account_tag_id = t.id
+                WHERE m.state = 'posted'
+            """
+            # Add date filters
+            query += f" AND m.date >= '{payload.date_from}' AND m.date <= '{payload.date_to}'"
+            
+            # Add tag filter if provided
+            if payload.tag_name:
+                safe_tag = payload.tag_name.replace("'", "''")
+                query += f" AND t.name::VARCHAR LIKE '%\"en_US\": \"{safe_tag}\"%' "
+            
+            query += " ORDER BY m.date, m.name"
         
         df = engine.conn.execute(query).df()
         engine.close()
