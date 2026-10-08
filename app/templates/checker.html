@@ -147,7 +147,11 @@
                     </select>
                 </div>
             </div>
-            <div class="mt-4 flex justify-end">
+            <div class="mt-4 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="group_quarter" class="h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                    <label for="group_quarter" class="text-sm font-semibold text-slate-700">Group by Quarter (Sum Kuartal)</label>
+                </div>
                 <button onclick="fetchData()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2 rounded-md shadow-sm transition-all flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     Tarik Data
@@ -251,6 +255,36 @@
                         tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500 text-sm bg-amber-50">Tidak ada transaksi ditemukan untuk kriteria ini.</td></tr>';
                         document.getElementById('table-footer').classList.add('hidden');
                         return;
+                    }
+                    
+                    let isGrouped = document.getElementById('group_quarter').checked;
+                    if (isGrouped) {
+                        let groupedData = {
+                            'Q1': { debit: 0, credit: 0, balance: 0, count: 0 },
+                            'Q2': { debit: 0, credit: 0, balance: 0, count: 0 },
+                            'Q3': { debit: 0, credit: 0, balance: 0, count: 0 },
+                            'Q4': { debit: 0, credit: 0, balance: 0, count: 0 },
+                        };
+                        data.data.forEach(row => {
+                            if (!row.date) return;
+                            let m = parseInt(row.date.split('-')[1]);
+                            let q = Math.floor((m - 1) / 3) + 1;
+                            let quarter = 'Q' + q;
+                            groupedData[quarter].debit += row.debit;
+                            groupedData[quarter].credit += row.credit;
+                            groupedData[quarter].balance += row.balance;
+                            groupedData[quarter].count++;
+                        });
+                        data.data = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({
+                            date: 'Kuartal ' + q.replace('Q', ''),
+                            move_name: 'Total (Sum)',
+                            label: groupedData[q].count + ' Transaksi',
+                            account_code: '',
+                            account_name: 'GABUNGAN',
+                            debit: groupedData[q].debit,
+                            credit: groupedData[q].credit,
+                            balance: groupedData[q].balance
+                        }));
                     }
                     
                     let html = '';
