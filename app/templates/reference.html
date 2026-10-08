@@ -133,6 +133,11 @@
         </div>
       </div>
       
+      <div class="mb-4 flex items-center gap-2">
+        <input type="checkbox" id="filter-group" onchange="filterTable()" class="h-4 w-4 text-blue-600 rounded border-gray-300">
+        <label for="filter-group" class="text-sm font-semibold text-gray-700">Group by Keterangan (Sum Kuartal)</label>
+      </div>
+      
       <div class="overflow-x-auto rounded-lg border border-gray-200">
 
         <table class="w-full text-sm text-left text-gray-600">
@@ -210,6 +215,7 @@ function renderTable() {
     var company = document.getElementById("filter-company").value.toUpperCase();
     var year = document.getElementById("filter-year").value;
     var search = document.getElementById("filter-search").value.toLowerCase();
+    var group = document.getElementById("filter-group").checked;
     
     var tbody = document.getElementById("ref-table-body");
     tbody.innerHTML = '';
@@ -227,23 +233,48 @@ function renderTable() {
         return;
     }
     
-    filtered.forEach(item => {
-        const bgClass = item.inisial === 'FPS' ? 'bg-blue-50/20' : '';
-        const textClass = item.inisial === 'FPS' ? 'text-blue-900' : 'text-gray-900';
+    let displayData = filtered;
+    
+    if (group) {
+        const grouped = {};
+        filtered.forEach(item => {
+            const key = item.keterangan;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    inisial: "GABUNGAN",
+                    nama_pt: "Multiple Companies",
+                    keterangan: key,
+                    nama_tabel: "Multiple Tables",
+                    tahun: year === 'all' ? 'Semua Tahun' : year,
+                    q1: 0, q2: 0, q3: 0, q4: 0, ytd: 0
+                };
+            }
+            grouped[key].q1 += (item.q1 || 0);
+            grouped[key].q2 += (item.q2 || 0);
+            grouped[key].q3 += (item.q3 || 0);
+            grouped[key].q4 += (item.q4 || 0);
+            grouped[key].ytd += (item.ytd || 0);
+        });
+        displayData = Object.values(grouped);
+    }
+    
+    displayData.forEach(item => {
+        const bgClass = item.inisial === 'FPS' ? 'bg-blue-50/20' : (item.inisial === 'GABUNGAN' ? 'bg-amber-50/30' : '');
+        const textClass = item.inisial === 'FPS' ? 'text-blue-900' : (item.inisial === 'GABUNGAN' ? 'text-amber-900 font-bold' : 'text-gray-900');
         
         const tr = document.createElement('tr');
         tr.className = `hover:bg-gray-50 border-t border-gray-100 ${bgClass}`;
         tr.innerHTML = `
             <td class="px-4 py-3 font-medium ${textClass}">${item.inisial}</td>
-            <td class="px-4 py-3 text-xs">${item.nama_pt}</td>
-            <td class="px-4 py-3 text-xs">${item.keterangan}</td>
-            <td class="px-4 py-3 font-mono text-xs">${item.nama_tabel}</td>
+            <td class="px-4 py-3 text-xs ${item.inisial === 'GABUNGAN' ? 'font-bold' : ''}">${item.nama_pt}</td>
+            <td class="px-4 py-3 text-xs ${item.inisial === 'GABUNGAN' ? 'font-bold' : ''}">${item.keterangan}</td>
+            <td class="px-4 py-3 font-mono text-xs text-gray-400">${item.nama_tabel}</td>
             <td class="px-4 py-3">${item.tahun}</td>
-            <td class="px-4 py-3 text-right text-xs">${formatNumber(item.q1)}</td>
-            <td class="px-4 py-3 text-right text-xs">${formatNumber(item.q2)}</td>
-            <td class="px-4 py-3 text-right text-xs">${formatNumber(item.q3)}</td>
-            <td class="px-4 py-3 text-right text-xs">${formatNumber(item.q4)}</td>
-            <td class="px-4 py-3 text-right text-xs font-semibold">${formatNumber(item.ytd)}</td>
+            <td class="px-4 py-3 text-right text-xs ${item.inisial === 'GABUNGAN' ? 'font-bold' : ''}">${formatNumber(item.q1)}</td>
+            <td class="px-4 py-3 text-right text-xs ${item.inisial === 'GABUNGAN' ? 'font-bold' : ''}">${formatNumber(item.q2)}</td>
+            <td class="px-4 py-3 text-right text-xs ${item.inisial === 'GABUNGAN' ? 'font-bold' : ''}">${formatNumber(item.q3)}</td>
+            <td class="px-4 py-3 text-right text-xs ${item.inisial === 'GABUNGAN' ? 'font-bold' : ''}">${formatNumber(item.q4)}</td>
+            <td class="px-4 py-3 text-right text-xs font-semibold ${item.inisial === 'GABUNGAN' ? 'text-indigo-700' : ''}">${formatNumber(item.ytd)}</td>
         `;
         tbody.appendChild(tr);
     });
