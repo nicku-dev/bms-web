@@ -305,9 +305,14 @@ class FastMatrixCompiler:
                         if len(parts) == 2:
                             expr = parts[1].strip()
                             
+                            if not expr:
+                                cell['val'] = 0.0
+                                cell['val_r'] = ""
+                                continue
+                                
                             try:
                                 # YTD Override for indirect costs: sum Q1..Q4 instead of formula
-                                if col_map[i]['period'] == 'ytd' and is_expense and 'ptpj' in expr:
+                                if col_map[i]['period'] == 'ytd' and 'ptpj' in expr:
                                     vessel_name = col_map[i]['vessel_name']
                                     q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
                                     if q_cols:
