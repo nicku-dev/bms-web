@@ -339,4 +339,29 @@ class FastMatrixCompiler:
                                 cell['val'] = val
                                 cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
                                 
+        # STEP 5: Title Row Cleanup
+        # Blank out cells for rows that are purely titles (no formula, no account code)
+        for row in matrix.get('body', []):
+            cells = row.get('cells', [])
+            if not cells:
+                continue
+                
+            c0 = cells[0]
+            val_c = str(c0.get('val_c', ''))
+            
+            is_empty_assignment = False
+            if val_c and '=' in val_c:
+                parts = val_c.split('=', 1)
+                if len(parts) == 2 and not parts[1].strip():
+                    is_empty_assignment = True
+                    
+            if not val_c or is_empty_assignment:
+                label = str(row.get('label', ''))
+                has_account_code = len(label.split()) > 0 and label.split()[0].isdigit() and len(label.split()[0]) >= 6
+                
+                if not has_account_code:
+                    for c in cells:
+                        c['val'] = ''
+                        c['val_r'] = ''
+                        
         return matrix
