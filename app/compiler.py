@@ -155,7 +155,7 @@ class FastMatrixCompiler:
                 if 'val_c' not in cells[i] or not cells[i]['val_c']:
                     cells[i]['val_c'] = base_val_c
 
-                if 'TOTAL KAPAL TERPILIH' in col['vessel_name'].upper():
+                if 'TOTAL' in col['vessel_name'].upper():
                     period = col['period']
                     # Find all ship columns for this period
                     ship_cols = [j for j, c in enumerate(col_map) if c['period'] == period and 'TOTAL' not in c['vessel_name'].upper()]
@@ -311,7 +311,7 @@ class FastMatrixCompiler:
                                     vessel_name = col_map[i]['vessel_name']
                                     q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
                                     if q_cols:
-                                        val = sum(row['cells'][j].get('val', 0.0) for j in q_cols)
+                                        val = sum((row['cells'][j].get('val') or 0.0) for j in q_cols)
                                     else:
                                         val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
                                 else:
