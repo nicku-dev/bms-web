@@ -129,7 +129,15 @@ class FastMatrixCompiler:
                                     # Odoo's own YTD value is unusable (0.0), so use the static ship capacity.
                                     val = vessel_df['value'].max()
                                 else:
-                                    val = vessel_df['value'].sum()
+                                    # Strict YTD = Q1 + Q2 + Q3 + Q4 for each vessel
+                                    q_indices = [
+                                        j for j, c in enumerate(col_map)
+                                        if c['period'] in ['q1', 'q2', 'q3', 'q4'] and c['vessel_name'] == vessel
+                                    ]
+                                    if q_indices:
+                                        val = sum((row['cells'][j].get('val') or 0.0) for j in q_indices)
+                                    else:
+                                        val = vessel_df['value'].sum()
                                 
                         try:
                             val = float(val)
