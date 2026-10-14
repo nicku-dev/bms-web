@@ -141,8 +141,8 @@ class FastMatrixCompiler:
                                 
                         try:
                             val = float(val)
-                            if is_expense:
-                                val = abs(val)
+                            # Preserve sign: expense accounts may legitimately be negative
+                            # (e.g. credits/insurance claims exceeding debits).
                         except (ValueError, TypeError):
                             val = 0.0
                             
