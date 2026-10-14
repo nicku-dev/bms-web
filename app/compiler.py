@@ -388,13 +388,17 @@ class FastMatrixCompiler:
                                 cell['val'] = val
                                 cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
                                 
-        # STEP 5: Title Row Cleanup
-        # Blank out cells for rows that are purely titles (no formula, no account code)
+        # STEP 5: Title Row & Error Cleanup
+        # Blank out cells for rows that are purely titles (no formula, no account code),
+        # replace #NAME or error artifacts with blank, and blank out TRIP/Rupiah per Trip for HO or when uncalculated.
         for row in matrix.get('body', []):
             cells = row.get('cells', [])
             if not cells:
                 continue
                 
+            label = str(row.get('label', ''))
+            label_upper = label.upper()
+            
             c0 = cells[0]
             val_c = str(c0.get('val_c', ''))
             
@@ -405,12 +409,26 @@ class FastMatrixCompiler:
                     is_empty_assignment = True
                     
             if not val_c or is_empty_assignment:
-                label = str(row.get('label', ''))
                 has_account_code = len(label.split()) > 0 and label.split()[0].isdigit() and len(label.split()[0]) >= 6
                 
                 if not has_account_code:
                     for c in cells:
                         c['val'] = ''
                         c['val_r'] = ''
+                        
+            # Clean TRIP and Rupiah per Trip (replace #NAME with blank)
+            if any(k in label_upper for k in ['TRIP', 'RUPIAH PER TRIP']):
+                for c in cells:
+                    vr = str(c.get('val_r', ''))
+                    v = str(c.get('val', ''))
+                    if self.report_type == 'ho' or '#NAME' in vr or '#NAME' in v or c.get('val') is None:
+                        c['val'] = ''
+                        c['val_r'] = ''
+
+            # General #NAME cleanup for all rows
+            for c in cells:
+                if '#NAME' in str(c.get('val_r', '')) or '#NAME' in str(c.get('val', '')):
+                    c['val'] = ''
+                    c['val_r'] = ''
                         
         return matrix

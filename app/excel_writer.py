@@ -141,8 +141,9 @@ class ExcelWriter:
                 val = c.get('val')
                 val_r = c.get('val_r', '')
                 
-                if str(val) == 'undefined' or str(val_r) == 'undefined' or str(val) == '#ERR' or str(val_r) == '#ERR':
+                if str(val) == 'undefined' or str(val_r) == 'undefined' or '#ERR' in str(val) or '#ERR' in str(val_r) or '#NAME' in str(val) or '#NAME' in str(val_r):
                     val = None
+                    val_r = ''
                 
                 # Determine number format
                 num_format = '#,##0.00'
