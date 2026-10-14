@@ -95,15 +95,21 @@ class ReportEngine:
                     sum(-aml.balance * (jad.value::numeric / 100.0)) AS value
                 FROM account_move_line aml
                 JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
-                JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
-                JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN account_account aa ON aa.id = aml.account_id
                 {join_tags}
                 WHERE aml.parent_state = 'posted'
                   {tag_filter}
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
-                  AND (aaa.name->>'en_US' = 'Head Office' OR aaa.name->>'id_ID' = 'Head Office')
+                  AND EXISTS (
+                      SELECT 1 
+                      FROM regexp_split_to_table(jad.key, ',') s
+                      JOIN account_analytic_account aaa ON aaa.id = s::int
+                      WHERE aaa.name->>'en_US' IN ('Head Office', 'HO') 
+                         OR aaa.name->>'id_ID' IN ('Head Office', 'HO')
+                         OR aaa.name::text ILIKE '%Head Office%' 
+                         OR aaa.name::text ILIKE '%"HO"%'
+                  )
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
             """
         else:
@@ -375,8 +381,6 @@ class ReportEngine:
                 JOIN account_move am ON am.id = aml.move_id
                 LEFT JOIN res_partner rp ON rp.id = aml.partner_id
                 JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
-                JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
-                JOIN account_analytic_account aaa ON aaa.id = split_key::int
                 JOIN account_account aa ON aa.id = aml.account_id
                 {join_tags}
                 WHERE aml.parent_state = 'posted'
@@ -384,7 +388,15 @@ class ReportEngine:
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
                   {quarter_filter}
-                  AND (aaa.name->>'en_US' = 'Head Office' OR aaa.name->>'id_ID' = 'Head Office')
+                  AND EXISTS (
+                      SELECT 1 
+                      FROM regexp_split_to_table(jad.key, ',') s
+                      JOIN account_analytic_account aaa ON aaa.id = s::int
+                      WHERE aaa.name->>'en_US' IN ('Head Office', 'HO') 
+                         OR aaa.name->>'id_ID' IN ('Head Office', 'HO')
+                         OR aaa.name::text ILIKE '%Head Office%' 
+                         OR aaa.name::text ILIKE '%"HO"%'
+                  )
                 ORDER BY aml.date DESC
                 LIMIT 500
             """

@@ -729,7 +729,9 @@ async def api_odoo_compute_booster_direct(req: Request):
     try:
         # Determine report type
         report_type = 'fps'
-        if 'BMS' in report_name.upper(): 
+        if 'HO' in report_name.upper() or 'HEAD OFFICE' in report_name.upper():
+            report_type = 'ho'
+        elif 'BMS' in report_name.upper(): 
             report_type = 'non_fps'
             
         # Determine year from name (basic fallback)
@@ -789,7 +791,9 @@ async def api_odoo_compute_booster(req: Request):
         
         # Determine report type
         report_type = 'fps'
-        if 'BMS' in t.report_name.upper(): 
+        if 'HO' in t.report_name.upper() or 'HEAD OFFICE' in t.report_name.upper():
+            report_type = 'ho'
+        elif 'BMS' in t.report_name.upper(): 
             report_type = 'non_fps'
             
         # Determine year from name (basic fallback)
@@ -872,10 +876,10 @@ async def api_generate_report(req: ReportRequest, request: Request):
         # Skenario 1 Full: Inject Live Data!
         try:
             report_type = 'fps'
-            if 'BMS' in req.template_name.upper():
-                report_type = 'non_fps'
-            elif 'HO' in req.template_name.upper() or 'HEAD OFFICE' in req.template_name.upper():
+            if 'HO' in req.template_name.upper() or 'HEAD OFFICE' in req.template_name.upper():
                 report_type = 'ho'
+            elif 'BMS' in req.template_name.upper():
+                report_type = 'non_fps'
                 
             from app.compiler import FastMatrixCompiler
             compiler = FastMatrixCompiler(db_name=company.target_db_name, year=year, report_type=report_type, odoo_report_id=odoo_report_id)

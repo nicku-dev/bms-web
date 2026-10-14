@@ -21,7 +21,11 @@ class FastMatrixCompiler:
         if self.odoo_report_id:
             queries_data = self.engine.get_mis_report_queries(self.odoo_report_id)
             for q_name, q_fields in queries_data.items():
-                self.query_vars[q_name] = SimpleNamespace(**q_fields)
+                if self.report_type == 'ho':
+                    zero_fields = {k: 0.0 for k in q_fields}
+                    self.query_vars[q_name] = SimpleNamespace(**zero_fields)
+                else:
+                    self.query_vars[q_name] = SimpleNamespace(**q_fields)
                 
         # 3. Isolate Evaluator
         self.evaluator = CompilerEvaluator(self.query_vars)
@@ -53,6 +57,16 @@ class FastMatrixCompiler:
         tpj_semua = self.engine.get_kpi_tpj_semua(self.year)
         
         env_vars = [{} for _ in range(len(col_map))]
+
+        # For HO: Zero out indirect TPJ query rows (Warna Kuning: Angka di Line TPJ di 0 Kan)
+        if self.report_type == 'ho':
+            tpj_queries = ['tbg', 'tbp', 'tbk', 'tbj', 'tbak', 'tbpga', 'tpbb', 'tpll', 'tlsk', 'tbll', 'tbab', 'trsk', 'tbpll']
+            for row in matrix.get('body', []):
+                val_c_0 = str(row['cells'][0].get('val_c', '')) if row.get('cells') else ''
+                if any(q in val_c_0 for q in tpj_queries):
+                    for cell in row.get('cells', []):
+                        cell['val'] = 0.0
+                        cell['val_r'] = "-"
 
         # STEP 1 & 2: Process direct accounting queries and tag filters
         for row in matrix.get('body', []):
@@ -113,11 +127,12 @@ class FastMatrixCompiler:
                     val = cell.get('val', 0.0)
                     if 'total' not in vessel.lower():
                         clean_vessel = vessel.replace('Kapal - ', '').strip()
-                        vessel_df = df[df['vessel_name'] == clean_vessel]
-                        
-                        # Fallback to contains if exact match fails
-                        if vessel_df.empty:
-                            vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
+                        if self.report_type == 'ho' or clean_vessel.upper() in ['HO', 'HEAD OFFICE']:
+                            vessel_df = df
+                        else:
+                            vessel_df = df[df['vessel_name'] == clean_vessel]
+                            if vessel_df.empty:
+                                vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
                             
                         if not vessel_df.empty:
                             if period in ['q1', 'q2', 'q3', 'q4']:
@@ -164,8 +179,8 @@ class FastMatrixCompiler:
             for i, col in enumerate(col_map):
                 if i >= len(cells): continue
                 
-                # Copy val_c if missing (to ensure Step 4 evaluates formulas for Total columns)
-                if 'val_c' not in cells[i] or not cells[i]['val_c']:
+                # Copy val_c if missing or corrupted by Odoo Traceback (to ensure Step 4 evaluates formulas)
+                if 'val_c' not in cells[i] or not cells[i]['val_c'] or 'Traceback' in str(cells[i].get('val_c', '')):
                     cells[i]['val_c'] = base_val_c
 
                 if 'TOTAL' in col['vessel_name'].upper():
@@ -218,7 +233,7 @@ class FastMatrixCompiler:
                                 var_owner[(i, var_name)] = row_idx
 
                 if label == 'PENDAPATAN JASA':
-                    env_vars[i]['tpj'] = cell.get('val', 0.0)
+                    env_vars[i]['tpj'] = float(cell.get('val') or 0.0)
 
         # Build tpj_semua values to the environment
         if not tpj_semua.empty:
@@ -231,9 +246,12 @@ class FastMatrixCompiler:
                 elif period == 'ytd' or period == 'total':
                     env_vars[i]['tpj_semua'] = tpj_semua['value'].sum()
                     
-                tpj = env_vars[i].get('tpj', 0.0)
-                tpj_s = env_vars[i].get('tpj_semua', 0.0)
-                if tpj_s != 0:
+                tpj = float(env_vars[i].get('tpj') or 0.0)
+                tpj_s = float(env_vars[i].get('tpj_semua') or 0.0)
+                if self.report_type == 'ho':
+                    env_vars[i]['prop_tpj'] = 0.0
+                    env_vars[i]['ptpj'] = 0.0
+                elif tpj_s != 0:
                     env_vars[i]['prop_tpj'] = tpj / tpj_s
                     env_vars[i]['ptpj'] = tpj / tpj_s
                 else:
@@ -243,17 +261,21 @@ class FastMatrixCompiler:
         # Proporsional TPJ row insertion logic
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).upper()
-            if 'TPJ SEMUA KAPAL BMS' in label:
+            if 'TPJ PER KAPAL' in label and self.report_type == 'ho':
+                for cell in row.get('cells', []):
+                    cell['val'] = 0.0
+                    cell['val_r'] = "-"
+            elif 'TPJ SEMUA KAPAL BMS' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
-                        val = env_vars[i].get('tpj_semua', 0.0)
+                        val = 0.0 if self.report_type == 'ho' else env_vars[i].get('tpj_semua', 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
             
             elif 'PROPORTIONAL TPJ' in label or 'PROPORSIONAL TPJ' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
-                        val = env_vars[i].get('prop_tpj', 0.0)
+                        val = 0.0 if self.report_type == 'ho' else env_vars[i].get('prop_tpj', 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
 
@@ -310,13 +332,19 @@ class FastMatrixCompiler:
                     if i >= len(col_map):
                         continue
                         
-                    val_c = str(cell.get('val_c', ''))
+                    val_c = str(cell.get('val_c', '')).replace('\xa0', ' ')
                     
                     # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
                     if '=' in val_c and '[' not in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq' not in val_c.split('=', 1)[0]:
                         parts = val_c.split('=', 1)
                         if len(parts) == 2:
                             expr = parts[1].strip()
+                            
+                            # Subperiod formulas like "var = q1 = expr1, q2 = expr2, ..."
+                            period = col_map[i]['period']
+                            sub_match = re.search(rf'\b{period}\s*=\s*([^,\n]+)', expr)
+                            if sub_match:
+                                expr = sub_match.group(1).strip()
                             
                             if not expr:
                                 cell['val'] = 0.0
@@ -326,12 +354,15 @@ class FastMatrixCompiler:
                             try:
                                 # YTD Override for indirect costs: sum Q1..Q4 instead of formula
                                 if col_map[i]['period'] == 'ytd' and 'ptpj' in expr:
-                                    vessel_name = col_map[i]['vessel_name']
-                                    q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
-                                    if q_cols:
-                                        val = sum((row['cells'][j].get('val') or 0.0) for j in q_cols)
+                                    if self.report_type == 'ho':
+                                        val = 0.0
                                     else:
-                                        val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
+                                        vessel_name = col_map[i]['vessel_name']
+                                        q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
+                                        if q_cols:
+                                            val = sum((row['cells'][j].get('val') or 0.0) for j in q_cols)
+                                        else:
+                                            val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
                                 else:
                                     # USE THE ISOLATED EVALUATOR
                                     val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
