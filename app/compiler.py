@@ -123,6 +123,9 @@ class FastMatrixCompiler:
                             if period in ['q1', 'q2', 'q3', 'q4']:
                                 q_num = int(period[1])
                                 val = vessel_df[vessel_df['quarter'] == q_num]['value'].sum()
+                                # Engine returns -balance; expense rows are shown as debit - credit.
+                                if is_expense:
+                                    val = -val
                             elif period == 'ytd' or period == 'total':
                                 if label == 'KAPASITAS' or label == 'KAPASITAS KAPAL':
                                     # Static metric: YTD must NOT be summed across quarters.
@@ -138,10 +141,12 @@ class FastMatrixCompiler:
                                         val = sum((row['cells'][j].get('val') or 0.0) for j in q_indices)
                                     else:
                                         val = vessel_df['value'].sum()
+                                        if is_expense:
+                                            val = -val
                                 
                         try:
                             val = float(val)
-                            # Preserve sign: expense accounts may legitimately be negative
+                            # Sign is preserved: expense accounts may legitimately be negative
                             # (e.g. credits/insurance claims exceeding debits).
                         except (ValueError, TypeError):
                             val = 0.0
