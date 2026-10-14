@@ -405,13 +405,13 @@
   
   <script>
     async function loadCompanies() {
-        const res = await fetch('/api/admin/companies');
+        const res = await fetch('/api/admin/companies?include_inactive=true');
         const data = await res.json();
         const tbody = document.getElementById('company-table');
         tbody.innerHTML = '';
         data.data.forEach(c => {
             tbody.innerHTML += `
-              <tr>
+              <tr class="${c.is_active ? '' : 'opacity-50'}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.id}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${c.initial_pt || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${c.name}</td>
@@ -419,12 +419,23 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.target_db_name}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title="${c.odoo_password}">${c.odoo_user || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <label class="inline-flex items-center mr-4 cursor-pointer text-gray-600" title="Tampilkan di pilihan laporan">
+                    <input type="checkbox" ${c.is_active ? 'checked' : ''} onchange="toggleCompanyActive(${c.id}, this.checked)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-1"> Aktif
+                  </label>
                   <button onclick="editCompany(${c.id}, '${c.initial_pt}', '${c.name}', '${c.server_url}', '${c.target_db_name}', '${c.odoo_user}', '${c.odoo_password}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
                   <button onclick="deleteCompany(${c.id})" class="text-red-600 hover:text-red-900">Hapus</button>
                 </td>
               </tr>
             `;
         });
+    }
+    async function toggleCompanyActive(id, isActive) {
+        await fetch('/api/admin/companies/' + id + '/active', {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ is_active: isActive })
+        });
+        loadCompanies();
     }
     function openModal(id, initial, name, url, db, user, pass_str) {
         document.getElementById('company-modal').classList.remove('hidden');

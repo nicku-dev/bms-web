@@ -349,15 +349,19 @@ async def api_admin_references(request: Request):
 
 @app.get("/api/admin/companies")
 
-async def api_admin_companies():
+async def api_admin_companies(include_inactive: bool = False):
     db = SessionLocal()
-    companies = db.query(Company).filter(Company.is_active == True).all()
+    query = db.query(Company)
+    if not include_inactive:
+        query = query.filter(Company.is_active == True)
+    companies = query.order_by(Company.id).all()
     data = []
     for c in companies:
         data.append({
             "id": c.id, 
             "initial_pt": c.initial_pt,
             "name": c.name, 
+            "is_active": bool(c.is_active),
             "server_url": c.server_url,
             "target_db_name": c.target_db_name,
             "odoo_user": c.odoo_user,
@@ -414,6 +418,24 @@ async def api_admin_delete_company(company_id: int):
         c.is_active = False
         db.commit()
     return {"status": "success", "message": "Perusahaan dihapus"}
+
+class CompanyActiveRequest(BaseModel):
+    is_active: bool
+
+@app.patch("/api/admin/companies/{company_id}/active")
+async def api_admin_toggle_company_active(company_id: int, req: CompanyActiveRequest):
+    db = SessionLocal()
+    try:
+        c = db.query(Company).filter(Company.id == company_id).first()
+        if not c:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "Perusahaan tidak ditemukan"})
+        c.is_active = req.is_active
+        db.commit()
+        state = "diaktifkan" if req.is_active else "dinonaktifkan"
+        return {"status": "success", "message": f"Perusahaan {state}"}
+    finally:
+        db.close()
+
 @app.get("/api/admin/odoo_reports/{company_id}")
 async def api_admin_odoo_reports(company_id: int):
     db = SessionLocal()
