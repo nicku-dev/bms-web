@@ -7,11 +7,12 @@ from app.compiler_fetcher import CompilerFetcher
 from app.compiler_evaluator import CompilerEvaluator
 
 class FastMatrixCompiler:
-    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None, pg_kwargs=None):
+    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None, pg_kwargs=None, template_name=None):
         self.engine = ReportEngine(db_name, pg_kwargs=pg_kwargs)
         self.year = year
         self.report_type = report_type
         self.odoo_report_id = odoo_report_id
+        self.template_name = template_name or ''
         
         # 1. Isolate Fetcher
         self.fetcher = CompilerFetcher(self.engine, year, report_type)
@@ -29,6 +30,28 @@ class FastMatrixCompiler:
                 
         # 3. Isolate Evaluator
         self.evaluator = CompilerEvaluator(self.query_vars)
+
+    @property
+    def is_non_bms(self) -> bool:
+        name = (self.template_name or '').upper()
+        rtype = (self.report_type or '').upper()
+        if 'NON BMS' in name or 'NON-BMS' in name or 'NON_BMS' in name:
+            return True
+        if rtype in ['NON_BMS', 'NON-BMS', 'NON BMS']:
+            return True
+        if self.odoo_report_id:
+            try:
+                from app.db import SessionLocal
+                from app.models import ReportTemplate
+                db = SessionLocal()
+                t = db.query(ReportTemplate).filter(ReportTemplate.odoo_report_id == self.odoo_report_id).first()
+                if t and t.report_name and ('NON BMS' in t.report_name.upper() or 'NON-BMS' in t.report_name.upper()):
+                    db.close()
+                    return True
+                db.close()
+            except Exception:
+                pass
+        return False
 
     def compile(self, matrix):
         print("🚀 FAST MATRIX COMPILER INITIATED")
@@ -430,5 +453,13 @@ class FastMatrixCompiler:
                 if '#NAME' in str(c.get('val_r', '')) or '#NAME' in str(c.get('val', '')):
                     c['val'] = ''
                     c['val_r'] = ''
+
+        # For Kapal Non BMS: Hide TPJ Per Kapal, TPJ Semua Kapal FPS/BMS, and Proportional TPJ
+        if self.is_non_bms:
+            hidden_labels = ['TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']
+            matrix['body'] = [
+                row for row in matrix.get('body', [])
+                if not any(hl in str(row.get('label', '')).upper() for hl in hidden_labels)
+            ]
                         
         return matrix

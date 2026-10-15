@@ -69,5 +69,29 @@ def test_pajak_style_removed():
         if 'pajak_lain_lain' in name:
             assert row.get('style_id') != 'num_pct', "Beban Pajak Lain-lain should not have percentage style"
 
+def test_hide_kpis_kapal_non_bms():
+    skel_non_bms = get_skeleton('Triwulan - KAPAL NON BMS - 2026')
+    skel_bms = get_skeleton('Laporan Triwulan - Kapal BMS 2026')
+    
+    assert skel_non_bms is not None
+    assert skel_bms is not None
+    
+    # 1. Non BMS must hide the 3 rows
+    compiler_non_bms = FastMatrixCompiler('BMS_26_PRODUCTION', '2026', template_name='Triwulan - KAPAL NON BMS - 2026')
+    res_non_bms = compiler_non_bms.compile(skel_non_bms)
+    labels_non_bms = [r.get('label', '').upper() for r in res_non_bms.get('body', [])]
+    assert not any('TPJ PER KAPAL' in l for l in labels_non_bms)
+    assert not any('TPJ SEMUA KAPAL' in l for l in labels_non_bms)
+    assert not any('PROPORTIONAL TPJ' in l for l in labels_non_bms)
+
+    # 2. BMS report must still retain them
+    compiler_bms = FastMatrixCompiler('BMS_26_PRODUCTION', '2026', template_name='Laporan Triwulan - Kapal BMS 2026')
+    res_bms = compiler_bms.compile(skel_bms)
+    labels_bms = [r.get('label', '').upper() for r in res_bms.get('body', [])]
+    assert any('TPJ PER KAPAL' in l for l in labels_bms)
+    assert any('TPJ SEMUA KAPAL' in l for l in labels_bms)
+    assert any('PROPORTIONAL TPJ' in l for l in labels_bms)
+
 if __name__ == "__main__":
     pytest.main([__file__])
+
