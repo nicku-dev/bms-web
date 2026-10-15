@@ -36,13 +36,16 @@ class ExcelWriter:
             elif k == 'background-color':
                 fmt['bg_color'] = v
             elif k == 'text-indent':
-                # Convert em to roughly indent levels
                 match = re.match(r'([0-9.]+)', v)
                 if match:
                     try:
                         em_val = float(match.group(1))
-                        # 1 em roughly 1 indent level
-                        fmt['indent'] = int(em_val)
+                        if em_val >= 4:
+                            fmt['indent'] = 2
+                        elif em_val >= 2:
+                            fmt['indent'] = 1
+                        else:
+                            fmt['indent'] = 0
                     except:
                         pass
         return fmt
@@ -79,35 +82,41 @@ class ExcelWriter:
         worksheet = workbook.add_worksheet('Report')
         
         # Write Report Titles
-        title_format = workbook.add_format({'bold': True, 'font_size': 14})
+        title_format = workbook.add_format({'bold': True, 'font_size': 14, 'font_name': 'Calibri'})
+        subtitle_format = workbook.add_format({'bold': True, 'font_size': 12, 'font_name': 'Calibri', 'font_color': '#334155'})
+        year_format = workbook.add_format({'bold': True, 'font_size': 11, 'font_name': 'Calibri', 'font_color': '#475569'})
+        
         worksheet.write(0, 0, self.company_name, title_format)
-        worksheet.write(1, 0, self.report_name, title_format)
-        worksheet.write(2, 0, f"TAHUN {self.year}", title_format)
+        worksheet.write(1, 0, self.report_name, subtitle_format)
+        worksheet.write(2, 0, f"TAHUN {self.year}", year_format)
         
         start_row = 5
         
         # 1. Write Headers
         headers = self.matrix.get('header', [])
+        num_header_rows = len(headers)
         current_row = start_row
         max_cols = 0
         
-        # Header formatting
+        header_fmt = self._get_format(workbook, {'bg_color': '#EAEEF3', 'font_color': '#0F172A'}, is_header=True)
+        
+        # Merge top-left "Keterangan" vertically across all header rows
+        if num_header_rows > 1:
+            worksheet.merge_range(start_row, 0, start_row + num_header_rows - 1, 0, "Keterangan", header_fmt)
+        else:
+            worksheet.write(start_row, 0, "Keterangan", header_fmt)
+            
         for h_row in headers:
             col_idx = 1 # Start from column 1 (B) for data, column 0 (A) is for labels
-            if current_row == start_row:
-                # Top-left empty cell
-                worksheet.write(current_row, 0, "Keterangan", self._get_format(workbook, {}, is_header=True))
-                
             cols = h_row if isinstance(h_row, list) else h_row.get('cols', [])
             for c in cols:
                 label = c.get('label', c.get('val', ''))
                 colspan = c.get('colspan', 1)
                 
-                fmt = self._get_format(workbook, {}, is_header=True)
                 if colspan > 1:
-                    worksheet.merge_range(current_row, col_idx, current_row, col_idx + colspan - 1, label, fmt)
+                    worksheet.merge_range(current_row, col_idx, current_row, col_idx + colspan - 1, label, header_fmt)
                 else:
-                    worksheet.write(current_row, col_idx, label, fmt)
+                    worksheet.write(current_row, col_idx, label, header_fmt)
                 col_idx += colspan
                 
             if col_idx - 1 > max_cols:
@@ -116,28 +125,71 @@ class ExcelWriter:
             current_row += 1
             
         # 2. Write Body (Data Rows)
+        standard_num_format = '_(* #,##0.00_);_(* (#,##0.00);_(* "-"??_);_(@_)'
+        percent_num_format = '0.00%'
+        
         body = self.matrix.get('body', [])
         for row_data in body:
-            row_style = self._parse_style(row_data.get('style', ''))
-            label = row_data.get('label', '')
+            raw_style = row_data.get('style', '')
+            row_style = self._parse_style(raw_style)
+            label = str(row_data.get('label', ''))
+            trimmed_label = label.strip()
             
+            cells = row_data.get('cells', [])
+            # Pad cells if Odoo returned a ragged array
+            if len(cells) < max_cols:
+                cells.extend([{'val': None}] * (max_cols - len(cells)))
+                
+            # Classify row type:
+            # A. Detail COA: starts with 6-10 digit account code (e.g. 5000032400)
+            is_coa_detail = bool(re.match(r'^\d{6,10}\s', trimmed_label))
+            
+            # C. Total row (e.g. Total Biaya Tetap)
+            is_total_row = 'Total' in label or 'Laba' in label or 'Rugi' in label or 'bg_color' in row_style
+            
+            # B. Section Heading: bold, no account code, no em indent, not total, and all cells are truly empty strings
+            is_empty_cells = all(
+                c is None or c.get('val') is None or str(c.get('val', '')).strip() in ['', 'None', 'undefined']
+                for c in cells
+            )
+            is_section_heading = (
+                row_style.get('bold', False)
+                and not is_coa_detail
+                and not is_total_row
+                and ('text-indent' not in raw_style or row_style.get('indent', 0) == 0)
+                and is_empty_cells
+            )
+            
+            # Apply specialized visual styling
+            if is_section_heading:
+                row_style['bold'] = True
+                row_style['bg_color'] = row_style.get('bg_color', '#F1F5F9')
+                row_style['font_color'] = '#0F172A'
+                row_style['indent'] = 0
+            elif is_coa_detail:
+                row_style['bold'] = False
+                row_style['italic'] = True
+                row_style['font_color'] = '#555555'
+                row_style['indent'] = max(row_style.get('indent', 2), 2)
+            elif is_total_row and 'bg_color' in row_style:
+                row_style['bold'] = True
+                
             # Write Label in Column A
             label_fmt = self._get_format(workbook, row_style)
             worksheet.write(current_row, 0, label, label_fmt)
             
             # Write Cells
             col_idx = 1
-            cells = row_data.get('cells', [])
-            
-            # Pad cells if Odoo returned a ragged array (e.g. invalid columns)
-            if len(cells) < max_cols:
-                cells.extend([{'val': None}] * (max_cols - len(cells)))
-                
             for c in cells:
                 cell_style = self._parse_style(c.get('style', ''))
-                # Merge row style with cell style
                 merged_style = {**row_style, **cell_style}
                 
+                # For Detail COA, make numbers italic & muted gray to match label
+                if is_coa_detail:
+                    merged_style['italic'] = True
+                    merged_style['bold'] = False
+                    merged_style['font_color'] = '#555555'
+                    
                 val = c.get('val')
                 val_r = c.get('val_r', '')
                 
@@ -146,29 +198,22 @@ class ExcelWriter:
                     val_r = ''
                 
                 # Determine number format
-                num_format = '#,##0.00'
+                num_format = standard_num_format
                 if '%' in str(val_r):
-                    num_format = '0.00%'
-                    # Odoo gives % as 0.75 for 75% or sometimes 75.0 for 75%. Let's trust the val for numeric operations
+                    num_format = percent_num_format
                 
                 cell_fmt = self._get_format(workbook, merged_style, num_format=num_format)
                 
-                if val is None or str(val) == '':
+                if is_section_heading or val is None or str(val).strip() == '':
                     worksheet.write_string(current_row, col_idx, '', cell_fmt)
                 else:
-                    # Attempt to safely convert to float to prevent string numbers in Excel
                     try:
-                        # Clean commas in case value is passed as formatted string like "1,000.50"
                         cleaned_val = str(val).replace(',', '')
                         numeric_val = float(cleaned_val)
-                        
-                        # Eliminate -0.00 or floating point inaccuracies around zero
                         if abs(numeric_val) < 0.005:
                             numeric_val = 0.0
-                            
                         worksheet.write_number(current_row, col_idx, numeric_val, cell_fmt)
                     except (ValueError, TypeError):
-                        # Fallback: It is a genuine text string (e.g., "#ERR", "Total")
                         worksheet.write_string(current_row, col_idx, str(val), cell_fmt)
                     
                 col_idx += 1

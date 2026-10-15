@@ -842,14 +842,40 @@
               return;
           }
           
+          let isCoaDetail = /^\d{6,10}\s/.test(rowLabel.trim());
           let isBold = row.style && row.style.includes('font-weight: bold');
+          let isItalic = isCoaDetail || (row.style && row.style.includes('font-style: italic'));
+          
+          let isTotalRow = /total|laba|rugi|ebitda/i.test(rowLabel);
+          let isSectionHeading = isBold && !isCoaDetail && !isTotalRow && (!row.style || !row.style.includes('text-indent')) && (!row.cells || row.cells.every(c => !c || c.val === null || c.val === '' || c.val === undefined));
+          
           let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
-          let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 2, 16)}` : 'pl-2.5';
-          let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
+          let plClass = isCoaDetail ? 'pl-8' : (indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 2, 16)}` : 'pl-2.5');
+          
+          let bgMatch = row.style ? row.style.match(/background-color:\s*([^;]+)/) : null;
+          let customBg = bgMatch ? bgMatch[1].trim() : '';
+          
+          let rowClasses = '';
+          let labelClasses = '';
+          let labelStyleAttr = customBg ? `background-color: ${customBg};` : '';
+          
+          if (isSectionHeading) {
+              rowClasses = 'bg-slate-100/90 font-bold text-slate-900 border-y border-slate-200/80';
+              labelClasses = 'font-bold text-slate-900 bg-slate-100';
+          } else if (isCoaDetail) {
+              rowClasses = 'hover:bg-slate-50/70 text-slate-500 transition';
+              labelClasses = 'italic text-slate-500 ' + (customBg ? '' : 'bg-white');
+          } else if (isBold) {
+              rowClasses = 'bg-slate-50/70 font-semibold text-slate-900';
+              labelClasses = 'font-semibold text-slate-900 ' + (isItalic ? 'italic ' : '') + (customBg ? '' : 'bg-slate-50');
+          } else {
+              rowClasses = 'hover:bg-slate-50/80 text-slate-700 transition';
+              labelClasses = (isItalic ? 'italic ' : '') + 'text-slate-700 ' + (customBg ? '' : 'bg-white');
+          }
           
           let rowStyleAttr = row.style ? `style="${row.style}"` : '';
           bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
-          bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug sticky left-0 z-30 ${isBold ? 'bg-slate-50' : 'bg-white'}">${rowLabel}</td>`;
+          bodyHtml += `<td class="py-1 px-2.5 ${plClass} text-[11px] font-sans border-r border-slate-200/70 leading-snug sticky left-0 z-30 ${labelClasses}" style="${labelStyleAttr}">${rowLabel}</td>`;
           
           if (row.cells) {
               activeIndexes.forEach(idx => {
@@ -859,6 +885,12 @@
                       bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70"></td>`;
                       return;
                   }
+                  
+                  if (isSectionHeading) {
+                      bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70 bg-slate-100/60"></td>`;
+                      return;
+                  }
+                  
                   let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
                   if (val === 'undefined' || val === '#ERR') val = '';
                   if (typeof val === 'number') {
@@ -899,10 +931,20 @@
                   }
                   
                   let cellBold = cell.style && cell.style.includes('font-weight: bold');
-                  let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
-                  if (val.includes('-') && !val.includes('span')) {
-                      cellClasses += ' text-red-600';
+                  let cellItalic = isCoaDetail || (cell.style && cell.style.includes('font-style: italic'));
+                  let cellClasses = '';
+                  if (cellBold) cellClasses += ' font-bold text-slate-900';
+                  if (cellItalic) cellClasses += ' italic';
+                  if (isCoaDetail) cellClasses += ' text-slate-500';
+                  
+                  if (typeof val === 'string') {
+                      if (val.startsWith('-') && val !== '-' && !val.includes('span')) {
+                          cellClasses += ' text-red-600 font-semibold';
+                      } else if (val === '-' && !val.includes('span')) {
+                          cellClasses += ' text-slate-400';
+                      }
                   }
+                  
                   let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
                   bodyHtml += `<td class="py-1 px-2.5 text-right border-r border-slate-200/70 text-[11px] whitespace-nowrap ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
               });
