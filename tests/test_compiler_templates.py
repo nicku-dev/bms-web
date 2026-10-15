@@ -84,13 +84,18 @@ def test_hide_kpis_kapal_non_bms():
     assert not any('TPJ SEMUA KAPAL' in l for l in labels_non_bms)
     assert not any('PROPORTIONAL TPJ' in l for l in labels_non_bms)
 
-    # 2. BMS report must still retain them
+    # 2. BMS report must still retain them and match Pendapatan Jasa values
     compiler_bms = FastMatrixCompiler('BMS_26_PRODUCTION', '2026', template_name='Laporan Triwulan - Kapal BMS 2026')
     res_bms = compiler_bms.compile(skel_bms)
     labels_bms = [r.get('label', '').upper() for r in res_bms.get('body', [])]
     assert any('TPJ PER KAPAL' in l for l in labels_bms)
     assert any('TPJ SEMUA KAPAL' in l for l in labels_bms)
     assert any('PROPORTIONAL TPJ' in l for l in labels_bms)
+
+    row_pendapatan = next(r for r in res_bms['body'] if r.get('label', '').upper() == 'PENDAPATAN JASA')
+    row_tpj = next(r for r in res_bms['body'] if 'TPJ PER KAPAL' in r.get('label', '').upper())
+    for p_cell, tpj_cell in zip(row_pendapatan['cells'], row_tpj['cells']):
+        assert p_cell.get('val') == tpj_cell.get('val')
 
 if __name__ == "__main__":
     pytest.main([__file__])

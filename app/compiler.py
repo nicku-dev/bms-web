@@ -284,11 +284,18 @@ class FastMatrixCompiler:
         # Proporsional TPJ row insertion logic
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).upper()
-            if 'TPJ PER KAPAL' in label and self.report_type == 'ho':
-                for cell in row.get('cells', []):
-                    cell['val'] = 0.0
-                    cell['val_r'] = "-"
-            elif 'TPJ SEMUA KAPAL BMS' in label:
+            if 'TPJ PER KAPAL' in label:
+                if self.report_type == 'ho':
+                    for cell in row.get('cells', []):
+                        cell['val'] = 0.0
+                        cell['val_r'] = "-"
+                else:
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i < len(env_vars):
+                            val = env_vars[i].get('tpj', 0.0)
+                            cell['val'] = val
+                            cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+            elif 'TPJ SEMUA KAPAL' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
                         val = 0.0 if self.report_type == 'ho' else env_vars[i].get('tpj_semua', 0.0)
@@ -346,7 +353,7 @@ class FastMatrixCompiler:
                 label_upper = str(row.get('label', '')).upper()
                 
                 # Prevent Odoo algebraic formulas from overwriting KPI data
-                if label_upper in ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL']:
+                if any(kpi in label_upper for kpi in ['KAPASITAS', 'TRIP', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']):
                     continue
                     
                 is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)

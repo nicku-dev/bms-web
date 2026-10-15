@@ -768,6 +768,7 @@
       
       // --- DYNAMIC TPJ CALCULATION ---
       let pendapatan_jasa_row = matrix.body.find(r => r.label && (r.label.trim().toUpperCase() === 'PENDAPATAN JASA' || r.label.trim().toUpperCase() === 'TW_PENDAPATAN JASA'));
+      let tpj_per_kapal_row = matrix.body.find(r => r.label && r.label.includes('TPJ Per Kapal'));
       let tpj_semua_row = matrix.body.find(r => r.label && r.label.includes('TPJ Semua Kapal'));
       let prop_tpj_row = matrix.body.find(r => r.label && r.label.includes('Proportional TPJ'));
       
@@ -789,6 +790,11 @@
               let pKey = m.period.toLowerCase() === 'total' ? 'ytd' : m.period.toLowerCase();
               let periodSum = sums_per_period[pKey] || 0;
               let tpj_kapal = (pendapatan_jasa_row.cells[idx] && pendapatan_jasa_row.cells[idx].val) ? parseFloat(pendapatan_jasa_row.cells[idx].val) : 0;
+              
+              if (tpj_per_kapal_row && tpj_per_kapal_row.cells[idx]) {
+                  tpj_per_kapal_row.cells[idx].val = tpj_kapal;
+                  tpj_per_kapal_row.cells[idx].val_r = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tpj_kapal);
+              }
               
               if (tpj_semua_row.cells[idx]) {
                   // VALIDATION CHECK!
