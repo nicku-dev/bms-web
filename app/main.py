@@ -731,6 +731,8 @@ async def api_odoo_compute_booster_direct(req: Request):
         report_type = 'fps'
         if 'HO' in report_name.upper() or 'HEAD OFFICE' in report_name.upper():
             report_type = 'ho'
+        elif 'NON BMS' in report_name.upper() or 'NON-BMS' in report_name.upper():
+            report_type = 'non_bms'
         elif 'BMS' in report_name.upper(): 
             report_type = 'non_fps'
             
@@ -756,7 +758,8 @@ async def api_odoo_compute_booster_direct(req: Request):
             year=year, 
             report_type=report_type, 
             odoo_report_id=data.get('report_id') or 0, # mis.report template id (for MIS query vars like tbg.sumq3_25)
-            pg_kwargs=pg_kwargs
+            pg_kwargs=pg_kwargs,
+            template_name=report_name
         )
         compiled = compiler.compile(skeleton_matrix)
         
@@ -793,6 +796,8 @@ async def api_odoo_compute_booster(req: Request):
         report_type = 'fps'
         if 'HO' in t.report_name.upper() or 'HEAD OFFICE' in t.report_name.upper():
             report_type = 'ho'
+        elif 'NON BMS' in t.report_name.upper() or 'NON-BMS' in t.report_name.upper():
+            report_type = 'non_bms'
         elif 'BMS' in t.report_name.upper(): 
             report_type = 'non_fps'
             
@@ -806,7 +811,8 @@ async def api_odoo_compute_booster(req: Request):
             db_name=company.target_db_name, 
             year=year, 
             report_type=report_type, 
-            odoo_report_id=t.odoo_report_id
+            odoo_report_id=t.odoo_report_id,
+            template_name=t.report_name
         )
         compiled = compiler.compile(matrix)
         
@@ -878,11 +884,19 @@ async def api_generate_report(req: ReportRequest, request: Request):
             report_type = 'fps'
             if 'HO' in req.template_name.upper() or 'HEAD OFFICE' in req.template_name.upper():
                 report_type = 'ho'
+            elif 'NON BMS' in req.template_name.upper() or 'NON-BMS' in req.template_name.upper():
+                report_type = 'non_bms'
             elif 'BMS' in req.template_name.upper():
                 report_type = 'non_fps'
                 
             from app.compiler import FastMatrixCompiler
-            compiler = FastMatrixCompiler(db_name=company.target_db_name, year=year, report_type=report_type, odoo_report_id=odoo_report_id)
+            compiler = FastMatrixCompiler(
+                db_name=company.target_db_name, 
+                year=year, 
+                report_type=report_type, 
+                odoo_report_id=odoo_report_id,
+                template_name=req.template_name
+            )
             matrix = compiler.compile(matrix)
         except Exception as e:
             compile_status = f"FALLBACK SKELETON (Error: {str(e)})"

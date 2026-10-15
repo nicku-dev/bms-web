@@ -1,6 +1,11 @@
 from collections import defaultdict
 from typing import Dict, Any
 
+class SmartVar(float):
+    """A float that safely returns itself for any sub-attribute access like ptpj.q1, total_pendapatan.q1, etc."""
+    def __getattr__(self, name):
+        return float(self)
+
 class CompilerEvaluator:
     def __init__(self, query_vars: Dict[str, Any]):
         """
@@ -15,7 +20,12 @@ class CompilerEvaluator:
         Raises ValueError if the evaluation fails (e.g., missing variables) so the caller
         can handle it cleanly without overwriting valid data.
         """
-        safe_env = defaultdict(float, env_vars)
+        safe_env = defaultdict(float)
+        for k, v in env_vars.items():
+            if isinstance(v, (int, float)):
+                safe_env[k] = SmartVar(v)
+            else:
+                safe_env[k] = v
         
         # Inject MIS queries (e.g., cap_query.debit, tbab.sumq1_25)
         safe_env.update(self.query_vars)

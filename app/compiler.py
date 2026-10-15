@@ -7,28 +7,63 @@ from app.compiler_fetcher import CompilerFetcher
 from app.compiler_evaluator import CompilerEvaluator
 
 class FastMatrixCompiler:
-    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None, pg_kwargs=None):
+    def __init__(self, db_name, year, report_type='fps', odoo_report_id=None, pg_kwargs=None, template_name=None):
         self.engine = ReportEngine(db_name, pg_kwargs=pg_kwargs)
-        self.year = year
+        self.year = str(year)
         self.report_type = report_type
         self.odoo_report_id = odoo_report_id
+        self.template_name = template_name or ''
         
         # 1. Isolate Fetcher
-        self.fetcher = CompilerFetcher(self.engine, year, report_type)
+        self.fetcher = CompilerFetcher(self.engine, self.year, report_type)
         
         # 2. Fetch MIS Report Queries as Objects for eval()
         self.query_vars = {}
         if self.odoo_report_id:
             queries_data = self.engine.get_mis_report_queries(self.odoo_report_id)
             for q_name, q_fields in queries_data.items():
-                if self.report_type == 'ho':
+                if self.report_type == 'ho' or self.is_non_bms:
                     zero_fields = {k: 0.0 for k in q_fields}
                     self.query_vars[q_name] = SimpleNamespace(**zero_fields)
                 else:
-                    self.query_vars[q_name] = SimpleNamespace(**q_fields)
+                    expanded_fields = dict(q_fields)
+                    for k, v in q_fields.items():
+                        if '_25' in k:
+                            expanded_fields[k.replace('_25', '_26')] = v
+                        elif '_26' in k:
+                            expanded_fields[k.replace('_26', '_25')] = v
+                        for q_num in ['1', '2', '3', '4']:
+                            if f'sumq{q_num}' in k:
+                                expanded_fields[f'sumq{q_num}'] = v
+                                expanded_fields[f'q{q_num}'] = v
+                        if 'ytd' in k:
+                            expanded_fields['ytd'] = v
+                    self.query_vars[q_name] = SimpleNamespace(**expanded_fields)
                 
         # 3. Isolate Evaluator
         self.evaluator = CompilerEvaluator(self.query_vars)
+
+    @property
+    def is_non_bms(self) -> bool:
+        name = (self.template_name or '').upper()
+        rtype = (self.report_type or '').upper()
+        if 'NON BMS' in name or 'NON-BMS' in name or 'NON_BMS' in name:
+            return True
+        if rtype in ['NON_BMS', 'NON-BMS', 'NON BMS']:
+            return True
+        if self.odoo_report_id:
+            try:
+                from app.db import SessionLocal
+                from app.models import ReportTemplate
+                db = SessionLocal()
+                t = db.query(ReportTemplate).filter(ReportTemplate.odoo_report_id == self.odoo_report_id).first()
+                if t and t.report_name and ('NON BMS' in t.report_name.upper() or 'NON-BMS' in t.report_name.upper()):
+                    db.close()
+                    return True
+                db.close()
+            except Exception:
+                pass
+        return False
 
     def compile(self, matrix):
         print("🚀 FAST MATRIX COMPILER INITIATED")
@@ -58,8 +93,8 @@ class FastMatrixCompiler:
         
         env_vars = [{} for _ in range(len(col_map))]
 
-        # For HO: Zero out indirect TPJ query rows (Warna Kuning: Angka di Line TPJ di 0 Kan)
-        if self.report_type == 'ho':
+        # For HO and Non-BMS: Zero out indirect TPJ query rows (Warna Kuning: Angka di Line TPJ di 0 Kan)
+        if self.report_type == 'ho' or self.is_non_bms:
             tpj_queries = ['tbg', 'tbp', 'tbk', 'tbj', 'tbak', 'tbpga', 'tpbb', 'tpll', 'tlsk', 'tbll', 'tbab', 'trsk', 'tbpll']
             for row in matrix.get('body', []):
                 val_c_0 = str(row['cells'][0].get('val_c', '')) if row.get('cells') else ''
@@ -232,50 +267,69 @@ class FastMatrixCompiler:
                                 env_vars[i][var_name] = _num(cell.get('val', 0.0))
                                 var_owner[(i, var_name)] = row_idx
 
-                if label == 'PENDAPATAN JASA':
-                    env_vars[i]['tpj'] = float(cell.get('val') or 0.0)
+                if label in ['PENDAPATAN JASA', 'TW_PENDAPATAN JASA']:
+                    if cell.get('val') is not None and float(cell.get('val') or 0.0) != 0.0:
+                        env_vars[i]['tpj'] = float(cell.get('val'))
+                    elif 'tpj' not in env_vars[i]:
+                        env_vars[i]['tpj'] = float(cell.get('val') or 0.0)
+
+        # Fallback period sums from columns if get_kpi_tpj_semua is empty
+        period_sums = {}
+        for i, col in enumerate(col_map):
+            if 'total' not in col['vessel_name'].lower():
+                p = col['period']
+                period_sums[p] = period_sums.get(p, 0.0) + float(env_vars[i].get('tpj') or 0.0)
 
         # Build tpj_semua values to the environment
-        if not tpj_semua.empty:
-            for i, col in enumerate(col_map):
-                period = col['period']
+        for i, col in enumerate(col_map):
+            period = col['period']
+            if not tpj_semua.empty:
                 if period in ['q1', 'q2', 'q3', 'q4']:
                     q_num = int(period[1])
                     val = tpj_semua[tpj_semua['quarter'] == q_num]['value'].sum()
                     env_vars[i]['tpj_semua'] = val
                 elif period == 'ytd' or period == 'total':
                     env_vars[i]['tpj_semua'] = tpj_semua['value'].sum()
-                    
-                tpj = float(env_vars[i].get('tpj') or 0.0)
-                tpj_s = float(env_vars[i].get('tpj_semua') or 0.0)
-                if self.report_type == 'ho':
-                    env_vars[i]['prop_tpj'] = 0.0
-                    env_vars[i]['ptpj'] = 0.0
-                elif tpj_s != 0:
-                    env_vars[i]['prop_tpj'] = tpj / tpj_s
-                    env_vars[i]['ptpj'] = tpj / tpj_s
-                else:
-                    env_vars[i]['prop_tpj'] = 0.0
-                    env_vars[i]['ptpj'] = 0.0
+            else:
+                env_vars[i]['tpj_semua'] = period_sums.get(period, 0.0)
+                
+            tpj = float(env_vars[i].get('tpj') or 0.0)
+            tpj_s = float(env_vars[i].get('tpj_semua') or 0.0)
+            if self.report_type == 'ho' or self.is_non_bms:
+                env_vars[i]['prop_tpj'] = 0.0
+                env_vars[i]['ptpj'] = 0.0
+            elif tpj_s != 0:
+                env_vars[i]['prop_tpj'] = tpj / tpj_s
+                env_vars[i]['ptpj'] = tpj / tpj_s
+            else:
+                env_vars[i]['prop_tpj'] = 0.0
+                env_vars[i]['ptpj'] = 0.0
 
         # Proporsional TPJ row insertion logic
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).upper()
-            if 'TPJ PER KAPAL' in label and self.report_type == 'ho':
-                for cell in row.get('cells', []):
-                    cell['val'] = 0.0
-                    cell['val_r'] = "-"
-            elif 'TPJ SEMUA KAPAL BMS' in label:
+            if 'TPJ PER KAPAL' in label:
+                if self.report_type == 'ho' or self.is_non_bms:
+                    for cell in row.get('cells', []):
+                        cell['val'] = 0.0
+                        cell['val_r'] = "-"
+                else:
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i < len(env_vars):
+                            val = env_vars[i].get('tpj', 0.0)
+                            cell['val'] = val
+                            cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+            elif 'TPJ SEMUA KAPAL' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
-                        val = 0.0 if self.report_type == 'ho' else env_vars[i].get('tpj_semua', 0.0)
+                        val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('tpj_semua', 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
             
             elif 'PROPORTIONAL TPJ' in label or 'PROPORSIONAL TPJ' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
-                        val = 0.0 if self.report_type == 'ho' else env_vars[i].get('prop_tpj', 0.0)
+                        val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('prop_tpj', 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
 
@@ -323,7 +377,7 @@ class FastMatrixCompiler:
                 label_upper = str(row.get('label', '')).upper()
                 
                 # Prevent Odoo algebraic formulas from overwriting KPI data
-                if label_upper in ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL']:
+                if any(k in label_upper for k in ['KAPASITAS', 'TRIP', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']):
                     continue
                     
                 is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)
@@ -345,6 +399,11 @@ class FastMatrixCompiler:
                             sub_match = re.search(rf'\b{period}\s*=\s*([^,\n]+)', expr)
                             if sub_match:
                                 expr = sub_match.group(1).strip()
+                            elif period in ['q2', 'q3', 'q4']:
+                                # If template formula only specified q1 (e.g. tbg.sumq1_26*ptpj.q1), adapt to current quarter
+                                expr = re.sub(r'sumq1_', f'sum{period}_', expr)
+                                expr = re.sub(r'sumq1\b', f'sum{period}', expr)
+                                expr = re.sub(r'\.q1\b', f'.{period}', expr)
                             
                             if not expr:
                                 cell['val'] = 0.0
@@ -352,17 +411,16 @@ class FastMatrixCompiler:
                                 continue
                                 
                             try:
+                                if (self.report_type == 'ho' or self.is_non_bms) and 'ptpj' in expr:
+                                    val = 0.0
                                 # YTD Override for indirect costs: sum Q1..Q4 instead of formula
-                                if col_map[i]['period'] == 'ytd' and 'ptpj' in expr:
-                                    if self.report_type == 'ho':
-                                        val = 0.0
+                                elif col_map[i]['period'] in ['ytd', 'total'] and 'ptpj' in expr:
+                                    vessel_name = col_map[i]['vessel_name']
+                                    q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
+                                    if q_cols:
+                                        val = sum((row['cells'][j].get('val') or 0.0) for j in q_cols)
                                     else:
-                                        vessel_name = col_map[i]['vessel_name']
-                                        q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
-                                        if q_cols:
-                                            val = sum((row['cells'][j].get('val') or 0.0) for j in q_cols)
-                                        else:
-                                            val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
+                                        val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
                                 else:
                                     # USE THE ISOLATED EVALUATOR
                                     val = self.evaluator.evaluate_algebraic(expr, env_vars[i], is_expense)
@@ -431,4 +489,17 @@ class FastMatrixCompiler:
                     c['val'] = ''
                     c['val_r'] = ''
                         
+        # Filter out hidden rows for Kapal Non BMS (TPJ Per Kapal, TPJ Semua Kapal, Proportional TPJ)
+        if self.is_non_bms:
+            hidden_labels = [
+                'TPJ PER KAPAL',
+                'TPJ SEMUA KAPAL',
+                'PROPORTIONAL TPJ',
+                'PROPORSIONAL TPJ'
+            ]
+            matrix['body'] = [
+                row for row in matrix.get('body', [])
+                if not any(hl in str(row.get('label', '')).upper() for hl in hidden_labels)
+            ]
+
         return matrix

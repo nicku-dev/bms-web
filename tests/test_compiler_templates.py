@@ -69,5 +69,49 @@ def test_pajak_style_removed():
         if 'pajak_lain_lain' in name:
             assert row.get('style_id') != 'num_pct', "Beban Pajak Lain-lain should not have percentage style"
 
+def test_kapal_non_bms_opsi_b():
+    skel = get_skeleton('Triwulan - KAPAL NON BMS - 2026')
+    assert skel is not None, "Skeleton Triwulan - KAPAL NON BMS - 2026 not found"
+    
+    compiler = FastMatrixCompiler('BMS_26_PRODUCTION', '2026', template_name='Triwulan - KAPAL NON BMS - 2026', odoo_report_id=2)
+    matrix = compiler.compile(skel)
+    
+    # 1. Verify 3 TPJ KPI rows are hidden
+    labels = [r.get('label', '') for r in matrix.get('body', [])]
+    for l in labels:
+        assert 'TPJ PER KAPAL' not in l.upper()
+        assert 'TPJ SEMUA KAPAL' not in l.upper()
+        assert 'PROPORTIONAL TPJ' not in l.upper()
+        
+    # 2. Verify indirect overhead lines are zeroed ('-')
+    for r in matrix.get('body', []):
+        label = r.get('label', '').upper()
+        if 'BIAYA KANTOR' in label or 'BIAYA GAJI, JAMSOSTEK' in label:
+            for cell in r.get('cells', []):
+                assert cell.get('val_r') in ['-', '', None], f"Expected 0.0 / '-' for Non-BMS indirect row, got {cell.get('val_r')}"
+
+def test_kapal_bms_tpj_and_overhead():
+    skel = get_skeleton('Laporan Triwulan - Kapal BMS 2026')
+    assert skel is not None, "Skeleton Laporan Triwulan - Kapal BMS 2026 not found"
+    
+    compiler = FastMatrixCompiler('BMS_26_PRODUCTION', '2026', template_name='Laporan Triwulan - Kapal BMS 2026', odoo_report_id=1)
+    matrix = compiler.compile(skel)
+    
+    # 1. Verify 3 TPJ KPI rows are present
+    labels = [r.get('label', '') for r in matrix.get('body', [])]
+    assert any('TPJ PER KAPAL' in l.upper() for l in labels)
+    assert any('TPJ SEMUA KAPAL' in l.upper() for l in labels)
+    assert any('PROPORTIONAL TPJ' in l.upper() for l in labels)
+    
+    # 2. Verify TPJ Per Kapal and Proportional TPJ have calculated values
+    for r in matrix.get('body', []):
+        label = r.get('label', '').upper()
+        if 'TPJ PER KAPAL' in label:
+            vals = [c.get('val_r') for c in r.get('cells', []) if c.get('val_r') not in ['-', '']]
+            assert len(vals) > 0, "TPJ Per Kapal should have non-empty values"
+        if 'PROPORTIONAL TPJ' in label:
+            vals = [c.get('val_r') for c in r.get('cells', []) if c.get('val_r') not in ['-', '']]
+            assert len(vals) > 0, "Proportional TPJ should have non-empty values"
+
 if __name__ == "__main__":
     pytest.main([__file__])
