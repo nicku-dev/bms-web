@@ -3,100 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISA Report Builder (Independent)</title>
+    <title>Independent Report Builder | BMS Web</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .custom-scrollbar::-webkit-scrollbar { height: 7px; width: 7px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-pulse-subtle { animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .drag-over-top {
+            border-top: 3px solid #2563eb !important;
+            background-color: #eff6ff !important;
+        }
+        .drag-over-bottom {
+            border-bottom: 3px solid #2563eb !important;
+            background-color: #eff6ff !important;
+        }
+        tr.dragging {
+            opacity: 0.35;
+            background-color: #dbeafe !important;
+        }
+        .grab-handle {
+            cursor: grab;
+            user-select: none;
+        }
+        .grab-handle:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 <body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased min-h-screen flex flex-col relative">
 
-<!-- Header -->
+<!-- BEGIN: MainHeader -->
 <header class="bg-white/80 backdrop-blur-xl border-b border-slate-200/80 sticky top-0 z-40 transition shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)]">
     <div class="max-w-[1600px] mx-auto px-6 lg:px-12 py-3.5 flex items-center justify-between">
         <div class="flex items-center space-x-4">
-            <h1 class="text-xl font-black tracking-tight text-slate-900 leading-tight">
-                ISA Independent Report Builder
-            </h1>
+            <a href="/dashboard" class="flex items-center space-x-3 group">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
+                    <span class="text-xl">⚓</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-tight text-slate-900 group-hover:text-blue-600 transition">
+                        BMS Reporting
+                    </h1>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest -mt-1">
+                        High-Performance Engine
+                    </p>
+                </div>
+            </a>
             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-purple-50 text-purple-700 border border-purple-200/80">
-                EXPERIMENTAL
+                Native Builder
             </span>
         </div>
+
         <div class="flex items-center space-x-3.5">
-            <a href="/dashboard" class="inline-flex items-center space-x-2 px-3.5 py-1.5 border border-slate-300/80 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50">
-                <span class="font-medium">Kembali ke Dashboard</span>
+            {% if user %}
+            <div class="flex items-center space-x-2.5 bg-slate-100/90 px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-xs">
+                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                    {{ user.username[0].upper() }}
+                </div>
+                <span class="text-sm font-semibold text-slate-800 tracking-tight">{{ user.username }}</span>
+                <div class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </div>
+            </div>
+            {% endif %}
+            <a href="/logout" class="inline-flex items-center space-x-1.5 px-3 py-1.5 border border-slate-300/80 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition shadow-xs">
+                <span>🚪</span>
+                <span>Logout</span>
             </a>
         </div>
     </div>
 </header>
+<!-- END: MainHeader -->
 
-<main class="flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8">
+<!-- BEGIN: NavigationTabs -->
+<nav aria-label="Main Navigation" class="bg-white/70 backdrop-blur-md border-b border-slate-200/90 relative z-30">
+    <div class="max-w-[1600px] mx-auto px-6 lg:px-12 flex space-x-2">
+        {% set perms = user.permissions.split(',') if user and user.permissions else [] %}
+        {% set is_admin = (user and (user.role == 'admin' or user.permissions == '*' or user.username in ['admin_isa', 'admin_dev'])) %}
+
+        <!-- Tab Nonaktif: Buat Laporan -->
+        <a href="/dashboard" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1">
+            <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🚀</span>
+            <span>Buat Laporan</span>
+        </a>
+
+        <!-- Tab Nonaktif: Riwayat Laporan -->
+        <a href="/dashboard?tab=history" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
+            <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🕒</span>
+            <span>Riwayat Laporan</span>
+        </a>
+
+        <!-- Tab Nonaktif: Query Checker -->
+        <a href="/checker" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
+            <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">🔎</span>
+            <span>Query Checker</span>
+        </a>
+
+        <!-- Tab Aktif: Report Builder -->
+        <button class="relative group inline-flex items-center py-3.5 px-4 font-semibold text-sm text-blue-600 focus:outline-none transition ml-2" type="button">
+            <span class="mr-2 text-base filter drop-shadow-xs">🛠️</span>
+            <span>Report Builder</span>
+            <div class="absolute bottom-0 inset-x-2 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(37,99,235,0.4)]"></div>
+        </button>
+
+        <!-- Tab Nonaktif: Referensi Data -->
+        <a href="/reference" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-auto">
+            <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">📊</span>
+            <span>Referensi Data</span>
+        </a>
+
+        {% if is_admin or 'config' in perms %}
+        <!-- Tab Nonaktif: Konfigurasi Sistem -->
+        <a href="/config" class="group inline-flex items-center py-3.5 px-4 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none transition rounded-lg hover:bg-slate-100/60 my-1 ml-2">
+            <span class="mr-2 text-slate-400 group-hover:text-slate-600 transition">⚙️</span>
+            <span>Konfigurasi Sistem</span>
+        </a>
+        {% endif %}
+    </div>
+</nav>
+<!-- END: NavigationTabs -->
+
+<main class="flex-1 max-w-[1600px] w-full mx-auto px-6 lg:px-12 py-8 space-y-8">
+    <!-- Top Action Bar / Info -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-50 via-indigo-50/50 to-white p-5 rounded-2xl border border-blue-100/80 shadow-xs">
+        <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>🛠️</span> Report Builder Mandiri (Native DuckDB)
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+                Rancang baris dan kolom laporan secara bebas tanpa ketergantungan MIS Builder Odoo, lalu hitung langsung via DuckDB.
+            </p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="loadSampleTemplate()" class="inline-flex items-center space-x-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 transition active:scale-[0.98]">
+                <span>✨</span>
+                <span>Muat Contoh (5 Baris)</span>
+            </button>
+            <button onclick="previewReport()" class="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-[0.98]">
+                <span>▶️</span>
+                <span>Hitung & Lihat Hasil</span>
+            </button>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
         <!-- Sidebar: Configuration -->
         <div class="xl:col-span-1 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-                <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <span class="text-indigo-500">⚙️</span> Konfigurasi Utama
-                </h2>
+            <!-- Parameter Laporan -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+                <h3 class="text-xs font-black tracking-wider uppercase text-slate-400 flex items-center gap-2">
+                    <span>⚙️</span> Parameter Laporan
+                </h3>
+                
                 <div>
                     <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Perusahaan</label>
-                    <select id="company-select" class="w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"></select>
+                    <select id="company-select" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"></select>
                 </div>
+
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Nama Laporan</label>
-                    <input type="text" id="template-name" class="w-full text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500" placeholder="Misal: Laba Rugi 2026">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Tahun Laporan</label>
+                    <select id="year-select" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+                        <option value="2026" selected>2026</option>
+                        <option value="2025">2025</option>
+                    </select>
                 </div>
-                <button onclick="saveTemplate()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all active:scale-[0.98]">
-                    💾 Simpan Laporan
-                </button>
-                <div id="save-status" class="text-xs text-center font-medium mt-2 hidden"></div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Template Tersimpan</label>
+                    <select id="saved-templates-select" onchange="onTemplateSelectChange(this.value)" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Buat Template Baru --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Nama Laporan / Template</label>
+                    <input type="text" id="template-name" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500" placeholder="Misal: Laba Rugi Operasional 2026">
+                </div>
+
+                <div class="pt-2 flex flex-col gap-2">
+                    <button onclick="saveTemplate()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 px-3 rounded-xl text-xs shadow-xs transition active:scale-[0.98]">
+                        💾 Simpan Template
+                    </button>
+                    <div id="save-status" class="text-xs text-center font-medium hidden"></div>
+                </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-                <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <span class="text-indigo-500">⛴️</span> Pilih Kapal (Kolom)
-                </h2>
-                <div class="flex space-x-2">
-                    <input type="text" id="search-vessel" class="flex-1 text-xs border border-slate-200 rounded-lg p-1.5" placeholder="Cari kapal...">
-                    <button onclick="addVessel()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 hover:bg-indigo-100">+</button>
+            <!-- Pilih Kapal (Kolom) -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-black tracking-wider uppercase text-slate-400 flex items-center gap-2">
+                        <span>⛴️</span> Pilih Kapal (<span id="vessel-count">0</span>)
+                    </h3>
+                    <button onclick="addSampleVessel()" class="text-[10px] text-blue-600 hover:underline font-bold">+ Contoh Kapal</button>
                 </div>
-                <div id="selected-vessels" class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                    <!-- Vessel items go here -->
+                
+                <div class="space-y-2">
+                    <div class="flex space-x-2">
+                        <input list="vessels-datalist" id="search-vessel" class="flex-1 text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500" placeholder="Ketik atau pilih kapal...">
+                        <datalist id="vessels-datalist"></datalist>
+                        <button onclick="addVessel()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-xs">Tambah</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Pilih kapal dari database untuk dijadikan kolom matriks (Q1-Q4 & YTD).</p>
+                </div>
+
+                <div id="selected-vessels" class="space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
+                    <div class="text-center py-6 text-xs text-slate-400">Belum ada kapal dipilih</div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Builder -->
+        <!-- Main Builder: Table Rows -->
         <div class="xl:col-span-3 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <span class="text-indigo-500">📊</span> Susunan Baris Laporan
-                    </h2>
-                    <div class="space-x-2">
-                        <button onclick="addRow('data')" class="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-200 hover:bg-emerald-100">+ Baris Data</button>
-                        <button onclick="addRow('formula')" class="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-200 hover:bg-amber-100">+ Baris Formula</button>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span>📊</span> Susunan Baris Laporan
+                        </h3>
+                        <p class="text-xs text-slate-400">Atur urutan, kode variabel (misal: R1, R2), akun/tag akuntansi, atau formula matematika. <span class="text-blue-600 font-medium">💡 Geser (drag & drop) ikon ⠿ untuk mengatur urutan baris dari atas ke bawah.</span></p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="addRow('query')" class="inline-flex items-center space-x-1.5 bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-purple-200 hover:bg-purple-100 transition shadow-2xs">
+                            <span>+</span>
+                            <span>Baris Query (KPI)</span>
+                        </button>
+                        <button onclick="addRow('data')" class="inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-200 hover:bg-emerald-100 transition shadow-2xs">
+                            <span>+</span>
+                            <span>Baris Tag (Kategori)</span>
+                        </button>
+                        <button onclick="addRow('account')" class="inline-flex items-center space-x-1.5 bg-sky-50 text-sky-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-sky-200 hover:bg-sky-100 transition shadow-2xs">
+                            <span>+</span>
+                            <span>Baris Akun (COA)</span>
+                        </button>
+                        <button onclick="addRow('formula')" class="inline-flex items-center space-x-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-200 hover:bg-amber-100 transition shadow-2xs">
+                            <span>+</span>
+                            <span>Baris Formula</span>
+                        </button>
                     </div>
                 </div>
 
-                <div class="border rounded-xl border-slate-200 overflow-hidden">
+                <div class="border rounded-xl border-slate-200 overflow-hidden shadow-2xs">
                     <table class="w-full text-left">
                         <thead class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                             <tr>
-                                <th class="p-3 w-12 text-center">Urutan</th>
+                                <th class="p-3 w-10 text-center" title="Tahan dan geser untuk memindahkan urutan">Urutan</th>
+                                <th class="p-3 w-12 text-center">No</th>
                                 <th class="p-3 w-20">Kode</th>
                                 <th class="p-3 w-64">Nama Baris / Label</th>
-                                <th class="p-3">Sumber Data (Tag) / Rumus</th>
-                                <th class="p-3 w-24 text-right">Aksi</th>
+                                <th class="p-3">Sumber Data (Tag) / Rumus Formula</th>
+                                <th class="p-3 w-28 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="rows-container" class="divide-y divide-slate-100">
                             <!-- Rows go here -->
                         </tbody>
                     </table>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <span class="text-xs text-slate-400" id="row-count-badge">0 Baris dikonfigurasi</span>
+                    <button onclick="previewReport()" class="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-[0.98]">
+                        <span>▶️</span>
+                        <span>Hitung & Lihat Hasil Matriks</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Matrix Results Preview Area -->
+            <div id="preview-section" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 hidden">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span>📈</span> Hasil Perhitungan Matriks (DuckDB Live)
+                        </h3>
+                        <p class="text-xs text-slate-400" id="preview-meta">Hasil agregasi waktu nyata per kapal dan triwulan.</p>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        ⚡ Kompilasi Berhasil
+                    </span>
+                </div>
+
+                <div id="preview-matrix-container" class="border rounded-xl border-slate-200 overflow-x-auto custom-scrollbar shadow-2xs">
+                    <!-- Matrix Table rendered dynamically -->
                 </div>
             </div>
         </div>
@@ -106,73 +301,178 @@
 <script>
     let dbVessels = [];
     let dbTags = [];
+    let dbQueries = [];
+    let dbAccounts = [];
     let selectedVessels = [];
     let reportRows = [];
     let rowCounter = 0;
+    let currentTemplateId = null;
 
     async function initBuilder() {
-        // Load companies
         try {
+            // Load available queries
+            try {
+                let resQ = await fetch('/api/builder/queries');
+                dbQueries = await resQ.json();
+            } catch(e) {
+                dbQueries = [
+                    { code: "KAPASITAS", name: "Kapasitas Kapal (Cargo Capacity / DWT)", default_label: "Kapasitas Kapal (DWT)" },
+                    { code: "TRIP", name: "Jumlah Trip Kapal (Trip Count)", default_label: "Jumlah Trip" },
+                    { code: "TPJ_SEMUA", name: "Pendapatan Jasa Semua Kapal", default_label: "Total Pendapatan Seluruh Armada" }
+                ];
+            }
+
             let res = await fetch('/api/companies');
             let data = await res.json();
-            if (data.status === 'success' && data.data) {
+            if (data.status === 'success' && data.companies && data.companies.length > 0) {
                 let sel = document.getElementById('company-select');
-                sel.innerHTML = '<option value="">-- Pilih Perusahaan --</option>';
-                data.data.forEach(c => {
+                sel.innerHTML = '';
+                data.companies.forEach(c => {
                     sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
                 });
                 
                 sel.addEventListener('change', async (e) => {
-                    if(e.target.value) {
-                        await loadCompanyData(e.target.value);
+                    if (e.target.value) {
+                        await loadCompanyData(parseInt(e.target.value));
+                        await loadSavedTemplates(parseInt(e.target.value));
                     }
                 });
+
+                // Auto-select first company
+                const activeId = parseInt(data.companies[0].id);
+                sel.value = activeId;
+                await loadCompanyData(activeId);
+                await loadSavedTemplates(activeId);
+
+                // Check URL params
+                const urlParams = new URLSearchParams(window.location.search);
+                const id = urlParams.get('id');
+                if (id) {
+                    await loadTemplate(parseInt(id));
+                } else {
+                    // Auto-load sample template if empty
+                    loadSampleTemplate();
+                }
             }
-        } catch(e) { console.error(e); }
+        } catch(e) {
+            console.error("Init Error:", e);
+        }
     }
 
     async function loadCompanyData(companyId) {
-        // Fetch vessels and tags
         try {
-            let res = await fetch(`/api/builder/vessels?company_id=${companyId}`);
-            dbVessels = await res.json();
+            let resV = await fetch(`/api/builder/vessels?company_id=${companyId}`);
+            dbVessels = await resV.json();
             
-            let res2 = await fetch(`/api/builder/tags?company_id=${companyId}`);
-            dbTags = await res2.json();
-            
-            console.log("Loaded", dbVessels.length, "vessels and", dbTags.length, "tags");
+            let dl = document.getElementById('vessels-datalist');
+            dl.innerHTML = '';
+            dbVessels.forEach(v => {
+                dl.innerHTML += `<option value="${v.name}">${v.name}</option>`;
+            });
+
+            let resT = await fetch(`/api/builder/tags?company_id=${companyId}`);
+            dbTags = await resT.json();
+
+            let resA = await fetch(`/api/builder/accounts?company_id=${companyId}`);
+            dbAccounts = await resA.json();
+
+            renderRows();
         } catch(e) {
-            console.error(e);
-            alert("Gagal memuat data dari database!");
+            console.error("Gagal memuat data perusahaan:", e);
+        }
+    }
+
+    async function loadSavedTemplates(companyId) {
+        try {
+            let res = await fetch(`/api/builder/templates?company_id=${companyId}`);
+            let list = await res.json();
+            let sel = document.getElementById('saved-templates-select');
+            sel.innerHTML = '<option value="">-- Buat Template Baru --</option>';
+            list.forEach(t => {
+                sel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+            });
+        } catch(e) {
+            console.error("Error loading templates list:", e);
+        }
+    }
+
+    async function onTemplateSelectChange(templateId) {
+        if (!templateId) {
+            currentTemplateId = null;
+            document.getElementById('template-name').value = '';
+            selectedVessels = [];
+            reportRows = [];
+            renderVessels();
+            renderRows();
+            return;
+        }
+        await loadTemplate(parseInt(templateId));
+    }
+
+    async function loadTemplate(id) {
+        try {
+            let res = await fetch(`/api/builder/templates/${id}`);
+            let json = await res.json();
+            if (json.status === 'success') {
+                currentTemplateId = id;
+                let data = json.data;
+                document.getElementById('template-name').value = data.name;
+                document.getElementById('saved-templates-select').value = id;
+                selectedVessels = data.config.vessels || [];
+                reportRows = data.config.rows || [];
+                if (reportRows.length > 0) {
+                    rowCounter = Math.max(...reportRows.map(r => r.id || 0));
+                }
+                renderVessels();
+                renderRows();
+            }
+        } catch(e) {
+            console.error("Error loading template:", e);
         }
     }
 
     function addVessel() {
-        let input = document.getElementById('search-vessel').value.toLowerCase();
-        let match = dbVessels.find(v => v.name.toLowerCase().includes(input));
-        if (match && !selectedVessels.find(sv => sv.id === match.id)) {
+        let input = document.getElementById('search-vessel').value.trim();
+        if (!input) return;
+        let match = dbVessels.find(v => v.name.toLowerCase() === input.toLowerCase()) ||
+                    dbVessels.find(v => v.name.toLowerCase().includes(input.toLowerCase()));
+        if (match && !selectedVessels.find(sv => sv.name === match.name)) {
             selectedVessels.push(match);
             renderVessels();
             document.getElementById('search-vessel').value = '';
         } else if (!match) {
-            alert("Kapal tidak ditemukan!");
+            alert("Kapal '" + input + "' tidak ditemukan dalam master data!");
         } else {
             alert("Kapal sudah ditambahkan!");
         }
     }
 
-    function removeVessel(id) {
-        selectedVessels = selectedVessels.filter(v => v.id !== id);
+    function addSampleVessel() {
+        const sampleName = 'TB.BMS 004/TK.BMS 004A';
+        let match = dbVessels.find(v => v.name.includes('BMS 004')) || { id: 75, name: sampleName };
+        if (!selectedVessels.find(sv => sv.name === match.name)) {
+            selectedVessels.push(match);
+            renderVessels();
+        }
+    }
+
+    function removeVessel(name) {
+        selectedVessels = selectedVessels.filter(v => v.name !== name);
         renderVessels();
     }
 
     function renderVessels() {
         let html = '';
+        document.getElementById('vessel-count').innerText = selectedVessels.length;
+        if (selectedVessels.length === 0) {
+            document.getElementById('selected-vessels').innerHTML = '<div class="text-center py-6 text-xs text-slate-400">Belum ada kapal dipilih</div>';
+            return;
+        }
         selectedVessels.forEach(v => {
             html += `
-            <div class="flex justify-between items-center bg-slate-50 border border-slate-200 p-2 rounded-lg text-xs">
-                <span class="font-medium text-slate-700 truncate w-4/5" title="${v.name}">${v.name}</span>
-                <button onclick="removeVessel(${v.id})" class="text-red-500 hover:text-red-700 font-bold">✕</button>
+            <div class="flex justify-between items-center bg-slate-50 border border-slate-200/90 px-2.5 py-1.5 rounded-lg text-xs">
+                <span class="font-semibold text-slate-700 truncate w-4/5" title="${v.name}">🚢 ${v.name}</span>
+                <button onclick="removeVessel('${v.name}')" class="text-red-400 hover:text-red-600 font-bold px-1 rounded">✕</button>
             </div>
             `;
         });
@@ -181,15 +481,119 @@
 
     function addRow(type) {
         rowCounter++;
-        let code = `R${rowCounter}`;
-        reportRows.push({
-            id: rowCounter,
-            code: code,
-            type: type,
-            label: `Baris ${rowCounter}`,
-            expression: type === 'data' ? '' : `${code} = `
-        });
+        if (type === 'query') {
+            let code = `K${rowCounter}`;
+            reportRows.push({
+                id: rowCounter,
+                code: code,
+                type: 'query',
+                label: 'Kapasitas Kapal (DWT)',
+                expression: 'KAPASITAS'
+            });
+        } else if (type === 'account') {
+            let code = `A${rowCounter}`;
+            let firstAcc = dbAccounts.length > 0 ? dbAccounts[0] : null;
+            reportRows.push({
+                id: rowCounter,
+                code: code,
+                type: 'account',
+                label: firstAcc ? `${firstAcc.code} ${firstAcc.name}` : `Akun COA ${rowCounter}`,
+                expression: firstAcc ? firstAcc.code : '',
+                style: 'font-style: italic;'
+            });
+        } else if (type === 'data') {
+            let code = `R${rowCounter}`;
+            reportRows.push({
+                id: rowCounter,
+                code: code,
+                type: 'data',
+                label: `Baris Data ${rowCounter}`,
+                expression: ''
+            });
+        } else {
+            let code = `R${rowCounter}`;
+            reportRows.push({
+                id: rowCounter,
+                code: code,
+                type: 'formula',
+                label: `Formula ${rowCounter}`,
+                expression: `${code} = `
+            });
+        }
         renderRows();
+    }
+
+    function onQuerySelectChange(id, code) {
+        let r = reportRows.find(x => x.id === id);
+        if (r) {
+            r.expression = code;
+            let q = dbQueries.find(x => x.code === code);
+            if (q && (!r.label || r.label.startsWith('Baris') || r.label.startsWith('Formula') || r.label.includes('Kapasitas') || r.label.includes('Trip'))) {
+                r.label = q.default_label || q.name;
+            }
+            renderRows();
+        }
+    }
+
+    function onAccountSelectChange(id, code) {
+        let r = reportRows.find(x => x.id === id);
+        if (r) {
+            r.expression = code;
+            let acc = dbAccounts.find(x => x.code === code);
+            if (acc && (!r.label || r.label.startsWith('Baris') || r.label.startsWith('Akun') || r.label.includes('COA'))) {
+                r.label = `${acc.code} ${acc.name}`;
+            }
+            renderRows();
+        }
+    }
+
+    async function breakdownCOA(rowId) {
+        let parentIndex = reportRows.findIndex(x => x.id === rowId);
+        if (parentIndex === -1) return;
+        let parentRow = reportRows[parentIndex];
+        if (!parentRow.expression) {
+            alert("Pilih Tag Akuntansi terlebih dahulu sebelum mengurai COA!");
+            return;
+        }
+
+        let companyId = document.getElementById('company-select').value;
+        try {
+            let res = await fetch(`/api/builder/accounts?company_id=${companyId}&tag_name=${encodeURIComponent(parentRow.expression)}`);
+            let accounts = await res.json();
+            if (!accounts || accounts.length === 0) {
+                alert(`Tidak ditemukan akun COA spesifik untuk tag "${parentRow.expression}".`);
+                return;
+            }
+
+            let existingChildCodes = reportRows.filter(r => r.parent_id === parentRow.id).map(r => r.expression);
+            let accountsToAdd = accounts.filter(a => !existingChildCodes.includes(a.code));
+
+            if (accountsToAdd.length === 0) {
+                alert("Semua akun COA untuk tag ini sudah ada di dalam laporan.");
+                return;
+            }
+
+            let newRows = [];
+            accountsToAdd.forEach((acc, idx) => {
+                rowCounter++;
+                newRows.push({
+                    id: rowCounter,
+                    code: `${parentRow.code}_${idx + 1}`,
+                    type: 'account',
+                    is_child: true,
+                    parent_id: parentRow.id,
+                    label: `${acc.code} ${acc.name}`,
+                    expression: acc.code,
+                    style: 'font-style: italic; text-indent: 2em;'
+                });
+            });
+
+            reportRows.splice(parentIndex + 1, 0, ...newRows);
+            renderRows();
+        } catch(e) {
+            console.error("Error breaking down COA:", e);
+            alert("Gagal mengambil akun COA.");
+        }
     }
 
     function updateRow(id, field, value) {
@@ -202,10 +606,96 @@
         renderRows();
     }
 
+    let draggedRowIndex = null;
+
+    function onRowDragStart(e, index) {
+        draggedRowIndex = index;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
+        const row = document.getElementById(`row-${index}`);
+        if (row) {
+            setTimeout(() => row.classList.add('dragging'), 0);
+        }
+    }
+
+    function onRowDragOver(e, index) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (draggedRowIndex === null || draggedRowIndex === index) return;
+        
+        const row = document.getElementById(`row-${index}`);
+        if (row) {
+            const rect = row.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY < midY) {
+                row.classList.add('drag-over-top');
+                row.classList.remove('drag-over-bottom');
+            } else {
+                row.classList.add('drag-over-bottom');
+                row.classList.remove('drag-over-top');
+            }
+        }
+    }
+
+    function onRowDragLeave(e, index) {
+        const row = document.getElementById(`row-${index}`);
+        if (row) {
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+    }
+
+    function onRowDrop(e, targetIndex) {
+        e.preventDefault();
+        if (draggedRowIndex === null || draggedRowIndex === targetIndex) {
+            onRowDragEnd();
+            return;
+        }
+
+        const row = document.getElementById(`row-${targetIndex}`);
+        let insertAfter = false;
+        if (row) {
+            const rect = row.getBoundingClientRect();
+            insertAfter = (e.clientY >= rect.top + rect.height / 2);
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+
+        const itemToMove = reportRows[draggedRowIndex];
+        const targetItem = reportRows[targetIndex];
+        reportRows.splice(draggedRowIndex, 1);
+        const targetPos = reportRows.indexOf(targetItem);
+        reportRows.splice(insertAfter ? targetPos + 1 : targetPos, 0, itemToMove);
+
+        onRowDragEnd();
+        renderRows();
+    }
+
+    function onRowDragEnd(e) {
+        draggedRowIndex = null;
+        document.querySelectorAll('#rows-container tr').forEach(tr => {
+            tr.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+        });
+    }
+
+    function moveRow(index, direction) {
+        const target = index + direction;
+        if (target < 0 || target >= reportRows.length) return;
+        const item = reportRows.splice(index, 1)[0];
+        reportRows.splice(target, 0, item);
+        renderRows();
+    }
+
     function renderRows() {
         let html = '';
+        document.getElementById('row-count-badge').innerText = `${reportRows.length} Baris dikonfigurasi`;
         reportRows.forEach((r, idx) => {
-            let bgClass = r.type === 'data' ? 'bg-white' : 'bg-amber-50/30';
+            let bgClass = 'bg-white hover:bg-slate-50/50';
+            if (r.type === 'query') {
+                bgClass = 'bg-purple-50/15 hover:bg-purple-50/30';
+            } else if (r.type === 'account') {
+                bgClass = 'bg-sky-50/15 hover:bg-sky-50/30';
+            } else if (r.type === 'formula') {
+                bgClass = 'bg-amber-50/20 hover:bg-amber-50/40';
+            }
             
             let tagOptions = '<option value="">-- Pilih Tag Akuntansi --</option>';
             dbTags.forEach(t => {
@@ -213,18 +703,86 @@
                 tagOptions += `<option value="${t}" ${sel}>${t}</option>`;
             });
 
-            let inputHtml = r.type === 'data' 
-                ? `<select onchange="updateRow(${r.id}, 'expression', this.value)" class="w-full text-xs p-1.5 border border-slate-300 rounded">${tagOptions}</select>`
-                : `<input type="text" onchange="updateRow(${r.id}, 'expression', this.value)" value="${r.expression}" class="w-full text-xs p-1.5 border border-slate-300 rounded font-mono" placeholder="Misal: R1 + R2">`;
+            let queryOptions = '<option value="">-- Pilih Query KPI --</option>';
+            dbQueries.forEach(q => {
+                let sel = r.expression === q.code ? 'selected' : '';
+                queryOptions += `<option value="${q.code}" ${sel}>${q.name}</option>`;
+            });
+
+            let accountOptions = '<option value="">-- Pilih Akun COA --</option>';
+            dbAccounts.forEach(a => {
+                let sel = r.expression === a.code ? 'selected' : '';
+                let tagSuffix = a.tag_name ? ` (${a.tag_name})` : '';
+                accountOptions += `<option value="${a.code}" ${sel}>[${a.code}] ${a.name}${tagSuffix}</option>`;
+            });
+
+            let inputHtml = '';
+            if (r.type === 'query') {
+                inputHtml = `<select onchange="onQuerySelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-purple-200 rounded-lg bg-white font-medium text-purple-900 focus:ring-1 focus:ring-purple-500">${queryOptions}</select>`;
+            } else if (r.type === 'account') {
+                inputHtml = `<select onchange="onAccountSelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-sky-200 rounded-lg bg-white font-medium text-sky-900 focus:ring-1 focus:ring-sky-500">${accountOptions}</select>`;
+            } else if (r.type === 'data') {
+                let canBreakdown = r.expression && !r.is_child;
+                inputHtml = `
+                <div class="flex items-center space-x-1.5">
+                    <select onchange="updateRow(${r.id}, 'expression', this.value); renderRows();" class="w-full text-xs p-1.5 border border-slate-200 rounded-lg bg-white font-medium text-slate-800 focus:ring-1 focus:ring-blue-500">${tagOptions}</select>
+                    ${canBreakdown ? `<button onclick="breakdownCOA(${r.id})" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition shrink-0 shadow-2xs" title="Otomatis uraikan akun COA di bawah tag ini"><span>⚡</span><span>Urai COA</span></button>` : ''}
+                </div>
+                `;
+            } else {
+                inputHtml = `<div class="flex items-center space-x-1"><span class="text-xs font-mono text-slate-400">=</span><input type="text" oninput="updateRow(${r.id}, 'expression', this.value)" value="${r.expression.replace(r.code + ' =', '').trim()}" class="w-full text-xs p-1.5 border border-amber-200 rounded-lg bg-white font-mono text-amber-900 focus:ring-1 focus:ring-amber-500" placeholder="Misal: R1 / K1"></div>`;
+            }
+
+            let badgeType = '';
+            if (r.type === 'query') {
+                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-purple-50 text-purple-700 border border-purple-200">Query</span>';
+            } else if (r.type === 'account') {
+                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-50 text-sky-700 border border-sky-200">COA</span>';
+            } else if (r.type === 'data') {
+                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">Tag</span>';
+            } else {
+                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Formula</span>';
+            }
+
+            let labelInput = '';
+            if (r.is_child) {
+                labelInput = `
+                <div class="flex items-center space-x-1 pl-3">
+                    <span class="text-slate-400 font-mono text-xs">↳</span>
+                    <input type="text" oninput="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs italic font-medium text-slate-600 bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none" placeholder="Label akun...">
+                </div>
+                `;
+            } else {
+                labelInput = `<input type="text" oninput="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs font-semibold text-slate-800 bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none" placeholder="Label baris...">`;
+            }
 
             html += `
-            <tr class="${bgClass}">
-                <td class="p-2 text-center text-xs font-bold text-slate-400">${idx + 1}</td>
-                <td class="p-2"><input type="text" onchange="updateRow(${r.id}, 'code', this.value)" value="${r.code}" class="w-full text-xs font-mono font-bold text-blue-600 bg-transparent p-1 border-b border-transparent focus:border-blue-300 outline-none"></td>
-                <td class="p-2"><input type="text" onchange="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs font-semibold text-slate-800 bg-transparent p-1 border-b border-transparent focus:border-blue-300 outline-none"></td>
-                <td class="p-2">${inputHtml}</td>
-                <td class="p-2 text-right">
-                    <button onclick="removeRow(${r.id})" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50">Hapus</button>
+            <tr id="row-${idx}" 
+                draggable="true" 
+                ondragstart="onRowDragStart(event, ${idx})" 
+                ondragover="onRowDragOver(event, ${idx})" 
+                ondragleave="onRowDragLeave(event, ${idx})" 
+                ondrop="onRowDrop(event, ${idx})" 
+                ondragend="onRowDragEnd(event)" 
+                class="${bgClass} transition group cursor-default">
+                <td class="p-3 text-center grab-handle text-slate-300 group-hover:text-blue-600 transition" title="Tahan dan geser (drag & drop) untuk ubah urutan baris">
+                    <span class="inline-block text-base leading-none">⠿</span>
+                </td>
+                <td class="p-3 text-center text-xs font-bold text-slate-400">${idx + 1}</td>
+                <td class="p-3">
+                    <div class="flex items-center space-x-1.5">
+                        <input type="text" oninput="updateRow(${r.id}, 'code', this.value)" value="${r.code}" class="w-12 text-xs font-mono font-bold text-blue-600 bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none">
+                        ${badgeType}
+                    </div>
+                </td>
+                <td class="p-3">${labelInput}</td>
+                <td class="p-3">${inputHtml}</td>
+                <td class="p-3 text-center">
+                    <div class="flex items-center justify-center space-x-1">
+                        <button onclick="moveRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs p-1 rounded hover:bg-slate-100 transition" title="Pindah ke Atas">▲</button>
+                        <button onclick="moveRow(${idx}, 1)" ${idx === reportRows.length - 1 ? 'disabled' : ''} class="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs p-1 rounded hover:bg-slate-100 transition" title="Pindah ke Bawah">▼</button>
+                        <button onclick="removeRow(${r.id})" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1 rounded-lg transition font-medium ml-1">Hapus</button>
+                    </div>
                 </td>
             </tr>
             `;
@@ -232,9 +790,37 @@
         document.getElementById('rows-container').innerHTML = html;
     }
 
+    function loadSampleTemplate() {
+        document.getElementById('template-name').value = "Ringkasan Operasional & Rasio Kapal 2026";
+        
+        // Add sample vessel
+        const sampleName = 'TB.BMS 004/TK.BMS 004A';
+        let match = dbVessels.find(v => v.name.includes('BMS 004')) || { id: 75, name: sampleName };
+        selectedVessels = [match];
+        renderVessels();
+
+        // 7 rows demonstrating Query (Kapasitas, Trip) + Data (Pendapatan, Solar) + Formula (Rasio per DWT, per Trip)
+        reportRows = [
+            { id: 1, code: 'K1', type: 'query', label: 'Kapasitas Kapal (DWT)', expression: 'KAPASITAS' },
+            { id: 2, code: 'T1', type: 'query', label: 'Jumlah Trip Kapal', expression: 'TRIP' },
+            { id: 3, code: 'R1', type: 'data', label: 'PENDAPATAN JASA', expression: 'TW_PENDAPATAN JASA' },
+            { id: 4, code: 'R2', type: 'data', label: 'Biaya Solar', expression: 'TW_Biaya Solar' },
+            { id: 5, code: 'R3', type: 'formula', label: 'Pendapatan per DWT Kapasitas', expression: 'R1 / K1' },
+            { id: 6, code: 'R4', type: 'formula', label: 'Pendapatan per Trip', expression: 'R1 / T1' },
+            { id: 7, code: 'R5', type: 'formula', label: 'Pendapatan per DWT per Trip', expression: 'R1 / (K1 * T1)' }
+        ];
+        rowCounter = 7;
+        renderRows();
+        
+        // Automatically trigger preview for instant gratification!
+        setTimeout(() => {
+            previewReport();
+        }, 300);
+    }
+
     async function saveTemplate() {
         let companyId = document.getElementById('company-select').value;
-        let name = document.getElementById('template-name').value;
+        let name = document.getElementById('template-name').value.trim();
         let statusDiv = document.getElementById('save-status');
         
         if (!companyId || !name) {
@@ -242,34 +828,180 @@
             return;
         }
 
-        let config = {
-            vessels: selectedVessels,
-            rows: reportRows
-        };
-
-        statusDiv.innerHTML = "Menyimpan...";
-        statusDiv.className = "text-xs text-center font-medium mt-2 text-blue-600 block";
+        statusDiv.innerHTML = "Menyimpan template...";
+        statusDiv.className = "text-xs text-center font-medium mt-1 text-blue-600 block";
 
         try {
+            let payload = {
+                company_id: parseInt(companyId),
+                name: name,
+                config: {
+                    vessels: selectedVessels,
+                    rows: reportRows
+                }
+            };
+            if (currentTemplateId) {
+                payload.id = currentTemplateId;
+            }
+            
             let res = await fetch('/api/builder/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    company_id: parseInt(companyId),
-                    name: name,
-                    config: config
-                })
+                body: JSON.stringify(payload)
             });
             let data = await res.json();
             if (data.status === 'success') {
-                statusDiv.innerHTML = "✅ Berhasil disimpan! (ID: " + data.id + ")";
-                statusDiv.className = "text-xs text-center font-medium mt-2 text-emerald-600 block";
+                currentTemplateId = data.id;
+                statusDiv.innerHTML = "✅ Template berhasil disimpan!";
+                statusDiv.className = "text-xs text-center font-medium mt-1 text-emerald-600 block";
+                await loadSavedTemplates(parseInt(companyId));
+                document.getElementById('saved-templates-select').value = currentTemplateId;
+            } else {
+                statusDiv.innerHTML = "❌ " + (data.detail || "Gagal menyimpan");
+                statusDiv.className = "text-xs text-center font-medium mt-1 text-red-600 block";
             }
         } catch(e) {
             console.error(e);
-            statusDiv.innerHTML = "❌ Gagal menyimpan";
-            statusDiv.className = "text-xs text-center font-medium mt-2 text-red-600 block";
+            statusDiv.innerHTML = "❌ Gagal menghubungi server";
+            statusDiv.className = "text-xs text-center font-medium mt-1 text-red-600 block";
         }
+    }
+
+    async function previewReport() {
+        let companyId = document.getElementById('company-select').value;
+        let year = document.getElementById('year-select').value;
+        let previewSec = document.getElementById('preview-section');
+        let container = document.getElementById('preview-matrix-container');
+
+        if (!companyId) {
+            alert("Pilih Perusahaan terlebih dahulu!");
+            return;
+        }
+        if (selectedVessels.length === 0) {
+            alert("Pilih minimal 1 kapal untuk kolom laporan!");
+            return;
+        }
+        if (reportRows.length === 0) {
+            alert("Tambahkan minimal 1 baris laporan!");
+            return;
+        }
+
+        previewSec.classList.remove('hidden');
+        container.innerHTML = `
+        <div class="py-12 flex flex-col items-center justify-center space-y-3">
+            <div class="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs font-semibold text-slate-500 animate-pulse-subtle">Menghitung matriks menggunakan DuckDB OLAP...</p>
+        </div>
+        `;
+        previewSec.scrollIntoView({ behavior: 'smooth' });
+
+        try {
+            let payload = {
+                company_id: parseInt(companyId),
+                year: year,
+                vessels: selectedVessels,
+                rows: reportRows
+            };
+
+            let res = await fetch('/api/builder/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            let json = await res.json();
+
+            if (json.status === 'success' && json.data) {
+                renderMatrix(json.data);
+            } else {
+                container.innerHTML = `
+                <div class="p-6 text-center text-xs text-red-600 bg-red-50">
+                    ❌ ${json.detail || "Gagal menghitung laporan"}
+                </div>
+                `;
+            }
+        } catch(e) {
+            console.error(e);
+            container.innerHTML = `
+            <div class="p-6 text-center text-xs text-red-600 bg-red-50">
+                ❌ Terjadi kesalahan saat menghitung laporan.
+            </div>
+            `;
+        }
+    }
+
+    function renderMatrix(matrix) {
+        let container = document.getElementById('preview-matrix-container');
+        if (!matrix.header || !matrix.body) {
+            container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Data tidak lengkap</div>';
+            return;
+        }
+
+        let h0 = matrix.header[0] || [];
+        let h1 = matrix.header[1] || [];
+
+        let th0Html = '<th class="p-3 text-left font-bold text-slate-700 bg-slate-100 border-b border-r border-slate-200 sticky left-0 z-20 min-w-[220px]">Komponen Finansial</th>';
+        h0.forEach(h => {
+            th0Html += `<th colspan="${h.colspan || 1}" class="p-3 text-center font-bold text-slate-800 bg-slate-100 border-b border-r border-slate-200 text-xs">${h.label || ''}</th>`;
+        });
+
+        let th1Html = '<th class="p-2 text-left font-semibold text-slate-400 bg-slate-50 border-b border-r border-slate-200 sticky left-0 z-20 text-[11px]">Periode</th>';
+        h1.forEach(h => {
+            let isYtd = (h.label || '').toUpperCase() === 'YTD';
+            let bg = isYtd ? 'bg-blue-50/80 text-blue-900 font-bold' : 'bg-slate-50 text-slate-600 font-semibold';
+            th1Html += `<th class="p-2 text-right border-b border-r border-slate-200 text-[11px] min-w-[120px] ${bg}">${h.label || ''}</th>`;
+        });
+
+        let bodyHtml = '';
+        matrix.body.forEach((r, idx) => {
+            let isBold = (r.style || '').includes('font-weight: bold');
+            let isHighlight = (r.style || '').includes('background-color: #E2EFDA') || r.label.toLowerCase().includes('laba');
+            let isItalic = (r.style || '').includes('font-style: italic');
+            
+            let indentStyle = '';
+            if ((r.style || '').includes('text-indent: 4em')) {
+                indentStyle = 'padding-left: 3rem;';
+            } else if ((r.style || '').includes('text-indent: 2em') || (r.style || '').includes('text-indent: 3em')) {
+                indentStyle = 'padding-left: 2rem;';
+            } else if ((r.style || '').includes('text-indent: 1em')) {
+                indentStyle = 'padding-left: 1rem;';
+            }
+
+            let rowClass = isHighlight ? 'bg-emerald-50/40 font-bold text-emerald-950' : (isBold ? 'bg-slate-50/70 font-semibold text-slate-900' : 'hover:bg-slate-50/60 text-slate-700');
+            let labelClass = isHighlight ? 'bg-emerald-50 text-emerald-950' : (isBold ? 'bg-slate-50 text-slate-900' : 'bg-white text-slate-800');
+            if (isItalic) {
+                labelClass += ' italic text-slate-600 font-normal';
+            }
+
+            let cellsHtml = '';
+            (r.cells || []).forEach((c, cIdx) => {
+                let colH1 = h1[cIdx] ? (h1[cIdx].label || '').toUpperCase() : '';
+                let isYtd = colH1 === 'YTD';
+                let cellBg = isYtd && !isHighlight ? 'bg-blue-50/20' : '';
+                let valStr = c.val_r !== undefined ? c.val_r : (c.val || '-');
+                cellsHtml += `<td class="p-2.5 text-right font-mono text-xs border-b border-r border-slate-200/80 ${cellBg} ${isItalic ? 'italic text-slate-600' : ''}">${valStr}</td>`;
+            });
+
+            bodyHtml += `
+            <tr class="${rowClass} transition">
+                <td class="p-2.5 text-xs border-b border-r border-slate-200 sticky left-0 z-10 ${labelClass} truncate" style="${indentStyle}" title="${r.label}">
+                    ${isItalic && indentStyle ? '<span class="text-slate-300 font-mono text-[10px] mr-1.5 not-italic">↳</span>' : ''}${r.label}
+                </td>
+                ${cellsHtml}
+            </tr>
+            `;
+        });
+
+        container.innerHTML = `
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr>${th0Html}</tr>
+                <tr>${th1Html}</tr>
+            </thead>
+            <tbody>
+                ${bodyHtml}
+            </tbody>
+        </table>
+        `;
     }
 
     document.addEventListener("DOMContentLoaded", () => {

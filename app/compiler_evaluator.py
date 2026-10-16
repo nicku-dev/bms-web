@@ -35,6 +35,8 @@ class CompilerEvaluator:
             val = float(val)
             
             return val
+        except ZeroDivisionError:
+            return 0.0
         except Exception as e:
             # We must raise it so the caller (compiler) can catch it and `continue`,
             # thereby NOT overwriting the existing cell value with 0.0 or None.

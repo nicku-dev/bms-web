@@ -69,7 +69,12 @@ async def logout(request: Request):
 async def read_builder(request: Request):
     if "session_token" not in request.cookies:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse(request=request, name="builder.html", context={"request": request})
+    db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    db.close()
+    if not user:
+        return RedirectResponse(url="/logout", status_code=303)
+    return templates.TemplateResponse(request=request, name="builder.html", context={"request": request, "user": user})
 
 @app.post("/api/login")
 async def api_login(req: LoginRequest):

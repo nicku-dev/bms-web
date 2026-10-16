@@ -122,18 +122,25 @@ class FastMatrixCompiler:
                 if acc_match:
                     account_code = acc_match.group(1).replace('%', '')
 
-            # Also check if val_c contains a balp tag (only for grouping rows without account code)
+            # Also check if val_c contains an account_id.code or balp tag
             if not tag_name and not account_code and len(row.get('cells', [])) > 0:
                 val_c = str(row['cells'][0].get('val_c', ''))
-                if 'balp' in val_c:
+                if 'account_id.code' in val_c:
+                    acc_match_c = re.search(r'\[\("account_id\.code","=","(.*?)"\)\]', val_c.replace("'", '"'))
+                    if acc_match_c:
+                        account_code = acc_match_c.group(1).replace('%', '')
+                elif 'balp' in val_c:
                     tag_match_c = re.search(r'\[\("tag_ids\.name","=","(.*?)"\)\]', val_c.replace("'", '"'))
                     if tag_match_c:
                         tag_name = tag_match_c.group(1)
 
+            query_code = str(row.get('query_code') or '').upper()
+            val_c_first = str(row['cells'][0].get('val_c', '')) if row.get('cells') else ''
+
             if not tag_name and not account_code:
-                if label == 'TRIP' or label == 'TRIP KAPAL':
+                if label in ['TRIP', 'TRIP KAPAL'] or query_code == 'TRIP' or 'kpi_trip' in val_c_first:
                     df = self.fetcher.get_kpi_trip()
-                elif label == 'KAPASITAS' or label == 'KAPASITAS KAPAL':
+                elif 'KAPASITAS' in label or query_code == 'KAPASITAS' or 'kpi_kapasitas' in val_c_first:
                     df = self.fetcher.get_kpi_kapasitas()
                 else:
                     df = None
@@ -177,7 +184,7 @@ class FastMatrixCompiler:
                                 if is_expense:
                                     val = -val
                             elif period == 'ytd' or period == 'total':
-                                if label == 'KAPASITAS' or label == 'KAPASITAS KAPAL':
+                                if 'KAPASITAS' in label or query_code == 'KAPASITAS' or 'kpi_kapasitas' in val_c_first:
                                     # Static metric: YTD must NOT be summed across quarters.
                                     # Odoo's own YTD value is unusable (0.0), so use the static ship capacity.
                                     val = vessel_df['value'].max()
@@ -266,6 +273,17 @@ class FastMatrixCompiler:
                             if var_name not in env_vars[i]:
                                 env_vars[i][var_name] = _num(cell.get('val', 0.0))
                                 var_owner[(i, var_name)] = row_idx
+
+                # Also register row name and aliases if available
+                row_name = str(row.get('name') or '').strip()
+                if row_name:
+                    env_vars[i][row_name] = _num(cell.get('val', 0.0))
+                
+                query_code_r = str(row.get('query_code') or '').upper()
+                if 'KAPASITAS' in label or query_code_r == 'KAPASITAS':
+                    env_vars[i]['kapasitas'] = _num(cell.get('val', 0.0))
+                elif label in ['TRIP', 'TRIP KAPAL'] or query_code_r == 'TRIP':
+                    env_vars[i]['trip'] = _num(cell.get('val', 0.0))
 
                 if label in ['PENDAPATAN JASA', 'TW_PENDAPATAN JASA']:
                     if cell.get('val') is not None and float(cell.get('val') or 0.0) != 0.0:
@@ -377,7 +395,8 @@ class FastMatrixCompiler:
                 label_upper = str(row.get('label', '')).upper()
                 
                 # Prevent Odoo algebraic formulas from overwriting KPI data
-                if any(k in label_upper for k in ['KAPASITAS', 'TRIP', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']):
+                kpi_labels = ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']
+                if label_upper in kpi_labels or row.get('row_type') == 'query' or row.get('query_code'):
                     continue
                     
                 is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)

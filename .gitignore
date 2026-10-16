@@ -7,4 +7,5 @@ venv/
 
 *.xlsx
 *.db
-test_*.py
+/test_*.py
+debug_scripts/

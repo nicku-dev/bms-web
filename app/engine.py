@@ -60,6 +60,49 @@ class ReportEngine:
             print(f"Error fetching vessels: {e}")
             return []
 
+    def get_all_accounts(self, tag_name: Optional[str] = None) -> list[dict]:
+        """
+        Fetches Chart of Accounts (COA) with id, code, name, and tag.
+        Supports both Odoo 18 code_store JSON and standard code column.
+        Optionally filters by tag_name.
+        """
+        if self.account_code_column == 'code_store':
+            code_expr = """
+                CASE 
+                    WHEN aa.code_store IS NOT NULL THEN (
+                        SELECT value FROM jsonb_each_text(aa.code_store::jsonb) LIMIT 1
+                    )
+                    ELSE ''
+                END
+            """
+        else:
+            code_expr = "COALESCE(aa.code, '')"
+
+        tag_filter = ""
+        if tag_name:
+            tag_filter = f"WHERE (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+
+        query = f"""
+            SELECT DISTINCT
+                aa.id,
+                {code_expr} AS code,
+                COALESCE(aa.name->>'id_ID', aa.name->>'en_US', '') AS name,
+                COALESCE(aat.name->>'en_US', aat.name->>'id_ID', '') AS tag_name
+            FROM account_account aa
+            LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+            LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            {tag_filter}
+            ORDER BY code, name
+        """
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
+        try:
+            df = self.conn.execute(duckdb_query).df()
+            df['code'] = df['code'].astype(str)
+            return df.to_dict('records')
+        except Exception as e:
+            print(f"Error fetching accounts: {e}")
+            return []
+
     def get_all_quarters_by_tag(
         self, 
         year: int,
