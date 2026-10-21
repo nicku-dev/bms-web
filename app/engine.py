@@ -1,7 +1,45 @@
 import duckdb
 import pandas as pd
 from typing import Optional
+import subprocess
+import socket
+import time
+import shutil
 from app.config import settings
+
+_tunnel_processes = {}
+
+def get_or_create_tunnel(ssh_host: str, remote_host: str, remote_port: int, local_port: int = 15432) -> int:
+    """Ensures an SSH tunnel is open on 127.0.0.1:local_port forwarding to remote_host:remote_port via ssh_host."""
+    s = socket.socket()
+    s.settimeout(0.5)
+    is_open = (s.connect_ex(('127.0.0.1', local_port)) == 0)
+    s.close()
+    
+    if is_open:
+        return local_port
+        
+    ssh_bin = shutil.which('ssh') or '/usr/bin/ssh'
+    cmd = [
+        ssh_bin, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
+        '-o', 'ExitOnForwardFailure=yes', '-o', 'StrictHostKeyChecking=no',
+        '-N', '-L', f'127.0.0.1:{local_port}:{remote_host}:{remote_port}',
+        ssh_host
+    ]
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _tunnel_processes[local_port] = proc
+    
+    # Wait up to 3 seconds for port to open
+    for _ in range(6):
+        time.sleep(0.5)
+        s = socket.socket()
+        s.settimeout(0.5)
+        if s.connect_ex(('127.0.0.1', local_port)) == 0:
+            s.close()
+            return local_port
+        s.close()
+        
+    return local_port
 
 class ReportEngine:
     def __init__(self, db_name: Optional[str] = None, pg_kwargs: dict = None):
@@ -13,10 +51,22 @@ class ReportEngine:
         self.conn.execute("INSTALL postgres;")
         self.conn.execute("LOAD postgres;")
         
+        db_host = pg_kwargs.get('db_host')
+        db_port = pg_kwargs.get('db_port')
+        ssh_host = pg_kwargs.get('ssh_host')
+        
+        if ssh_host and db_host:
+            # Route connection through automated SSH tunnel
+            target_remote_port = int(db_port or 5432)
+            tunnel_local_port = 15432
+            actual_port = get_or_create_tunnel(ssh_host, db_host, target_remote_port, tunnel_local_port)
+            db_host = '127.0.0.1'
+            db_port = actual_port
+        
         pg_url = settings.get_postgres_connection_string(
             override_db_name=db_name,
-            override_host=pg_kwargs.get('db_host'),
-            override_port=pg_kwargs.get('db_port'),
+            override_host=db_host,
+            override_port=db_port,
             override_user=pg_kwargs.get('db_user'),
             override_password=pg_kwargs.get('db_password'),
         )
@@ -135,23 +185,26 @@ class ReportEngine:
                 SELECT 
                     'Head Office' AS vessel_name,
                     EXTRACT(QUARTER FROM aml.date)::int AS quarter,
-                    sum(-aml.balance * (jad.value::numeric / 100.0)) AS value
+                    sum(-aml.balance * COALESCE(jad.value::numeric / 100.0, 1.0)) AS value
                 FROM account_move_line aml
-                JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
+                LEFT JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
                 JOIN account_account aa ON aa.id = aml.account_id
                 {join_tags}
                 WHERE aml.parent_state = 'posted'
                   {tag_filter}
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
-                  AND EXISTS (
-                      SELECT 1 
-                      FROM regexp_split_to_table(jad.key, ',') s
-                      JOIN account_analytic_account aaa ON aaa.id = s::int
-                      WHERE aaa.name->>'en_US' IN ('Head Office', 'HO') 
-                         OR aaa.name->>'id_ID' IN ('Head Office', 'HO')
-                         OR aaa.name::text ILIKE '%Head Office%' 
-                         OR aaa.name::text ILIKE '%"HO"%'
+                  AND (
+                      aml.analytic_distribution IS NULL
+                      OR EXISTS (
+                          SELECT 1 
+                          FROM regexp_split_to_table(jad.key, ',') s
+                          JOIN account_analytic_account aaa ON aaa.id = s::int
+                          WHERE aaa.name->>'en_US' IN ('Head Office', 'HO') 
+                             OR aaa.name->>'id_ID' IN ('Head Office', 'HO')
+                             OR aaa.name::text ILIKE '%Head Office%' 
+                             OR aaa.name::text ILIKE '%"HO"%'
+                      )
                   )
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
             """
@@ -175,7 +228,30 @@ class ReportEngine:
                 GROUP BY fc.name, EXTRACT(QUARTER FROM aml.date)
             """
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
-        return self.conn.execute(duckdb_query).df()
+        df = self.conn.execute(duckdb_query).df()
+        if df.empty and (tag_name or account_code):
+            # Fallback for indirect/HO tags or general costs with no ship allocation
+            fb_query = f"""
+                SELECT 
+                    'ALL' AS vessel_name,
+                    EXTRACT(QUARTER FROM aml.date)::int AS quarter,
+                    sum(-aml.balance) AS value
+                FROM account_move_line aml
+                JOIN account_account aa ON aa.id = aml.account_id
+                {join_tags}
+                WHERE aml.parent_state = 'posted'
+                  {tag_filter}
+                  {acc_filter}
+                  AND EXTRACT(YEAR FROM aml.date) = {year}
+                GROUP BY EXTRACT(QUARTER FROM aml.date)
+            """
+            try:
+                df_fb = self.conn.execute(f"SELECT * FROM postgres_query('pg', '{fb_query.replace(chr(39), chr(39)*2)}')").df()
+                if not df_fb.empty:
+                    return df_fb
+            except Exception:
+                pass
+        return df
 
     def get_kpi_trip(self, year: int, report_type: str = 'fps') -> pd.DataFrame:
         if report_type == 'ho':
@@ -250,6 +326,70 @@ class ReportEngine:
             return self.conn.execute(duckdb_query).df()
         except Exception as e:
             print("Error get_kpi_tpj_semua:", e)
+            return pd.DataFrame(columns=['quarter', 'value'])
+
+    def get_kpi_tpj_kapal_terpilih(
+        self, 
+        year: int, 
+        vessel_names: Optional[list[str]] = None, 
+        vessel_ids: Optional[list[int]] = None,
+        tag_name: str = 'TW_PENDAPATAN JASA'
+    ) -> pd.DataFrame:
+        """
+        Menjumlahkan pendapatan jasa (TW_PENDAPATAN JASA) khusus untuk kapal-kapal
+        yang terpilih dalam laporan, dikelompokkan per kuartal.
+        """
+        conditions = ["aml.parent_state = 'posted'"]
+        
+        # Filter Tahun
+        conditions.append(f"EXTRACT(YEAR FROM aml.date) = {int(year)}")
+        
+        # Filter Tag Pendapatan
+        tag_escaped = tag_name.replace("'", "''")
+        conditions.append(f"(aat.name->>'en_US' = '{tag_escaped}' OR aat.name::text LIKE '%{tag_escaped}%')")
+        
+        # Filter Kapal Terpilih
+        vessel_filters = []
+        if vessel_ids:
+            clean_ids = [int(vid) for vid in vessel_ids if vid is not None]
+            if clean_ids:
+                vessel_filters.append(f"fc.id IN ({','.join(map(str, clean_ids))})")
+        elif vessel_names:
+            clean_names = [
+                v.replace('Kapal - ', '').strip().replace("'", "''") 
+                for v in vessel_names 
+                if v and 'TOTAL' not in v.upper() and 'HEAD OFFICE' not in v.upper()
+            ]
+            if clean_names:
+                in_clause = ", ".join(f"'{name}'" for name in clean_names)
+                vessel_filters.append(f"fc.name IN ({in_clause})")
+                
+        if vessel_filters:
+            conditions.extend(vessel_filters)
+        else:
+            return pd.DataFrame(columns=['quarter', 'value'])
+            
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT 
+                EXTRACT(QUARTER FROM aml.date)::int AS quarter, 
+                sum(-aml.balance * (jad.value::numeric / 100.0)) AS value
+            FROM account_move_line aml
+            JOIN LATERAL jsonb_each_text(aml.analytic_distribution) jad(key, value) ON TRUE
+            JOIN LATERAL regexp_split_to_table(jad.key, ',') as split_key ON TRUE
+            JOIN account_analytic_account aaa ON aaa.id = split_key::int
+            JOIN fleet_combination fc ON aaa.id = fc.analytic_account_id
+            JOIN account_account aa ON aa.id = aml.account_id
+            JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+            JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            WHERE {where_clause}
+            GROUP BY EXTRACT(QUARTER FROM aml.date)
+        """
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
+        try:
+            return self.conn.execute(duckdb_query).df()
+        except Exception as e:
+            print("Error get_kpi_tpj_kapal_terpilih:", e)
             return pd.DataFrame(columns=['quarter', 'value'])
 
     def get_mis_report_queries(self, report_id: int) -> dict:

@@ -24,10 +24,24 @@ class Company(Base):
     server_url = Column(String(100), nullable=True) # e.g. http://localhost:8069
     odoo_user = Column(String(50), nullable=True)
     odoo_password = Column(String(100), nullable=True)
+    db_host = Column(String(100), nullable=True) # Override PG host
+    db_port = Column(Integer, nullable=True) # Override PG port
+    db_user = Column(String(50), nullable=True) # Override PG user
+    db_password = Column(String(100), nullable=True) # Override PG password
+    ssh_host = Column(String(100), nullable=True) # Bastion / SSH tunnel host (e.g. nicku.admin@10.110.1.8)
     is_active = Column(Boolean, default=True)
     
     reports = relationship('ReportTemplate', back_populates='company', cascade="all, delete-orphan")
     users = relationship('User', back_populates='company')
+
+    def get_pg_kwargs(self) -> dict:
+        return {
+            'db_host': self.db_host,
+            'db_port': self.db_port,
+            'db_user': self.db_user,
+            'db_password': self.db_password,
+            'ssh_host': self.ssh_host,
+        }
 
 class ReportTemplate(Base):
     __tablename__ = 'report_templates'

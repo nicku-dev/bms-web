@@ -34,6 +34,57 @@
         .grab-handle:active {
             cursor: grabbing;
         }
+        /* Matrix Fullscreen & Sticky Headers */
+        #preview-section.is-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            border: none !important;
+            z-index: 99999 !important;
+            background-color: #ffffff !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 1rem 1.25rem !important;
+            box-shadow: none !important;
+        }
+        #preview-section.is-fullscreen #preview-matrix-container {
+            flex: 1 1 0% !important;
+            height: 100% !important;
+            max-height: none !important;
+            border-radius: 0.75rem !important;
+        }
+        .matrix-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .matrix-table thead tr:nth-child(1) th {
+            position: sticky;
+            top: 0;
+            z-index: 25;
+        }
+        .matrix-table thead tr:nth-child(2) th {
+            position: sticky;
+            z-index: 25;
+        }
+        .matrix-table thead tr:nth-child(1) th:first-child {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 35;
+        }
+        .matrix-table thead tr:nth-child(2) th:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 35;
+        }
     </style>
 </head>
 <body class="bg-[#F8FAFC] text-slate-800 font-sans antialiased min-h-screen flex flex-col relative">
@@ -153,74 +204,136 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
-        <!-- Sidebar: Configuration -->
-        <div class="xl:col-span-1 space-y-6">
-            <!-- Parameter Laporan -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
-                <h3 class="text-xs font-black tracking-wider uppercase text-slate-400 flex items-center gap-2">
-                    <span>⚙️</span> Parameter Laporan
-                </h3>
-                
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Perusahaan</label>
-                    <select id="company-select" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"></select>
+    <!-- BEGIN: Top Compact Parameter & Vessel Ribbon -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden transition-all">
+        <!-- Ribbon Header with Minimize/Expand Toggle -->
+        <div class="bg-slate-50/80 px-5 py-2.5 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-sm">⚙️</span>
+                <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Parameter Laporan & Pemilihan Kapal</span>
+                <span id="ribbon-summary-badge" class="hidden text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full"></span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <div id="save-status" class="text-xs font-semibold hidden"></div>
+                <button type="button" onclick="toggleRibbon()" id="btn-toggle-ribbon" class="inline-flex items-center space-x-1.5 text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition shadow-2xs">
+                    <span id="ribbon-toggle-icon">▲</span>
+                    <span id="ribbon-toggle-text">Lipat Ribbon</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Ribbon Body (Collapsible) -->
+        <div id="ribbon-content" class="p-4 space-y-3.5 transition-all">
+            <!-- TIER 1: Parameter Laporan & Template Action Buttons -->
+            <div class="flex flex-wrap items-end gap-3 pb-3 border-b border-slate-100">
+                <!-- Perusahaan -->
+                <div class="w-48">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Perusahaan</label>
+                    <select id="company-select" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500"></select>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Tahun Laporan</label>
-                    <select id="year-select" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+                <!-- Tahun -->
+                <div class="w-24">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tahun</label>
+                    <select id="year-select" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500">
                         <option value="2026" selected>2026</option>
                         <option value="2025">2025</option>
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Template Tersimpan</label>
-                    <select id="saved-templates-select" onchange="onTemplateSelectChange(this.value)" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+                <!-- Template Tersimpan -->
+                <div class="w-60">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Template Tersimpan</label>
+                    <select id="saved-templates-select" onchange="onTemplateSelectChange(this.value)" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Buat Template Baru --</option>
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Nama Laporan / Template</label>
-                    <input type="text" id="template-name" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500" placeholder="Misal: Laba Rugi Operasional 2026">
+                <!-- Nama Laporan / Template -->
+                <div class="flex-1 min-w-[240px]">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nama Laporan / Template</label>
+                    <input type="text" id="template-name" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500" placeholder="Misal: Laba Rugi Operasional 2026">
                 </div>
 
-                <div class="pt-2 flex flex-col gap-2">
-                    <button onclick="saveTemplate()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 px-3 rounded-xl text-xs shadow-xs transition active:scale-[0.98]">
-                        💾 Simpan Template
+                <!-- Template Action Buttons -->
+                <div class="flex items-center space-x-1.5 pt-1">
+                    <button type="button" onclick="saveTemplate()" class="inline-flex items-center space-x-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition shadow-xs active:scale-95" title="Simpan template aktif">
+                        <span>💾</span>
+                        <span>Simpan</span>
                     </button>
-                    <div id="save-status" class="text-xs text-center font-medium hidden"></div>
+                    <button type="button" onclick="duplicateTemplate()" class="inline-flex items-center space-x-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition shadow-2xs active:scale-95" title="Duplikat sebagai template baru">
+                        <span>📋</span>
+                        <span>Duplikat</span>
+                    </button>
+                    <button type="button" onclick="deleteTemplate()" class="inline-flex items-center space-x-1.5 px-2.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition shadow-2xs active:scale-95" title="Hapus template ini">
+                        <span>🗑️</span>
+                        <span>Hapus</span>
+                    </button>
+                    <button type="button" onclick="newTemplate()" class="inline-flex items-center space-x-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold transition shadow-2xs active:scale-95" title="Mulai template baru kosong">
+                        <span>➕</span>
+                        <span>Baru</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Pilih Kapal (Kolom) -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-black tracking-wider uppercase text-slate-400 flex items-center gap-2">
-                        <span>⛴️</span> Pilih Kapal (<span id="vessel-count">0</span>)
-                    </h3>
-                    <button onclick="addSampleVessel()" class="text-[10px] text-blue-600 hover:underline font-bold">+ Contoh Kapal</button>
-                </div>
-                
-                <div class="space-y-2">
-                    <div class="flex space-x-2">
-                        <input list="vessels-datalist" id="search-vessel" class="flex-1 text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500" placeholder="Ketik atau pilih kapal...">
+            <!-- TIER 2: Pemilihan Kapal & Quick Fleet Preset Buttons -->
+            <div class="flex flex-col xl:flex-row xl:items-center gap-3">
+                <!-- Preset Buttons & Search Inputs -->
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    <span class="text-xs font-bold text-slate-700">⛴️ Armada:</span>
+                    
+                    <!-- Quick Select Internal Vessels -->
+                    <button type="button" onclick="selectAllBmsVessels()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg transition active:scale-95 shadow-2xs" title="Pilih seluruh armada kapal internal (is_third_party=false)">
+                        <span>🚢</span>
+                        <span id="btn-fleet-internal-label">+ Kapal Internal</span>
+                        <span id="bms-count-tag" class="px-1.5 py-0.2 bg-blue-200/60 rounded text-[10px] font-bold">0</span>
+                    </button>
+
+                    <!-- Quick Select Non-Internal Vessels -->
+                    <button type="button" onclick="selectAllNonBmsVessels()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg transition active:scale-95 shadow-2xs" title="Pilih seluruh armada kapal Non-Internal / Sewa (is_third_party=true)">
+                        <span>⛴️</span>
+                        <span id="btn-fleet-external-label">+ Kapal Sewa</span>
+                        <span id="non-bms-count-tag" class="px-1.5 py-0.2 bg-amber-200/60 rounded text-[10px] font-bold">0</span>
+                    </button>
+
+                    <!-- Mode HO (Head Office) -->
+                    <button type="button" onclick="selectHoMode()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-lg transition active:scale-95 shadow-2xs" title="Jadikan Laporan Kantor Pusat / Head Office (Tanpa Kapal)">
+                        <span>🏢</span>
+                        <span>Mode HO</span>
+                    </button>
+
+                    <!-- Open Full Fleet Modal -->
+                    <button type="button" onclick="openFleetModal()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-lg transition active:scale-95 shadow-2xs" title="Buka dialog pemilihan checklist armada">
+                        <span>📋</span>
+                        <span>Kelola...</span>
+                    </button>
+
+                    <!-- Individual Search / Add -->
+                    <div class="flex items-center space-x-1 ml-1 border-l border-slate-200 pl-2">
+                        <input list="vessels-datalist" id="search-vessel" class="w-40 text-xs border border-slate-200 rounded-lg p-1.5 focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium" placeholder="Cari kapal individual...">
                         <datalist id="vessels-datalist"></datalist>
-                        <button onclick="addVessel()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold transition shadow-xs">Tambah</button>
+                        <button type="button" onclick="addVessel()" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs active:scale-95">
+                            + Tambah
+                        </button>
                     </div>
-                    <p class="text-[10px] text-slate-400">Pilih kapal dari database untuk dijadikan kolom matriks (Q1-Q4 & YTD).</p>
+
+                    <!-- Clear Button -->
+                    <button type="button" onclick="clearAllVessels()" class="text-xs text-rose-500 hover:text-rose-700 hover:underline font-bold px-1" title="Hapus semua kapal terpilih">✕ Kosongkan</button>
                 </div>
 
-                <div id="selected-vessels" class="space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
-                    <div class="text-center py-6 text-xs text-slate-400">Belum ada kapal dipilih</div>
+                <!-- Selected Vessels Badged List (Horizontal Scroll / Wrap) -->
+                <div class="flex-1 border-t xl:border-t-0 xl:border-l border-slate-200 pt-2 xl:pt-0 xl:pl-3">
+                    <div id="selected-vessels" class="flex flex-wrap items-center gap-1.5 max-h-[85px] overflow-y-auto custom-scrollbar">
+                        <div class="text-xs text-slate-400 italic">Belum ada kapal dipilih</div>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+    <!-- END: Top Compact Parameter & Vessel Ribbon -->
 
-        <!-- Main Builder: Table Rows -->
-        <div class="xl:col-span-3 space-y-6">
+    <!-- Main Full-Width Area -->
+    <div class="space-y-6">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
@@ -229,7 +342,11 @@
                         </h3>
                         <p class="text-xs text-slate-400">Atur urutan, kode variabel (misal: R1, R2), akun/tag akuntansi, atau formula matematika. <span class="text-blue-600 font-medium">💡 Geser (drag & drop) ikon ⠿ untuk mengatur urutan baris dari atas ke bawah.</span></p>
                     </div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-1.5 flex-wrap gap-y-1.5">
+                        <button onclick="addRow('title')" class="inline-flex items-center space-x-1.5 bg-slate-100 text-slate-800 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 hover:bg-slate-200 transition shadow-2xs">
+                            <span>📌</span>
+                            <span>+ Judul / Title</span>
+                        </button>
                         <button onclick="addRow('query')" class="inline-flex items-center space-x-1.5 bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-purple-200 hover:bg-purple-100 transition shadow-2xs">
                             <span>+</span>
                             <span>Baris Query (KPI)</span>
@@ -256,9 +373,10 @@
                                 <th class="p-3 w-10 text-center" title="Tahan dan geser untuk memindahkan urutan">Urutan</th>
                                 <th class="p-3 w-12 text-center">No</th>
                                 <th class="p-3 w-20">Kode</th>
-                                <th class="p-3 w-64">Nama Baris / Label</th>
-                                <th class="p-3">Sumber Data (Tag) / Rumus Formula</th>
-                                <th class="p-3 w-28 text-center">Aksi</th>
+                                <th class="p-3 w-60">Nama Baris / Label</th>
+                                <th class="p-3 min-w-[220px]">Sumber Data (Tag) / Rumus Formula</th>
+                                <th class="p-3 w-48 text-center">Format & Gaya</th>
+                                <th class="p-3 w-24 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="rows-container" class="divide-y divide-slate-100">
@@ -277,28 +395,52 @@
             </div>
 
             <!-- Matrix Results Preview Area -->
-            <div id="preview-section" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 hidden">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                            <span>📈</span> Hasil Perhitungan Matriks (DuckDB Live)
-                        </h3>
-                        <p class="text-xs text-slate-400" id="preview-meta">Hasil agregasi waktu nyata per kapal dan triwulan.</p>
+            <div id="preview-section" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 hidden transition-all">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <span>📈</span> Hasil Perhitungan Matriks (DuckDB Live)
+                                <span id="fullscreen-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Mode Layar Penuh</span>
+                            </h3>
+                            <p class="text-xs text-slate-400" id="preview-meta">Hasil agregasi waktu nyata per kapal dan triwulan.</p>
+                        </div>
                     </div>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        ⚡ Kompilasi Berhasil
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Toggle Compact Mode -->
+                        <button type="button" id="btn-toggle-compact" onclick="toggleCompactMode()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg transition active:scale-95 shadow-2xs" title="Tampilkan lebih banyak baris & kolom dalam satu layar">
+                            <span id="compact-icon">🗜️</span>
+                            <span id="compact-text">Mode Rapat: ON</span>
+                        </button>
+
+                        <!-- Toggle Show Hidden Rows -->
+                        <label class="inline-flex items-center space-x-1.5 text-xs text-slate-600 font-semibold cursor-pointer select-none bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition shadow-2xs">
+                            <input type="checkbox" id="toggle-show-hidden" onchange="if(lastMatrixData) renderMatrix(lastMatrixData);" class="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 border-slate-300">
+                            <span>Baris Hidden</span>
+                        </label>
+
+                        <!-- Status badge -->
+                        <span class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                            ⚡ Kompilasi Berhasil
+                        </span>
+
+                        <!-- Fullscreen Toggle Button -->
+                        <button type="button" id="btn-toggle-fullscreen" onclick="toggleFullscreenMatrix()" class="inline-flex items-center space-x-1.5 text-xs font-bold px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs transition active:scale-95">
+                            <span id="fs-icon">⛶</span>
+                            <span id="fs-text">Layar Penuh</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div id="preview-matrix-container" class="border rounded-xl border-slate-200 overflow-x-auto custom-scrollbar shadow-2xs">
+                <div id="preview-matrix-container" class="border rounded-xl border-slate-200 overflow-auto custom-scrollbar shadow-2xs max-h-[72vh]">
                     <!-- Matrix Table rendered dynamically -->
                 </div>
             </div>
         </div>
-    </div>
 </main>
 
 <script>
+    let allCompanies = [];
     let dbVessels = [];
     let dbTags = [];
     let dbQueries = [];
@@ -307,6 +449,7 @@
     let reportRows = [];
     let rowCounter = 0;
     let currentTemplateId = null;
+    let lastMatrixData = null;
 
     async function initBuilder() {
         try {
@@ -318,28 +461,34 @@
                 dbQueries = [
                     { code: "KAPASITAS", name: "Kapasitas Kapal (Cargo Capacity / DWT)", default_label: "Kapasitas Kapal (DWT)" },
                     { code: "TRIP", name: "Jumlah Trip Kapal (Trip Count)", default_label: "Jumlah Trip" },
-                    { code: "TPJ_SEMUA", name: "Pendapatan Jasa Semua Kapal", default_label: "Total Pendapatan Seluruh Armada" }
+                    { code: "TPJ_SEMUA", name: "Pendapatan Jasa Semua Kapal", default_label: "Total Pendapatan Seluruh Armada" },
+                    { code: "TPJ_TERPILIH", name: "Pendapatan Jasa Kapal Terpilih", default_label: "Total Pendapatan Kapal Terpilih" }
                 ];
             }
 
             let res = await fetch('/api/companies');
             let data = await res.json();
             if (data.status === 'success' && data.companies && data.companies.length > 0) {
+                allCompanies = data.companies;
                 let sel = document.getElementById('company-select');
                 sel.innerHTML = '';
-                data.companies.forEach(c => {
+                allCompanies.forEach(c => {
                     sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
                 });
                 
                 sel.addEventListener('change', async (e) => {
                     if (e.target.value) {
-                        await loadCompanyData(parseInt(e.target.value));
-                        await loadSavedTemplates(parseInt(e.target.value));
+                        const newCompId = parseInt(e.target.value);
+                        // Reset selected vessels when switching company to prevent vessel mixup
+                        selectedVessels = [];
+                        renderVessels();
+                        await loadCompanyData(newCompId);
+                        await loadSavedTemplates(newCompId);
                     }
                 });
 
                 // Auto-select first company
-                const activeId = parseInt(data.companies[0].id);
+                const activeId = parseInt(allCompanies[0].id);
                 sel.value = activeId;
                 await loadCompanyData(activeId);
                 await loadSavedTemplates(activeId);
@@ -350,8 +499,9 @@
                 if (id) {
                     await loadTemplate(parseInt(id));
                 } else {
-                    // Auto-load sample template if empty
-                    loadSampleTemplate();
+                    // Mulai dengan lembar kerja bersih (blank canvas)
+                    renderVessels();
+                    renderRows();
                 }
             }
         } catch(e) {
@@ -361,20 +511,57 @@
 
     async function loadCompanyData(companyId) {
         try {
+            let compObj = allCompanies.find(c => c.id == companyId);
+            let compPrefix = (compObj && compObj.initial_pt) ? compObj.initial_pt : 'Internal';
+
+            // Dynamically update fleet preset buttons and modal tab labels
+            let btnBms = document.getElementById('btn-fleet-internal-label');
+            let btnNonBms = document.getElementById('btn-fleet-external-label');
+            if (btnBms) btnBms.innerText = `+ Kapal ${compPrefix}`;
+            if (btnNonBms) btnNonBms.innerText = `+ Kapal Non-${compPrefix}`;
+
+            let tabBms = document.getElementById('modal-tab-bms-label');
+            let tabNonBms = document.getElementById('modal-tab-non-label');
+            if (tabBms) tabBms.innerText = `Kapal ${compPrefix}`;
+            if (tabNonBms) tabNonBms.innerText = `Non-${compPrefix}`;
+
             let resV = await fetch(`/api/builder/vessels?company_id=${companyId}`);
-            dbVessels = await resV.json();
+            if (resV.ok) {
+                dbVessels = await resV.json();
+            } else {
+                console.error("Gagal memuat vessels:", await resV.text());
+                dbVessels = [];
+            }
             
+            let bmsCount = dbVessels.filter(v => !v.is_third_party && !v.name.includes('HEAD OFFICE')).length;
+            let nonBmsCount = dbVessels.filter(v => v.is_third_party).length;
+            let bmsTag = document.getElementById('bms-count-tag');
+            let nonBmsTag = document.getElementById('non-bms-count-tag');
+            if (bmsTag) bmsTag.innerText = bmsCount;
+            if (nonBmsTag) nonBmsTag.innerText = nonBmsCount;
+
             let dl = document.getElementById('vessels-datalist');
-            dl.innerHTML = '';
-            dbVessels.forEach(v => {
-                dl.innerHTML += `<option value="${v.name}">${v.name}</option>`;
-            });
+            if (dl) {
+                dl.innerHTML = '';
+                dbVessels.forEach(v => {
+                    let badge = v.is_third_party ? `(Non-${compPrefix})` : `(${compPrefix})`;
+                    dl.innerHTML += `<option value="${v.name}">${v.name} ${badge}</option>`;
+                });
+            }
 
             let resT = await fetch(`/api/builder/tags?company_id=${companyId}`);
-            dbTags = await resT.json();
+            if (resT.ok) {
+                dbTags = await resT.json();
+            } else {
+                dbTags = [];
+            }
 
             let resA = await fetch(`/api/builder/accounts?company_id=${companyId}`);
-            dbAccounts = await resA.json();
+            if (resA.ok) {
+                dbAccounts = await resA.json();
+            } else {
+                dbAccounts = [];
+            }
 
             renderRows();
         } catch(e) {
@@ -461,34 +648,387 @@
         renderVessels();
     }
 
-    function renderVessels() {
-        let html = '';
-        document.getElementById('vessel-count').innerText = selectedVessels.length;
-        if (selectedVessels.length === 0) {
-            document.getElementById('selected-vessels').innerHTML = '<div class="text-center py-6 text-xs text-slate-400">Belum ada kapal dipilih</div>';
+    function selectAllBmsVessels() {
+        let bmsList = dbVessels.filter(v => !v.is_third_party && !v.name.includes('HEAD OFFICE'));
+        let selCompId = document.getElementById('company-select').value;
+        let compObj = allCompanies.find(c => c.id == selCompId);
+        let prefix = (compObj && compObj.initial_pt) ? compObj.initial_pt : 'Internal';
+        if (bmsList.length === 0) {
+            alert(`Tidak ada kapal ${prefix} ditemukan untuk perusahaan ini.`);
             return;
         }
+        selectedVessels = [...bmsList];
+        renderVessels();
+        showFleetToast(`✅ ${bmsList.length} Kapal ${prefix} berhasil dimuat`);
+    }
+
+    function selectAllNonBmsVessels() {
+        let nonBmsList = dbVessels.filter(v => v.is_third_party);
+        let selCompId = document.getElementById('company-select').value;
+        let compObj = allCompanies.find(c => c.id == selCompId);
+        let prefix = (compObj && compObj.initial_pt) ? compObj.initial_pt : 'Internal';
+        if (nonBmsList.length === 0) {
+            alert(`Tidak ada kapal non-${prefix} (pihak ketiga / sewa) ditemukan untuk perusahaan ini.`);
+            return;
+        }
+        selectedVessels = [...nonBmsList];
+        renderVessels();
+        showFleetToast(`✅ ${nonBmsList.length} Kapal non-${prefix} (sewa) berhasil dimuat`);
+    }
+
+    function selectHoMode() {
+        selectedVessels = [{ id: 0, name: 'HEAD OFFICE (HO)', is_ho: true }];
+        renderVessels();
+        showFleetToast(`🏢 Mode Laporan Head Office (HO) diaktifkan`);
+    }
+
+    function clearAllVessels() {
+        selectedVessels = [];
+        renderVessels();
+    }
+
+    function showFleetToast(msg) {
+        let statusDiv = document.getElementById('save-status');
+        if (statusDiv) {
+            statusDiv.innerHTML = msg;
+            statusDiv.className = "text-xs font-semibold text-blue-600 block";
+            statusDiv.classList.remove('hidden');
+            setTimeout(() => { statusDiv.classList.add('hidden'); }, 3000);
+        }
+    }
+
+    function renderVessels() {
+        let container = document.getElementById('selected-vessels');
+        let countBadge = document.getElementById('vessel-count');
+        if (countBadge) countBadge.innerText = selectedVessels.length;
+        
+        if (!selectedVessels || selectedVessels.length === 0) {
+            container.innerHTML = '<div class="text-xs text-slate-400 italic py-1">Belum ada kapal dipilih (gunakan tombol preset armada di atas atau cari kapal)</div>';
+            return;
+        }
+        let html = '';
         selectedVessels.forEach(v => {
+            let isHo = v.is_ho || v.name.includes('HEAD OFFICE');
+            let isThirdParty = Boolean(v.is_third_party);
+
+            let tagHtml = '';
+            let bgClass = 'bg-slate-50 hover:bg-slate-100 border-slate-200/90 text-slate-800';
+            let icon = '🚢';
+
+            if (isHo) {
+                tagHtml = '<span class="text-[9px] font-bold px-1.5 py-0.2 bg-purple-100 text-purple-700 rounded border border-purple-200">HO</span>';
+                bgClass = 'bg-purple-50 hover:bg-purple-100/80 border-purple-200 text-purple-900';
+                icon = '🏢';
+            } else if (isThirdParty) {
+                tagHtml = '<span class="text-[9px] font-bold px-1 py-0.2 bg-amber-100 text-amber-800 rounded border border-amber-200">Non-BMS</span>';
+                bgClass = 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200 text-amber-900';
+                icon = '⛴️';
+            } else {
+                tagHtml = '<span class="text-[9px] font-bold px-1 py-0.2 bg-blue-100 text-blue-800 rounded border border-blue-200">BMS</span>';
+                bgClass = 'bg-blue-50/70 hover:bg-blue-100/70 border-blue-200 text-blue-900';
+                icon = '🚢';
+            }
+
             html += `
-            <div class="flex justify-between items-center bg-slate-50 border border-slate-200/90 px-2.5 py-1.5 rounded-lg text-xs">
-                <span class="font-semibold text-slate-700 truncate w-4/5" title="${v.name}">🚢 ${v.name}</span>
-                <button onclick="removeVessel('${v.name}')" class="text-red-400 hover:text-red-600 font-bold px-1 rounded">✕</button>
+            <div class="inline-flex items-center space-x-1.5 border pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-semibold shadow-2xs transition ${bgClass}">
+                <span class="truncate max-w-[160px]" title="${v.name}">${icon} ${v.name}</span>
+                ${tagHtml}
+                <button type="button" onclick="removeVessel('${v.name}')" class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-bold w-4 h-4 rounded flex items-center justify-center transition" title="Hapus kapal ini">✕</button>
             </div>
             `;
         });
-        document.getElementById('selected-vessels').innerHTML = html;
+        container.innerHTML = html;
+    }
+
+    // Modal Fleet State
+    let modalSelectedMap = new Set();
+    let currentModalTab = 'all';
+
+    function openFleetModal() {
+        let modal = document.getElementById('fleet-modal');
+        if (!modal) return;
+        
+        modalSelectedMap = new Set(selectedVessels.map(v => v.name));
+        currentModalTab = 'all';
+        document.getElementById('fleet-modal-search').value = '';
+        
+        // Update tab counts
+        let allCount = dbVessels.length;
+        let bmsCount = dbVessels.filter(v => !v.is_third_party).length;
+        let nonCount = dbVessels.filter(v => v.is_third_party).length;
+        
+        document.getElementById('modal-tab-all-count').innerText = allCount;
+        document.getElementById('modal-tab-bms-count').innerText = bmsCount;
+        document.getElementById('modal-tab-non-count').innerText = nonCount;
+        
+        filterFleetModal('all');
+        modal.classList.remove('hidden');
+    }
+
+    function closeFleetModal() {
+        let modal = document.getElementById('fleet-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function filterFleetModal(tab) {
+        currentModalTab = tab;
+        ['all', 'bms', 'non_bms'].forEach(t => {
+            let el = document.getElementById(`fleet-tab-${t.replace('_', '-')}`);
+            if (el) {
+                if (t === tab) {
+                    el.className = "px-3 py-1 rounded-lg bg-white shadow-2xs text-slate-900 font-bold";
+                } else {
+                    el.className = "px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 font-semibold";
+                }
+            }
+        });
+        renderFleetModalList();
+    }
+
+    function searchFleetModal(query) {
+        renderFleetModalList();
+    }
+
+    function renderFleetModalList() {
+        let container = document.getElementById('fleet-modal-list');
+        let query = (document.getElementById('fleet-modal-search').value || '').toLowerCase();
+        
+        let filtered = dbVessels.filter(v => {
+            if (currentModalTab === 'bms' && v.is_third_party) return false;
+            if (currentModalTab === 'non_bms' && !v.is_third_party) return false;
+            if (query && !v.name.toLowerCase().includes(query)) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="col-span-2 text-center py-8 text-xs text-slate-400">Tidak ada kapal yang sesuai filter</div>';
+            updateModalSummary();
+            return;
+        }
+
+        let html = '';
+        let selCompId = document.getElementById('company-select').value;
+        let compObj = allCompanies.find(c => c.id == selCompId);
+        let compPrefix = (compObj && compObj.initial_pt) ? compObj.initial_pt : 'Internal';
+
+        filtered.forEach(v => {
+            let isChecked = modalSelectedMap.has(v.name);
+            let isThirdParty = Boolean(v.is_third_party);
+            let tagBadge = isThirdParty 
+                ? `<span class="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-200">Non-${compPrefix}</span>`
+                : `<span class="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded border border-blue-200">${compPrefix}</span>`;
+
+            html += `
+            <label class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer select-none transition ${isChecked ? 'bg-blue-50/60 border-blue-300 shadow-2xs' : 'bg-slate-50/50 hover:bg-slate-100 border-slate-200'}">
+                <div class="flex items-center space-x-2.5 truncate pr-2">
+                    <input type="checkbox" onchange="toggleModalVessel('${v.name}', this.checked)" ${isChecked ? 'checked' : ''} class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 border-slate-300">
+                    <span class="text-xs font-semibold text-slate-800 truncate" title="${v.name}">${v.name}</span>
+                </div>
+                ${tagBadge}
+            </label>
+            `;
+        });
+        container.innerHTML = html;
+        updateModalSummary();
+    }
+
+    function toggleModalVessel(name, isChecked) {
+        if (isChecked) {
+            modalSelectedMap.add(name);
+        } else {
+            modalSelectedMap.delete(name);
+        }
+        updateModalSummary();
+    }
+
+    function modalSelectAllVisible(shouldSelect) {
+        let query = (document.getElementById('fleet-modal-search').value || '').toLowerCase();
+        let filtered = dbVessels.filter(v => {
+            if (currentModalTab === 'bms' && v.is_third_party) return false;
+            if (currentModalTab === 'non_bms' && !v.is_third_party) return false;
+            if (query && !v.name.toLowerCase().includes(query)) return false;
+            return true;
+        });
+
+        filtered.forEach(v => {
+            if (shouldSelect) {
+                modalSelectedMap.add(v.name);
+            } else {
+                modalSelectedMap.delete(v.name);
+            }
+        });
+        renderFleetModalList();
+    }
+
+    function updateModalSummary() {
+        let summaryEl = document.getElementById('modal-selected-summary');
+        if (summaryEl) {
+            summaryEl.innerText = `${modalSelectedMap.size} Kapal Terpilih`;
+        }
+    }
+
+    function applyFleetModal() {
+        let newSelected = [];
+        dbVessels.forEach(v => {
+            if (modalSelectedMap.has(v.name)) {
+                newSelected.push(v);
+            }
+        });
+        selectedVessels = newSelected;
+        renderVessels();
+        closeFleetModal();
+        showFleetToast(`✅ ${selectedVessels.length} Kapal diterapkan ke laporan`);
+    }
+
+    function newTemplate() {
+        if (reportRows.length > 0 && !confirm("Mulai template baru kosong? Perubahan yang belum disimpan akan hilang.")) {
+            return;
+        }
+        currentTemplateId = null;
+        document.getElementById('template-name').value = '';
+        document.getElementById('saved-templates-select').value = '';
+        selectedVessels = [];
+        reportRows = [];
+        rowCounter = 0;
+        renderVessels();
+        renderRows();
+        let previewSec = document.getElementById('preview-section');
+        if (previewSec) previewSec.classList.add('hidden');
+        let statusDiv = document.getElementById('save-status');
+        if (statusDiv) {
+            statusDiv.innerHTML = "📝 Template baru siap dikonfigurasi";
+            statusDiv.className = "text-xs font-semibold text-blue-600 block";
+            setTimeout(() => { statusDiv.classList.add('hidden'); }, 3000);
+        }
+    }
+
+    async function duplicateTemplate() {
+        let companyId = document.getElementById('company-select').value;
+        let name = document.getElementById('template-name').value.trim();
+        if (!name) {
+            alert("Isi Nama Laporan / Template terlebih dahulu!");
+            return;
+        }
+
+        if (currentTemplateId) {
+            try {
+                let res = await fetch(`/api/builder/templates/${currentTemplateId}/duplicate`, {
+                    method: 'POST'
+                });
+                let json = await res.json();
+                if (json.status === 'success') {
+                    currentTemplateId = json.id;
+                    await loadSavedTemplates(parseInt(companyId));
+                    document.getElementById('template-name').value = json.name;
+                    document.getElementById('saved-templates-select').value = json.id;
+                    let statusDiv = document.getElementById('save-status');
+                    statusDiv.innerHTML = `✅ Duplikat berhasil: "${json.name}"`;
+                    statusDiv.className = "text-xs font-semibold text-emerald-600 block";
+                } else {
+                    alert("Gagal menduplikat template: " + (json.detail || "Error"));
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Gagal menduplikat template");
+            }
+        } else {
+            document.getElementById('template-name').value = name + " (Salinan)";
+            currentTemplateId = null;
+            await saveTemplate();
+        }
+    }
+
+    async function deleteTemplate() {
+        if (!currentTemplateId) {
+            alert("Pilih template yang tersimpan terlebih dahulu untuk dihapus!");
+            return;
+        }
+        let templateName = document.getElementById('template-name').value || "ini";
+        if (!confirm(`Apakah Anda yakin ingin menghapus template "${templateName}"? Aksi ini tidak dapat dibatalkan.`)) {
+            return;
+        }
+
+        try {
+            let res = await fetch(`/api/builder/templates/${currentTemplateId}`, {
+                method: 'DELETE'
+            });
+            let json = await res.json();
+            if (json.status === 'success') {
+                let companyId = document.getElementById('company-select').value;
+                await loadSavedTemplates(parseInt(companyId));
+                newTemplate();
+                let statusDiv = document.getElementById('save-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = `🗑️ Template "${templateName}" berhasil dihapus`;
+                    statusDiv.className = "text-xs font-semibold text-rose-600 block";
+                    statusDiv.classList.remove('hidden');
+                }
+            } else {
+                alert("Gagal menghapus template: " + (json.detail || "Error"));
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Gagal menghapus template");
+        }
+    }
+
+    let isRibbonMinimized = false;
+    function toggleRibbon() {
+        let content = document.getElementById('ribbon-content');
+        let icon = document.getElementById('ribbon-toggle-icon');
+        let text = document.getElementById('ribbon-toggle-text');
+        let badge = document.getElementById('ribbon-summary-badge');
+        
+        isRibbonMinimized = !isRibbonMinimized;
+        if (isRibbonMinimized) {
+            content.classList.add('hidden');
+            icon.innerText = '▼';
+            text.innerText = 'Buka Ribbon';
+            if (badge) {
+                let comp = document.getElementById('company-select');
+                let compName = comp && comp.options[comp.selectedIndex] ? comp.options[comp.selectedIndex].text : '';
+                let yr = document.getElementById('year-select').value;
+                let tName = document.getElementById('template-name').value || 'Tanpa Nama';
+                badge.innerText = `${compName} | ${yr} | ${tName} (${selectedVessels.length} Kapal)`;
+                badge.classList.remove('hidden');
+            }
+        } else {
+            content.classList.remove('hidden');
+            icon.innerText = '▲';
+            text.innerText = 'Lipat Ribbon';
+            if (badge) badge.classList.add('hidden');
+        }
     }
 
     function addRow(type) {
         rowCounter++;
-        if (type === 'query') {
+        if (type === 'title') {
+            let code = `T${rowCounter}`;
+            reportRows.push({
+                id: rowCounter,
+                code: code,
+                type: 'title',
+                label: `JUDUL BAGIAN ${rowCounter}`,
+                expression: '',
+                is_bold: true,
+                is_italic: false,
+                is_hidden: false,
+                indent_level: 0,
+                bg_color: '#F8FAFC'
+            });
+        } else if (type === 'query') {
             let code = `K${rowCounter}`;
             reportRows.push({
                 id: rowCounter,
                 code: code,
                 type: 'query',
                 label: 'Kapasitas Kapal (DWT)',
-                expression: 'KAPASITAS'
+                expression: 'KAPASITAS',
+                is_bold: false,
+                is_italic: false,
+                is_hidden: false,
+                indent_level: 0,
+                bg_color: 'transparent'
             });
         } else if (type === 'account') {
             let code = `A${rowCounter}`;
@@ -499,7 +1039,11 @@
                 type: 'account',
                 label: firstAcc ? `${firstAcc.code} ${firstAcc.name}` : `Akun COA ${rowCounter}`,
                 expression: firstAcc ? firstAcc.code : '',
-                style: 'font-style: italic;'
+                is_bold: false,
+                is_italic: true,
+                is_hidden: false,
+                indent_level: 1,
+                bg_color: 'transparent'
             });
         } else if (type === 'data') {
             let code = `R${rowCounter}`;
@@ -508,7 +1052,13 @@
                 code: code,
                 type: 'data',
                 label: `Baris Data ${rowCounter}`,
-                expression: ''
+                expression: '',
+                auto_expand_coa: true,
+                is_bold: false,
+                is_italic: false,
+                is_hidden: false,
+                indent_level: 0,
+                bg_color: 'transparent'
             });
         } else {
             let code = `R${rowCounter}`;
@@ -517,10 +1067,93 @@
                 code: code,
                 type: 'formula',
                 label: `Formula ${rowCounter}`,
-                expression: `${code} = `
+                expression: `${code} = `,
+                is_bold: true,
+                is_italic: false,
+                is_hidden: false,
+                indent_level: 0,
+                bg_color: 'transparent'
             });
         }
         renderRows();
+    }
+
+    function ensureRowStyleProps(r) {
+        if (r.is_bold === undefined) {
+            r.is_bold = (r.style || '').includes('font-weight: bold') || r.type === 'title' || r.type === 'formula';
+        }
+        if (r.is_italic === undefined) {
+            r.is_italic = (r.style || '').includes('font-style: italic') || r.type === 'account' || !!r.is_child;
+        }
+        if (r.is_hidden === undefined) {
+            r.is_hidden = (r.style || '').includes('display: none') || !!r.hidden;
+        }
+        if (r.is_percentage === undefined) {
+            r.is_percentage = !!r.is_percentage || (r.label || '').trim().startsWith('%') || (r.label || '').trim().endsWith('%') || (r.format === 'percentage');
+        }
+        if (r.indent_level === undefined) {
+            let m = (r.style || '').match(/text-indent:\s*([0-9.]+)\s*em/);
+            if (m) {
+                let em = parseFloat(m[1]);
+                r.indent_level = Math.max(0, Math.min(4, Math.round(em / 1.5)));
+            } else if (r.is_child || r.type === 'account') {
+                r.indent_level = 1;
+            } else {
+                r.indent_level = 0;
+            }
+        }
+        if (r.bg_color === undefined) {
+            let m = (r.style || '').match(/background-color:\s*([^;]+)/);
+            if (m) {
+                r.bg_color = m[1].trim();
+            } else if (r.type === 'title') {
+                r.bg_color = '#F8FAFC';
+            } else if ((r.label || '').toLowerCase().includes('laba') || (r.label || '').toLowerCase().includes('margin')) {
+                r.bg_color = '#E2EFDA';
+            } else {
+                r.bg_color = 'transparent';
+            }
+        }
+    }
+
+    function compileRowStyle(r) {
+        let parts = [];
+        if (r.is_bold) parts.push('font-weight: bold;');
+        if (r.is_italic) parts.push('font-style: italic;');
+        if (r.indent_level && r.indent_level > 0) parts.push(`text-indent: ${r.indent_level * 1.5}em;`);
+        if (r.bg_color && r.bg_color !== 'transparent' && r.bg_color !== '#ffffff') parts.push(`background-color: ${r.bg_color};`);
+        if (r.is_hidden) parts.push('display: none;');
+        return parts.join(' ');
+    }
+
+    function toggleStyle(id, prop) {
+        let r = reportRows.find(x => x.id === id);
+        if (r) {
+            ensureRowStyleProps(r);
+            r[prop] = !r[prop];
+            r.style = compileRowStyle(r);
+            renderRows();
+        }
+    }
+
+    function changeIndent(id, delta) {
+        let r = reportRows.find(x => x.id === id);
+        if (r) {
+            ensureRowStyleProps(r);
+            r.indent_level = Math.max(0, Math.min(4, (r.indent_level || 0) + delta));
+            r.style = compileRowStyle(r);
+            renderRows();
+        }
+    }
+
+    function updateBgColor(id, color) {
+        let r = reportRows.find(x => x.id === id);
+        if (r) {
+            ensureRowStyleProps(r);
+            r.bg_color = color;
+            r.style = compileRowStyle(r);
+            renderRows();
+        }
     }
 
     function onQuerySelectChange(id, code) {
@@ -688,13 +1321,20 @@
         let html = '';
         document.getElementById('row-count-badge').innerText = `${reportRows.length} Baris dikonfigurasi`;
         reportRows.forEach((r, idx) => {
+            ensureRowStyleProps(r);
+
             let bgClass = 'bg-white hover:bg-slate-50/50';
-            if (r.type === 'query') {
+            if (r.type === 'title') {
+                bgClass = 'bg-slate-100/70 hover:bg-slate-100/90 font-bold';
+            } else if (r.type === 'query') {
                 bgClass = 'bg-purple-50/15 hover:bg-purple-50/30';
             } else if (r.type === 'account') {
                 bgClass = 'bg-sky-50/15 hover:bg-sky-50/30';
             } else if (r.type === 'formula') {
                 bgClass = 'bg-amber-50/20 hover:bg-amber-50/40';
+            }
+            if (r.is_hidden) {
+                bgClass += ' opacity-55 border-dashed border-rose-300';
             }
             
             let tagOptions = '<option value="">-- Pilih Tag Akuntansi --</option>';
@@ -717,16 +1357,37 @@
             });
 
             let inputHtml = '';
-            if (r.type === 'query') {
+            if (r.type === 'title') {
+                inputHtml = `
+                <div class="flex items-center space-x-1.5 py-1">
+                    <span class="text-[11px] font-bold text-slate-700 bg-slate-200/80 px-2.5 py-1 rounded-md border border-slate-300 flex items-center gap-1.5">
+                        <span>📌</span> Header Judul Bagian
+                    </span>
+                    <span class="text-[10px] text-slate-400 italic">(Pemisah teks tanpa angka)</span>
+                </div>
+                `;
+            } else if (r.type === 'query') {
                 inputHtml = `<select onchange="onQuerySelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-purple-200 rounded-lg bg-white font-medium text-purple-900 focus:ring-1 focus:ring-purple-500">${queryOptions}</select>`;
             } else if (r.type === 'account') {
                 inputHtml = `<select onchange="onAccountSelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-sky-200 rounded-lg bg-white font-medium text-sky-900 focus:ring-1 focus:ring-sky-500">${accountOptions}</select>`;
             } else if (r.type === 'data') {
+                let isAuto = r.auto_expand_coa !== false; // Default true for Tag rows
+                if (r.auto_expand_coa === undefined) r.auto_expand_coa = true;
                 let canBreakdown = r.expression && !r.is_child;
                 inputHtml = `
-                <div class="flex items-center space-x-1.5">
-                    <select onchange="updateRow(${r.id}, 'expression', this.value); renderRows();" class="w-full text-xs p-1.5 border border-slate-200 rounded-lg bg-white font-medium text-slate-800 focus:ring-1 focus:ring-blue-500">${tagOptions}</select>
-                    ${canBreakdown ? `<button onclick="breakdownCOA(${r.id})" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition shrink-0 shadow-2xs" title="Otomatis uraikan akun COA di bawah tag ini"><span>⚡</span><span>Urai COA</span></button>` : ''}
+                <div class="flex flex-col space-y-1.5">
+                    <div class="flex items-center space-x-1.5">
+                        <select onchange="updateRow(${r.id}, 'expression', this.value); renderRows();" class="w-full text-xs p-1.5 border border-slate-200 rounded-lg bg-white font-medium text-slate-800 focus:ring-1 focus:ring-blue-500">${tagOptions}</select>
+                    </div>
+                    ${canBreakdown ? `
+                    <div class="flex items-center justify-between pt-0.5">
+                        <label class="inline-flex items-center space-x-1.5 cursor-pointer text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200/90 transition select-none" title="Seperti MIS Builder: Akun-akun COA di bawah tag ini otomatis keluar di laporan tanpa perlu tekan tombol urai manual. Bila di masa depan ada penambahan COA baru pada Tag ini, akun tersebut akan otomatis tampil di laporan.">
+                            <input type="checkbox" onchange="updateRow(${r.id}, 'auto_expand_coa', this.checked); renderRows();" ${isAuto ? 'checked' : ''} class="w-3.5 h-3.5 text-indigo-600 rounded focus:ring-indigo-500 border-slate-300">
+                            <span>⚡ Otomatis Urai COA</span>
+                        </label>
+                        ${isAuto ? '<span class="text-[10px] text-slate-400 italic">Dinamis saat laporan dihitung</span>' : `<button onclick="breakdownCOA(${r.id})" class="text-[10px] text-slate-500 hover:text-indigo-600 font-medium underline" title="Urai manual jadi baris statis di tabel">Urai Manual</button>`}
+                    </div>
+                    ` : ''}
                 </div>
                 `;
             } else {
@@ -734,27 +1395,64 @@
             }
 
             let badgeType = '';
-            if (r.type === 'query') {
+            if (r.type === 'title') {
+                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-800 text-white border border-slate-800">Judul</span>';
+            } else if (r.type === 'query') {
                 badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-purple-50 text-purple-700 border border-purple-200">Query</span>';
             } else if (r.type === 'account') {
                 badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-50 text-sky-700 border border-sky-200">COA</span>';
             } else if (r.type === 'data') {
-                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">Tag</span>';
+                if (r.auto_expand_coa) {
+                    badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-indigo-50 text-indigo-700 border border-indigo-200" title="Akun COA di bawah tag ini otomatis diurai">Tag • Auto</span>';
+                } else {
+                    badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">Tag</span>';
+                }
             } else {
                 badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Formula</span>';
             }
 
+            let indentPadding = (r.indent_level || 0) * 1.25;
+            let indentStyle = indentPadding > 0 ? `padding-left: ${indentPadding}rem;` : '';
+            let labelClasses = (r.is_bold ? 'font-bold ' : (r.is_italic ? 'font-normal italic ' : 'font-semibold ')) + (r.is_hidden ? 'line-through text-slate-400 ' : 'text-slate-800 ');
+
             let labelInput = '';
-            if (r.is_child) {
-                labelInput = `
-                <div class="flex items-center space-x-1 pl-3">
-                    <span class="text-slate-400 font-mono text-xs">↳</span>
-                    <input type="text" oninput="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs italic font-medium text-slate-600 bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none" placeholder="Label akun...">
+            labelInput = `
+            <div class="flex items-center space-x-1" style="${indentStyle}">
+                ${(r.indent_level > 0 || r.is_child) ? '<span class="text-slate-400 font-mono text-xs select-none">↳</span>' : ''}
+                ${r.type === 'title' ? '<span class="text-slate-400 text-xs select-none">📌</span>' : ''}
+                <input type="text" oninput="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs ${labelClasses} bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none" placeholder="Label baris...">
+                ${r.is_percentage ? '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 shrink-0 select-none" title="Format Nilai: Persentase (%)">%</span>' : ''}
+                ${r.is_hidden ? '<span class="text-[9px] font-bold uppercase px-1 py-0.5 bg-rose-50 text-rose-600 rounded border border-rose-200 shrink-0 select-none">Hidden</span>' : ''}
+            </div>
+            `;
+
+            let formatHtml = `
+            <div class="flex items-center justify-center space-x-1">
+                <!-- Bold -->
+                <button onclick="toggleStyle(${r.id}, 'is_bold')" class="w-6 h-6 rounded text-[11px] font-bold border transition ${r.is_bold ? 'bg-slate-900 text-white border-slate-900 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}" title="Tebal (Bold)">B</button>
+                <!-- Italic -->
+                <button onclick="toggleStyle(${r.id}, 'is_italic')" class="w-6 h-6 rounded text-[11px] italic font-serif font-semibold border transition ${r.is_italic ? 'bg-slate-900 text-white border-slate-900 shadow-2xs' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}" title="Miring (Italic)">I</button>
+                <!-- Percentage % -->
+                <button onclick="toggleStyle(${r.id}, 'is_percentage')" class="w-6 h-6 rounded text-[11px] font-bold border transition ${r.is_percentage ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs ring-1 ring-emerald-500' : 'bg-white text-slate-500 border-slate-200 hover:text-emerald-700 hover:bg-emerald-50'}" title="${r.is_percentage ? 'Format Persentase (%) Aktif' : 'Format Nilai sebagai Persentase (%)'}">%</button>
+                <!-- Hide -->
+                <button onclick="toggleStyle(${r.id}, 'is_hidden')" class="w-6 h-6 rounded text-xs border flex items-center justify-center transition ${r.is_hidden ? 'bg-rose-100 text-rose-700 border-rose-300 ring-1 ring-rose-400' : 'bg-white text-slate-400 border-slate-200 hover:text-slate-800 hover:bg-slate-100'}" title="${r.is_hidden ? 'Baris Disembunyikan (Hanya untuk kalkulasi formula internal)' : 'Sembunyikan baris di laporan akhir'}">${r.is_hidden ? '🚫' : '👁'}</button>
+                <!-- Indent Stepper -->
+                <div class="flex items-center space-x-0.5 bg-slate-50 border border-slate-200 rounded p-0.5" title="Level Indentasi (Menjorok ke dalam)">
+                    <button onclick="changeIndent(${r.id}, -1)" ${r.indent_level <= 0 ? 'disabled' : ''} class="w-4 h-5 flex items-center justify-center text-[10px] font-bold text-slate-500 hover:bg-white rounded disabled:opacity-20 transition">⇤</button>
+                    <span class="w-3 text-center text-[10px] font-mono font-bold text-slate-700">${r.indent_level || 0}</span>
+                    <button onclick="changeIndent(${r.id}, 1)" ${r.indent_level >= 4 ? 'disabled' : ''} class="w-4 h-5 flex items-center justify-center text-[10px] font-bold text-slate-500 hover:bg-white rounded disabled:opacity-20 transition">⇥</button>
                 </div>
-                `;
-            } else {
-                labelInput = `<input type="text" oninput="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs font-semibold text-slate-800 bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none" placeholder="Label baris...">`;
-            }
+                <!-- Color Picker -->
+                <div class="flex items-center space-x-0.5" title="Warna Latar Baris">
+                    <input type="color" onchange="updateBgColor(${r.id}, this.value)" value="${(r.bg_color && r.bg_color.startsWith('#')) ? r.bg_color : '#ffffff'}" class="w-6 h-6 p-0 border border-slate-200 rounded cursor-pointer bg-white">
+                    ${(r.bg_color && r.bg_color !== 'transparent' && r.bg_color !== '#ffffff') ? `
+                    <button onclick="updateBgColor(${r.id}, 'transparent')" class="text-[9px] text-slate-400 hover:text-red-500 p-0.5 font-bold" title="Reset warna">✕</button>
+                    ` : ''}
+                </div>
+            </div>
+            `;
+
+            let rowStyleAttr = (r.bg_color && r.bg_color !== 'transparent' && r.bg_color !== '#ffffff') ? `style="background-color: ${r.bg_color}18;"` : '';
 
             html += `
             <tr id="row-${idx}" 
@@ -764,6 +1462,7 @@
                 ondragleave="onRowDragLeave(event, ${idx})" 
                 ondrop="onRowDrop(event, ${idx})" 
                 ondragend="onRowDragEnd(event)" 
+                ${rowStyleAttr}
                 class="${bgClass} transition group cursor-default">
                 <td class="p-3 text-center grab-handle text-slate-300 group-hover:text-blue-600 transition" title="Tahan dan geser (drag & drop) untuk ubah urutan baris">
                     <span class="inline-block text-base leading-none">⠿</span>
@@ -777,6 +1476,7 @@
                 </td>
                 <td class="p-3">${labelInput}</td>
                 <td class="p-3">${inputHtml}</td>
+                <td class="p-3 text-center">${formatHtml}</td>
                 <td class="p-3 text-center">
                     <div class="flex items-center justify-center space-x-1">
                         <button onclick="moveRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs p-1 rounded hover:bg-slate-100 transition" title="Pindah ke Atas">▲</button>
@@ -799,17 +1499,20 @@
         selectedVessels = [match];
         renderVessels();
 
-        // 7 rows demonstrating Query (Kapasitas, Trip) + Data (Pendapatan, Solar) + Formula (Rasio per DWT, per Trip)
+        // Demonstrating Title + Query + Data (with Auto Urai COA) + Formula + Styles
         reportRows = [
-            { id: 1, code: 'K1', type: 'query', label: 'Kapasitas Kapal (DWT)', expression: 'KAPASITAS' },
-            { id: 2, code: 'T1', type: 'query', label: 'Jumlah Trip Kapal', expression: 'TRIP' },
-            { id: 3, code: 'R1', type: 'data', label: 'PENDAPATAN JASA', expression: 'TW_PENDAPATAN JASA' },
-            { id: 4, code: 'R2', type: 'data', label: 'Biaya Solar', expression: 'TW_Biaya Solar' },
-            { id: 5, code: 'R3', type: 'formula', label: 'Pendapatan per DWT Kapasitas', expression: 'R1 / K1' },
-            { id: 6, code: 'R4', type: 'formula', label: 'Pendapatan per Trip', expression: 'R1 / T1' },
-            { id: 7, code: 'R5', type: 'formula', label: 'Pendapatan per DWT per Trip', expression: 'R1 / (K1 * T1)' }
+            { id: 1, code: 'T1', type: 'title', label: 'OPERASIONAL & ARMADA KAPAL', is_bold: true, indent_level: 0, bg_color: '#F8FAFC' },
+            { id: 2, code: 'K1', type: 'query', label: 'Kapasitas Kapal (DWT)', expression: 'KAPASITAS', indent_level: 1 },
+            { id: 3, code: 'T1_Q', type: 'query', label: 'Jumlah Trip Kapal', expression: 'TRIP', indent_level: 1 },
+            { id: 4, code: 'T2', type: 'title', label: 'PENDAPATAN USAHA', is_bold: true, indent_level: 0, bg_color: '#F8FAFC' },
+            { id: 5, code: 'R1', type: 'data', label: 'PENDAPATAN JASA', expression: 'TW_PENDAPATAN JASA', auto_expand_coa: true, indent_level: 1 },
+            { id: 6, code: 'T3', type: 'title', label: 'BIAYA OPERASIONAL', is_bold: true, indent_level: 0, bg_color: '#F8FAFC' },
+            { id: 7, code: 'R2', type: 'data', label: 'Biaya Solar', expression: 'TW_Biaya Solar', auto_expand_coa: true, indent_level: 1 },
+            { id: 8, code: 'T4', type: 'title', label: 'ANALISIS KINERJA & RASIO', is_bold: true, indent_level: 0, bg_color: '#F8FAFC' },
+            { id: 9, code: 'R3', type: 'formula', label: 'Pendapatan per DWT Kapasitas', expression: 'R1 / K1', is_bold: true, indent_level: 1, bg_color: '#E2EFDA' },
+            { id: 10, code: 'R4', type: 'formula', label: 'Pendapatan per Trip', expression: 'R1 / T1_Q', is_bold: true, indent_level: 1, bg_color: '#E2EFDA' }
         ];
-        rowCounter = 7;
+        rowCounter = 10;
         renderRows();
         
         // Automatically trigger preview for instant gratification!
@@ -878,8 +1581,11 @@
             return;
         }
         if (selectedVessels.length === 0) {
-            alert("Pilih minimal 1 kapal untuk kolom laporan!");
-            return;
+            if (confirm("Tidak ada kapal yang dipilih. Apakah Anda ingin menghitung sebagai Laporan Head Office (HO)?")) {
+                selectHoMode();
+            } else {
+                return;
+            }
         }
         if (reportRows.length === 0) {
             alert("Tambahkan minimal 1 baris laporan!");
@@ -929,62 +1635,167 @@
         }
     }
 
+    let isCompactMode = true;
+    let isFullscreenMatrix = false;
+
+    function toggleCompactMode() {
+        isCompactMode = !isCompactMode;
+        let btn = document.getElementById('btn-toggle-compact');
+        let text = document.getElementById('compact-text');
+        let icon = document.getElementById('compact-icon');
+        if (isCompactMode) {
+            btn.className = "inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg transition active:scale-95 shadow-2xs";
+            text.innerText = "Compact Mode: ON";
+            icon.innerText = "🗜️";
+        } else {
+            btn.className = "inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition active:scale-95 shadow-2xs";
+            text.innerText = "Compact Mode: OFF";
+            icon.innerText = "🔳";
+        }
+        if (lastMatrixData) {
+            renderMatrix(lastMatrixData);
+        }
+    }
+
+    function toggleFullscreenMatrix() {
+        let previewSec = document.getElementById('preview-section');
+        let fsBadge = document.getElementById('fullscreen-badge');
+        let fsBtn = document.getElementById('btn-toggle-fullscreen');
+        let fsText = document.getElementById('fs-text');
+        let fsIcon = document.getElementById('fs-icon');
+
+        isFullscreenMatrix = !isFullscreenMatrix;
+        if (isFullscreenMatrix) {
+            previewSec.classList.add('is-fullscreen');
+            document.body.classList.add('overflow-hidden');
+            if (fsBadge) fsBadge.classList.remove('hidden');
+            if (fsBtn) {
+                fsBtn.className = "inline-flex items-center space-x-1.5 text-xs font-bold px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm transition active:scale-95";
+                fsText.innerText = "Tutup Layar Penuh (Esc)";
+                fsIcon.innerText = "✖";
+            }
+        } else {
+            previewSec.classList.remove('is-fullscreen');
+            document.body.classList.remove('overflow-hidden');
+            if (fsBadge) fsBadge.classList.add('hidden');
+            if (fsBtn) {
+                fsBtn.className = "inline-flex items-center space-x-1.5 text-xs font-bold px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-xs transition active:scale-95";
+                fsText.innerText = "Layar Penuh";
+                fsIcon.innerText = "⛶";
+            }
+        }
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isFullscreenMatrix) {
+            toggleFullscreenMatrix();
+        }
+    });
+
     function renderMatrix(matrix) {
+        lastMatrixData = matrix;
         let container = document.getElementById('preview-matrix-container');
         if (!matrix.header || !matrix.body) {
             container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Data tidak lengkap</div>';
             return;
         }
 
+        let showHidden = document.getElementById('toggle-show-hidden') ? document.getElementById('toggle-show-hidden').checked : false;
+
         let h0 = matrix.header[0] || [];
         let h1 = matrix.header[1] || [];
 
-        let th0Html = '<th class="p-3 text-left font-bold text-slate-700 bg-slate-100 border-b border-r border-slate-200 sticky left-0 z-20 min-w-[220px]">Komponen Finansial</th>';
+        // Dynamic compact styling tokens
+        let th0Pad = isCompactMode ? 'py-1.5 px-2 text-[11px]' : 'p-3 text-xs';
+        let th1Pad = isCompactMode ? 'py-1 px-1.5 text-[10px]' : 'p-2 text-[11px]';
+        let minColWidth = isCompactMode ? 'min-w-[85px]' : 'min-w-[120px]';
+        let minLabelWidth = isCompactMode ? 'min-w-[190px]' : 'min-w-[220px]';
+        let cellPad = isCompactMode ? 'py-1 px-2 text-[11px] leading-tight font-mono' : 'p-2.5 text-xs font-mono';
+        let labelPad = isCompactMode ? 'py-1 px-2 text-[11px] leading-tight' : 'p-2.5 text-xs';
+        let th1Top = isCompactMode ? 'top-[29px]' : 'top-[41px]';
+
+        let th0Html = `<th class="${th0Pad} text-left font-bold text-slate-700 bg-slate-100 border-b border-r border-slate-200 sticky left-0 top-0 z-40 ${minLabelWidth}">Komponen Finansial</th>`;
         h0.forEach(h => {
-            th0Html += `<th colspan="${h.colspan || 1}" class="p-3 text-center font-bold text-slate-800 bg-slate-100 border-b border-r border-slate-200 text-xs">${h.label || ''}</th>`;
+            th0Html += `<th colspan="${h.colspan || 1}" class="${th0Pad} text-center font-bold text-slate-800 bg-slate-100 border-b border-r border-slate-200 sticky top-0 z-20">${h.label || ''}</th>`;
         });
 
-        let th1Html = '<th class="p-2 text-left font-semibold text-slate-400 bg-slate-50 border-b border-r border-slate-200 sticky left-0 z-20 text-[11px]">Periode</th>';
+        let th1Html = `<th class="${th1Pad} text-left font-semibold text-slate-400 bg-slate-50 border-b border-r border-slate-200 sticky left-0 ${th1Top} z-40">Periode</th>`;
         h1.forEach(h => {
             let isYtd = (h.label || '').toUpperCase() === 'YTD';
             let bg = isYtd ? 'bg-blue-50/80 text-blue-900 font-bold' : 'bg-slate-50 text-slate-600 font-semibold';
-            th1Html += `<th class="p-2 text-right border-b border-r border-slate-200 text-[11px] min-w-[120px] ${bg}">${h.label || ''}</th>`;
+            th1Html += `<th class="${th1Pad} text-right border-b border-r border-slate-200 sticky ${th1Top} z-20 ${minColWidth} ${bg}">${h.label || ''}</th>`;
         });
 
         let bodyHtml = '';
         matrix.body.forEach((r, idx) => {
-            let isBold = (r.style || '').includes('font-weight: bold');
-            let isHighlight = (r.style || '').includes('background-color: #E2EFDA') || r.label.toLowerCase().includes('laba');
-            let isItalic = (r.style || '').includes('font-style: italic');
-            
-            let indentStyle = '';
-            if ((r.style || '').includes('text-indent: 4em')) {
-                indentStyle = 'padding-left: 3rem;';
-            } else if ((r.style || '').includes('text-indent: 2em') || (r.style || '').includes('text-indent: 3em')) {
-                indentStyle = 'padding-left: 2rem;';
-            } else if ((r.style || '').includes('text-indent: 1em')) {
-                indentStyle = 'padding-left: 1rem;';
+            let isHidden = r.is_hidden || (r.style || '').includes('display: none');
+            if (isHidden && !showHidden) {
+                return;
             }
 
-            let rowClass = isHighlight ? 'bg-emerald-50/40 font-bold text-emerald-950' : (isBold ? 'bg-slate-50/70 font-semibold text-slate-900' : 'hover:bg-slate-50/60 text-slate-700');
-            let labelClass = isHighlight ? 'bg-emerald-50 text-emerald-950' : (isBold ? 'bg-slate-50 text-slate-900' : 'bg-white text-slate-800');
+            let isTitle = r.row_type === 'title';
+            let isBold = (r.style || '').includes('font-weight: bold') || isTitle;
+            let isItalic = (r.style || '').includes('font-style: italic');
+            
+            // Extract custom background color
+            let customBgMatch = (r.style || '').match(/background-color:\s*([^;]+)/);
+            let customBg = customBgMatch ? customBgMatch[1].trim() : '';
+
+            // Extract indent
+            let indentStyle = '';
+            let indentMatch = (r.style || '').match(/text-indent:\s*([0-9.]+)\s*em/);
+            if (indentMatch) {
+                indentStyle = `padding-left: ${parseFloat(indentMatch[1]) * 0.75}rem;`;
+            } else if ((r.style || '').includes('text-indent: 4em')) {
+                indentStyle = 'padding-left: 3rem;';
+            } else if ((r.style || '').includes('text-indent: 2em')) {
+                indentStyle = 'padding-left: 1.5rem;';
+            } else if ((r.style || '').includes('text-indent: 1em')) {
+                indentStyle = 'padding-left: 0.75rem;';
+            }
+
+            let inlineStyle = customBg ? `background-color: ${customBg};` : '';
+            
+            let rowClass = isTitle ? 'bg-slate-100/90 font-bold text-slate-900 border-t border-slate-300' : 
+                (customBg ? 'font-semibold text-slate-900' : 
+                (isBold ? 'bg-slate-50/70 font-semibold text-slate-900' : 'hover:bg-slate-50/60 text-slate-700'));
+            
+            let labelClass = isTitle ? 'bg-slate-100 font-bold text-slate-900 uppercase tracking-wide' : 
+                (customBg ? 'text-slate-900 font-semibold' : 
+                (isBold ? 'bg-slate-50 text-slate-900' : 'bg-white text-slate-800'));
+                
             if (isItalic) {
                 labelClass += ' italic text-slate-600 font-normal';
+            }
+            if (isHidden) {
+                rowClass += ' opacity-50';
             }
 
             let cellsHtml = '';
             (r.cells || []).forEach((c, cIdx) => {
                 let colH1 = h1[cIdx] ? (h1[cIdx].label || '').toUpperCase() : '';
                 let isYtd = colH1 === 'YTD';
-                let cellBg = isYtd && !isHighlight ? 'bg-blue-50/20' : '';
-                let valStr = c.val_r !== undefined ? c.val_r : (c.val || '-');
-                cellsHtml += `<td class="p-2.5 text-right font-mono text-xs border-b border-r border-slate-200/80 ${cellBg} ${isItalic ? 'italic text-slate-600' : ''}">${valStr}</td>`;
+                let cellBg = (isYtd && !customBg && !isTitle) ? 'bg-blue-50/20' : '';
+                let valStr = isTitle ? '' : (c.val_r !== undefined ? c.val_r : (c.val || '-'));
+                let isPct = r.is_percentage || (r.label || '').trim().startsWith('%') || (r.label || '').trim().endsWith('%') || (r.label || '').toUpperCase().includes('PERSEN');
+                if (isPct && !isTitle && valStr && !String(valStr).includes('%') && valStr !== '-') {
+                    let num = parseFloat(c.val !== undefined && c.val !== null ? c.val : valStr);
+                    if (!isNaN(num)) {
+                        let pctVal = (Math.abs(num) <= 1.0 && num !== 0) ? (num * 100) : num;
+                        valStr = pctVal.toFixed(2) + ' %';
+                    }
+                }
+                cellsHtml += `<td class="${cellPad} text-right border-b border-r border-slate-200/80 ${cellBg} ${isItalic ? 'italic text-slate-600' : ''}" style="${inlineStyle}">${valStr}</td>`;
             });
 
             bodyHtml += `
-            <tr class="${rowClass} transition">
-                <td class="p-2.5 text-xs border-b border-r border-slate-200 sticky left-0 z-10 ${labelClass} truncate" style="${indentStyle}" title="${r.label}">
-                    ${isItalic && indentStyle ? '<span class="text-slate-300 font-mono text-[10px] mr-1.5 not-italic">↳</span>' : ''}${r.label}
+            <tr class="${rowClass} transition" style="${inlineStyle}">
+                <td class="${labelPad} border-b border-r border-slate-200 sticky left-0 z-10 ${labelClass} truncate" style="${indentStyle} ${inlineStyle}" title="${r.label}">
+                    ${isItalic && indentStyle ? '<span class="text-slate-300 font-mono text-[10px] mr-1.5 not-italic">↳</span>' : ''}
+                    ${isTitle ? '<span class="mr-1.5 text-slate-500">📌</span>' : ''}
+                    ${r.label}
+                    ${r.is_percentage ? '<span class="ml-1 px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 not-italic">%</span>' : ''}
+                    ${isHidden ? '<span class="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-rose-50 text-rose-600 border border-rose-200 not-italic">Hidden</span>' : ''}
                 </td>
                 ${cellsHtml}
             </tr>
@@ -992,7 +1803,7 @@
         });
 
         container.innerHTML = `
-        <table class="w-full text-left border-collapse">
+        <table class="w-full text-left matrix-table">
             <thead>
                 <tr>${th0Html}</tr>
                 <tr>${th1Html}</tr>
@@ -1008,5 +1819,57 @@
         initBuilder();
     });
 </script>
+
+<!-- Modal Kelola Armada Kapal -->
+<div id="fleet-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>⛴️</span> Kelola Armada Kapal
+                </h3>
+                <p class="text-xs text-slate-500">Pilih kapal yang akan dimasukkan sebagai kolom kuartal pada laporan ini.</p>
+            </div>
+            <button onclick="closeFleetModal()" class="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg">✕</button>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="p-4 border-b border-slate-100 space-y-3 bg-white">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <!-- Filter Tabs -->
+                <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                    <button type="button" onclick="filterFleetModal('all')" id="fleet-tab-all" class="px-3 py-1 rounded-lg bg-white shadow-2xs text-slate-900 font-bold">Semua (<span id="modal-tab-all-count">0</span>)</button>
+                    <button type="button" onclick="filterFleetModal('bms')" id="fleet-tab-bms" class="px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 font-semibold"><span id="modal-tab-bms-label">Kapal Internal</span> (<span id="modal-tab-bms-count">0</span>)</button>
+                    <button type="button" onclick="filterFleetModal('non_bms')" id="fleet-tab-non-bms" class="px-3 py-1 rounded-lg text-slate-600 hover:text-slate-900 font-semibold"><span id="modal-tab-non-label">Non-Internal</span> (<span id="modal-tab-non-count">0</span>)</button>
+                </div>
+                <!-- Quick Check Actions -->
+                <div class="flex items-center space-x-2 text-xs">
+                    <button type="button" onclick="modalSelectAllVisible(true)" class="text-blue-600 hover:underline font-bold">Pilih Semua Tab Ini</button>
+                    <span class="text-slate-300">|</span>
+                    <button type="button" onclick="modalSelectAllVisible(false)" class="text-slate-500 hover:underline font-bold">Batal Pilih</button>
+                </div>
+            </div>
+            <!-- Search -->
+            <input type="text" id="fleet-modal-search" oninput="searchFleetModal(this.value)" placeholder="Cari nama kapal..." class="w-full text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 bg-slate-50">
+        </div>
+
+        <!-- Vessel List (Checkbox Grid) -->
+        <div id="fleet-modal-list" class="p-4 overflow-y-auto custom-scrollbar flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+            <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
+            <div class="text-xs text-slate-600 font-semibold">
+                Terpilih: <span id="modal-selected-summary" class="font-bold text-blue-600">0 Kapal</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button type="button" onclick="closeFleetModal()" class="px-3.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold">Batal</button>
+                <button type="button" onclick="applyFleetModal()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs">Terapkan Pilihan</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

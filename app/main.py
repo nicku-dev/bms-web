@@ -132,10 +132,10 @@ async def api_get_companies(request: Request):
         user = db.query(User).filter(User.username == username, User.is_active == True).first()
         companies_data = []
         if user and user.company_id:
-            companies_data = [{"id": user.company.id, "name": user.company.name}]
+            companies_data = [{"id": user.company.id, "name": user.company.name, "initial_pt": user.company.initial_pt}]
         else:
             companies = db.query(Company).filter(Company.is_active == True).all()
-            companies_data = [{"id": c.id, "name": c.name} for c in companies]
+            companies_data = [{"id": c.id, "name": c.name, "initial_pt": c.initial_pt} for c in companies]
         return {"status": "success", "companies": companies_data}
     finally:
         db.close()
@@ -175,6 +175,11 @@ class CompanyRequest(BaseModel):
     target_db_name: str
     odoo_user: Optional[str] = None
     odoo_password: Optional[str] = None
+    db_host: Optional[str] = None
+    db_port: Optional[int] = None
+    db_user: Optional[str] = None
+    db_password: Optional[str] = None
+    ssh_host: Optional[str] = None
 
 class TestConnectionRequest(BaseModel):
     server_url: str
@@ -370,7 +375,12 @@ async def api_admin_companies(include_inactive: bool = False):
             "server_url": c.server_url,
             "target_db_name": c.target_db_name,
             "odoo_user": c.odoo_user,
-            "odoo_password": "🔑 Tersimpan rahasia" if c.odoo_password else ""
+            "odoo_password": "🔑 Tersimpan rahasia" if c.odoo_password else "",
+            "db_host": c.db_host or "",
+            "db_port": c.db_port or 5432,
+            "db_user": c.db_user or "",
+            "db_password": "🔑 Tersimpan rahasia" if c.db_password else "",
+            "ssh_host": c.ssh_host or ""
         })
     return {"status": "success", "data": data}
 
@@ -383,7 +393,12 @@ async def api_admin_add_company(req: CompanyRequest):
         server_url=req.server_url,
         target_db_name=req.target_db_name,
         odoo_user=req.odoo_user,
-        odoo_password=req.odoo_password
+        odoo_password=req.odoo_password,
+        db_host=req.db_host,
+        db_port=req.db_port or 5432,
+        db_user=req.db_user,
+        db_password=req.db_password,
+        ssh_host=req.ssh_host
     )
     db.add(c)
     db.commit()
@@ -396,6 +411,11 @@ class CompanyEditRequest(BaseModel):
     target_db_name: str
     odoo_user: Optional[str] = None
     odoo_password: Optional[str] = None
+    db_host: Optional[str] = None
+    db_port: Optional[int] = None
+    db_user: Optional[str] = None
+    db_password: Optional[str] = None
+    ssh_host: Optional[str] = None
 
 @app.put("/api/admin/companies/{company_id}")
 async def api_admin_edit_company(company_id: int, req: CompanyEditRequest):
@@ -411,6 +431,16 @@ async def api_admin_edit_company(company_id: int, req: CompanyEditRequest):
     c.odoo_user = req.odoo_user
     if req.odoo_password:
         c.odoo_password = req.odoo_password
+    if req.db_host is not None:
+        c.db_host = req.db_host
+    if req.db_port is not None:
+        c.db_port = req.db_port
+    if req.db_user is not None:
+        c.db_user = req.db_user
+    if req.db_password:
+        c.db_password = req.db_password
+    if req.ssh_host is not None:
+        c.ssh_host = req.ssh_host
         
     db.commit()
     return {"status": "success", "message": "Perusahaan berhasil diperbarui"}
@@ -817,7 +847,8 @@ async def api_odoo_compute_booster(req: Request):
             year=year, 
             report_type=report_type, 
             odoo_report_id=t.odoo_report_id,
-            template_name=t.report_name
+            template_name=t.report_name,
+            pg_kwargs=company.get_pg_kwargs()
         )
         compiled = compiler.compile(matrix)
         
@@ -900,7 +931,8 @@ async def api_generate_report(req: ReportRequest, request: Request):
                 year=year, 
                 report_type=report_type, 
                 odoo_report_id=odoo_report_id,
-                template_name=req.template_name
+                template_name=req.template_name,
+                pg_kwargs=company.get_pg_kwargs()
             )
             matrix = compiler.compile(matrix)
         except Exception as e:
@@ -982,7 +1014,7 @@ async def api_get_audit_trail(
             return JSONResponse(status_code=400, content={"status": "error", "message": "Perusahaan tidak ditemukan."})
 
         from app.engine import ReportEngine
-        engine = ReportEngine(db_name=company.target_db_name)
+        engine = ReportEngine(db_name=company.target_db_name, pg_kwargs=company.get_pg_kwargs())
         
         # Quarter can be 'q1', 'q2', 'q3', 'q4', or 'ytd'
         data = engine.get_audit_trail(
@@ -1180,7 +1212,7 @@ async def api_reference_queries(request: Request):
                 continue
                 
             try:
-                engine = ReportEngine(comp.target_db_name)
+                engine = ReportEngine(comp.target_db_name, pg_kwargs=comp.get_pg_kwargs())
                 
                 try:
                     # Look for BMS or FPS report
@@ -1262,7 +1294,11 @@ async def execute_checker_query(payload: CheckerQuery):
     from app.engine import ReportEngine
     import math
     try:
-        engine = ReportEngine(payload.db_name)
+        db = SessionLocal()
+        comp = db.query(Company).filter(Company.target_db_name == payload.db_name).first()
+        pg_kwargs = comp.get_pg_kwargs() if comp else None
+        db.close()
+        engine = ReportEngine(payload.db_name, pg_kwargs=pg_kwargs)
         
         # Base query
         query = """

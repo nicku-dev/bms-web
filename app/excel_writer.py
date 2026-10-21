@@ -131,6 +131,8 @@ class ExcelWriter:
         body = self.matrix.get('body', [])
         for row_data in body:
             raw_style = row_data.get('style', '')
+            if row_data.get('is_hidden') or 'display: none' in raw_style:
+                continue
             row_style = self._parse_style(raw_style)
             label = str(row_data.get('label', ''))
             trimmed_label = label.strip()
@@ -212,6 +214,8 @@ class ExcelWriter:
                         numeric_val = float(cleaned_val)
                         if abs(numeric_val) < 0.005:
                             numeric_val = 0.0
+                        elif num_format == percent_num_format and abs(numeric_val) > 1.0:
+                            numeric_val = numeric_val / 100.0
                         worksheet.write_number(current_row, col_idx, numeric_val, cell_fmt)
                     except (ValueError, TypeError):
                         worksheet.write_string(current_row, col_idx, str(val), cell_fmt)

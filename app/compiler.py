@@ -89,7 +89,15 @@ class FastMatrixCompiler:
                     'period': str(h.get('label', h.get('val', ''))).strip().lower()
                 })
         
+        # Extract unique vessels present in the report (excluding TOTAL and Head Office)
+        report_vessels = list(dict.fromkeys([
+            col['vessel_name'].replace('Kapal - ', '').strip()
+            for col in col_map 
+            if col.get('vessel_name') and 'TOTAL' not in col['vessel_name'].upper() and 'HEAD OFFICE' not in col['vessel_name'].upper()
+        ]))
+
         tpj_semua = self.engine.get_kpi_tpj_semua(self.year)
+        tpj_terpilih = self.engine.get_kpi_tpj_kapal_terpilih(self.year, vessel_names=report_vessels)
         
         env_vars = [{} for _ in range(len(col_map))]
 
@@ -175,6 +183,8 @@ class FastMatrixCompiler:
                             vessel_df = df[df['vessel_name'] == clean_vessel]
                             if vessel_df.empty:
                                 vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
+                            if vessel_df.empty and 'ALL' in df['vessel_name'].values:
+                                vessel_df = df[df['vessel_name'] == 'ALL']
                             
                         if not vessel_df.empty:
                             if period in ['q1', 'q2', 'q3', 'q4']:
@@ -213,6 +223,12 @@ class FastMatrixCompiler:
 
         # STEP 2.5: Calculate "Total Kapal Terpilih" base values by summing ship columns and copying val_c
         for row in matrix.get('body', []):
+            if row.get('row_type') == 'title':
+                for cell in row.get('cells', []):
+                    cell['val'] = None
+                    cell['val_r'] = ''
+                continue
+
             cells = row.get('cells', [])
             if not cells: continue
             
@@ -226,6 +242,10 @@ class FastMatrixCompiler:
                     cells[i]['val_c'] = base_val_c
 
                 if 'TOTAL' in col['vessel_name'].upper():
+                    # Formula rows and percentage rows should be evaluated via formula in Step 4, not summed linearly
+                    if row.get('row_type') == 'formula' or row.get('is_percentage'):
+                        continue
+
                     period = col['period']
                     # Find all ship columns for this period
                     ship_cols = [j for j, c in enumerate(col_map) if c['period'] == period and 'TOTAL' not in c['vessel_name'].upper()]
@@ -277,7 +297,8 @@ class FastMatrixCompiler:
                 # Also register row name and aliases if available
                 row_name = str(row.get('name') or '').strip()
                 if row_name:
-                    env_vars[i][row_name] = _num(cell.get('val', 0.0))
+                    if row_name not in env_vars[i] or not row.get('is_child'):
+                        env_vars[i][row_name] = _num(cell.get('val', 0.0))
                 
                 query_code_r = str(row.get('query_code') or '').upper()
                 if 'KAPASITAS' in label or query_code_r == 'KAPASITAS':
@@ -298,7 +319,7 @@ class FastMatrixCompiler:
                 p = col['period']
                 period_sums[p] = period_sums.get(p, 0.0) + float(env_vars[i].get('tpj') or 0.0)
 
-        # Build tpj_semua values to the environment
+        # Build tpj_semua and tpj_terpilih values to the environment
         for i, col in enumerate(col_map):
             period = col['period']
             if not tpj_semua.empty:
@@ -310,12 +331,26 @@ class FastMatrixCompiler:
                     env_vars[i]['tpj_semua'] = tpj_semua['value'].sum()
             else:
                 env_vars[i]['tpj_semua'] = period_sums.get(period, 0.0)
+
+            if not tpj_terpilih.empty:
+                if period in ['q1', 'q2', 'q3', 'q4']:
+                    q_num = int(period[1])
+                    val_terpilih = tpj_terpilih[tpj_terpilih['quarter'] == q_num]['value'].sum()
+                    env_vars[i]['tpj_terpilih'] = val_terpilih
+                elif period == 'ytd' or period == 'total':
+                    env_vars[i]['tpj_terpilih'] = tpj_terpilih['value'].sum()
+            else:
+                env_vars[i]['tpj_terpilih'] = period_sums.get(period, 0.0)
                 
             tpj = float(env_vars[i].get('tpj') or 0.0)
             tpj_s = float(env_vars[i].get('tpj_semua') or 0.0)
+            tpj_t = float(env_vars[i].get('tpj_terpilih') or 0.0)
             if self.report_type == 'ho' or self.is_non_bms:
                 env_vars[i]['prop_tpj'] = 0.0
                 env_vars[i]['ptpj'] = 0.0
+            elif tpj_t != 0:
+                env_vars[i]['prop_tpj'] = tpj / tpj_t
+                env_vars[i]['ptpj'] = tpj / tpj_t
             elif tpj_s != 0:
                 env_vars[i]['prop_tpj'] = tpj / tpj_s
                 env_vars[i]['ptpj'] = tpj / tpj_s
@@ -323,9 +358,15 @@ class FastMatrixCompiler:
                 env_vars[i]['prop_tpj'] = 0.0
                 env_vars[i]['ptpj'] = 0.0
 
+            env_vars[i]['prop_tpj_terpilih'] = (tpj / tpj_t) if tpj_t != 0 else 0.0
+            env_vars[i]['kpi_tpj_semua'] = env_vars[i]['tpj_semua']
+            env_vars[i]['kpi_tpj_terpilih'] = env_vars[i]['tpj_terpilih']
+
         # Proporsional TPJ row insertion logic
         for row in matrix.get('body', []):
             label = str(row.get('label', '')).upper()
+            query_code = str(row.get('query_code') or '').upper()
+            row_name = str(row.get('name') or '').strip()
             if 'TPJ PER KAPAL' in label:
                 if self.report_type == 'ho' or self.is_non_bms:
                     for cell in row.get('cells', []):
@@ -337,19 +378,38 @@ class FastMatrixCompiler:
                             val = env_vars[i].get('tpj', 0.0)
                             cell['val'] = val
                             cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
-            elif 'TPJ SEMUA KAPAL' in label:
+                            if row_name:
+                                env_vars[i][row_name] = val
+                                env_vars[i][row_name.lower()] = val
+            elif 'TPJ SEMUA KAPAL' in label or query_code == 'TPJ_SEMUA':
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
                         val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('tpj_semua', 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+                        if row_name:
+                            env_vars[i][row_name] = val
+                            env_vars[i][row_name.lower()] = val
             
+            elif 'TPJ KAPAL TERPILIH' in label or 'TPJ TERPILIH' in label or query_code in ['TPJ_TERPILIH', 'TPJ_KAPAL_TERPILIH']:
+                for i, cell in enumerate(row.get('cells', [])):
+                    if i < len(env_vars):
+                        val = 0.0 if (self.report_type == 'ho') else env_vars[i].get('tpj_terpilih', 0.0)
+                        cell['val'] = val
+                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+                        if row_name:
+                            env_vars[i][row_name] = val
+                            env_vars[i][row_name.lower()] = val
+
             elif 'PROPORTIONAL TPJ' in label or 'PROPORSIONAL TPJ' in label:
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
                         val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('prop_tpj', 0.0)
                         cell['val'] = val
                         cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
+                        if row_name:
+                            env_vars[i][row_name] = val
+                            env_vars[i][row_name.lower()] = val
 
             # MARGIN LABA logic
             elif 'MARGIN' in label and 'LABA' in label:
@@ -395,7 +455,7 @@ class FastMatrixCompiler:
                 label_upper = str(row.get('label', '')).upper()
                 
                 # Prevent Odoo algebraic formulas from overwriting KPI data
-                kpi_labels = ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']
+                kpi_labels = ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'TPJ KAPAL TERPILIH', 'TPJ TERPILIH', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']
                 if label_upper in kpi_labels or row.get('row_type') == 'query' or row.get('query_code'):
                     continue
                     
@@ -456,11 +516,23 @@ class FastMatrixCompiler:
                             if var_owner.get((i, var_name)) == row_idx:
                                 env_vars[i][var_name] = val
 
-                            # Format as percentage only if the label starts or ends with %
-                            # (Avoids matching descriptive labels like "Beban Pajak Final (1,2% dari Pendapatan)")
-                            if label_upper.strip().startswith('%') or label_upper.strip().endswith('%'):
+                            # Format as percentage if is_percentage flag is set or label begins/ends with %
+                            is_pct = bool(
+                                row.get('is_percentage') or 
+                                row.get('format') == 'percentage' or 
+                                label_upper.strip().startswith('%') or 
+                                label_upper.strip().endswith('%') or
+                                'PERSEN' in label_upper
+                            )
+                            if is_pct:
                                 cell['val'] = val
-                                cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
+                                # Smart scaling: if already multiplied by 100 or scale is already in percentages (> 1.0)
+                                expr_str = str(cell.get('val_c', '')).lower()
+                                if '* 100' in expr_str or '*100' in expr_str or abs(val) > 1.0:
+                                    pct_val = val
+                                else:
+                                    pct_val = val * 100
+                                cell['val_r'] = "{:,.2f} %".format(pct_val) if abs(val) >= 0.00005 else ("0.00 %" if val == 0 else "-")
                             else:
                                 cell['val'] = val
                                 cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"

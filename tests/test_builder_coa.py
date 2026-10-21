@@ -100,3 +100,48 @@ def test_builder_preview_with_coa_hierarchy():
         assert r2["cells"][2]["val"] == 1.0
     finally:
         db.close()
+
+def test_builder_preview_with_auto_expand_coa():
+    db = SessionLocal()
+    try:
+        payload = PreviewRequest(
+            company_id=2,
+            year="2026",
+            vessels=[{"id": 75, "name": "TB.BMS 004/TK.BMS 004A"}],
+            rows=[
+                {
+                    "id": 1,
+                    "code": "R1",
+                    "type": "data",
+                    "label": "PENDAPATAN JASA",
+                    "expression": "TW_PENDAPATAN JASA",
+                    "auto_expand_coa": True
+                }
+            ]
+        )
+        res = preview_template(payload, db=db)
+        assert res["status"] == "success"
+        body = res["data"]["body"]
+        
+        # Must have parent + dynamically expanded child accounts
+        assert len(body) > 1
+        
+        # First row is parent
+        assert body[0]["name"] == "R1"
+        assert body[0]["label"] == "PENDAPATAN JASA"
+        assert body[0]["cells"][2]["val"] == 7651793200.0 # Q3 parent
+        
+        # Child rows must exist and be tagged with is_child
+        child_rows = [r for r in body if r.get("is_child")]
+        assert len(child_rows) >= 3
+        child_labels = [r["label"] for r in child_rows]
+        assert any("4000011000" in lbl for lbl in child_labels)
+        assert any("5000092000" in lbl for lbl in child_labels)
+        
+        # Value of 4000011000 child row must equal 7651793200.0
+        acc_4000 = next(r for r in child_rows if "4000011000" in r["label"])
+        assert acc_4000["cells"][2]["val"] == 7651793200.0
+        assert "font-style: italic" in acc_4000["style"]
+    finally:
+        db.close()
+

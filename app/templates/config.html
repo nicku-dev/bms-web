@@ -333,6 +333,31 @@
               <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wide">6. Password Odoo</label>
               <input type="password" id="form-pass" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Ketik password (Kosongkan jika tidak diubah)">
             </div>
+            <div class="border-t border-gray-200 pt-3">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">⚡ Database OLAP & SSH Tunnel (Opsional)</span>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700">Host PostgreSQL</label>
+                  <input type="text" id="form-db-host" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs" placeholder="Default: 10.100.1.61">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700">Port PostgreSQL</label>
+                  <input type="number" id="form-db-port" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs" placeholder="5432">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700">User PostgreSQL</label>
+                  <input type="text" id="form-db-user" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs" placeholder="Default: bms_readonly">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700">Password PostgreSQL</label>
+                  <input type="password" id="form-db-pass" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs" placeholder="Kosongkan jika default">
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-xs font-semibold text-gray-700">SSH Bastion Tunnel (user@host)</label>
+                  <input type="text" id="form-ssh-host" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-1.5 px-3 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs" placeholder="Contoh: nicku.admin@10.110.1.8 (opsional jika direct)">
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200">
@@ -416,12 +441,14 @@
   </div>
   
   <script>
+    let companiesCache = [];
     async function loadCompanies() {
         const res = await fetch('/api/admin/companies?include_inactive=true');
         const data = await res.json();
+        companiesCache = data.data || [];
         const tbody = document.getElementById('company-table');
         tbody.innerHTML = '';
-        data.data.forEach(c => {
+        companiesCache.forEach(c => {
             tbody.innerHTML += `
               <tr class="${c.is_active ? '' : 'opacity-50'}">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.id}</td>
@@ -434,7 +461,7 @@
                   <label class="inline-flex items-center mr-4 cursor-pointer text-gray-600" title="Tampilkan di pilihan laporan">
                     <input type="checkbox" ${c.is_active ? 'checked' : ''} onchange="toggleCompanyActive(${c.id}, this.checked)" class="h-4 w-4 text-indigo-600 border-gray-300 rounded mr-1"> Aktif
                   </label>
-                  <button onclick="editCompany(${c.id}, '${c.initial_pt}', '${c.name}', '${c.server_url}', '${c.target_db_name}', '${c.odoo_user}', '${c.odoo_password}')" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                  <button onclick="editCompany(${c.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
                   <button onclick="deleteCompany(${c.id})" class="text-red-600 hover:text-red-900">Hapus</button>
                 </td>
               </tr>
@@ -449,36 +476,49 @@
         });
         loadCompanies();
     }
-    function openModal(id, initial, name, url, db, user, pass_str) {
+    function openModal(c) {
         document.getElementById('company-modal').classList.remove('hidden');
-        document.getElementById('form-company-id').value = id || '';
-        document.getElementById('form-initial').value = (initial && initial !== 'null') ? initial : '';
-        document.getElementById('form-name').value = (name && name !== 'null') ? name : '';
-        document.getElementById('form-url').value = (url && url !== 'null') ? url : 'https://odoo-fps.lenterateknologi.com';
-        document.getElementById('form-db').value = (db && db !== 'null') ? db : '';
-        document.getElementById('form-user').value = (user && user !== 'null') ? user : 'admin_dev';
+        document.getElementById('form-company-id').value = c ? c.id : '';
+        document.getElementById('form-initial').value = c ? (c.initial_pt || '') : '';
+        document.getElementById('form-name').value = c ? (c.name || '') : '';
+        document.getElementById('form-url').value = c ? (c.server_url || '') : 'https://odoo-fps.lenterateknologi.com';
+        document.getElementById('form-db').value = c ? (c.target_db_name || '') : '';
+        document.getElementById('form-user').value = c ? (c.odoo_user || '') : 'admin_dev';
         
         const passInput = document.getElementById('form-pass');
         passInput.value = '';
-        if (pass_str && pass_str !== 'null') {
+        if (c && c.odoo_password) {
             passInput.placeholder = "******** (Kosongkan jika tidak diubah)";
         } else {
             passInput.placeholder = "Ketik password odoo";
         }
+
+        document.getElementById('form-db-host').value = c ? (c.db_host || '') : '';
+        document.getElementById('form-db-port').value = c ? (c.db_port || 5432) : 5432;
+        document.getElementById('form-db-user').value = c ? (c.db_user || '') : '';
+        const dbPassInput = document.getElementById('form-db-pass');
+        dbPassInput.value = '';
+        if (c && c.db_password) {
+            dbPassInput.placeholder = "******** (Kosongkan jika tidak diubah)";
+        } else {
+            dbPassInput.placeholder = "Kosongkan jika default";
+        }
+        document.getElementById('form-ssh-host').value = c ? (c.ssh_host || '') : '';
         
-        document.getElementById('modal-title').innerText = id ? 'Edit Perusahaan' : 'Tambah Perusahaan';
+        document.getElementById('modal-title').innerText = c ? 'Edit Perusahaan' : 'Tambah Perusahaan';
     }
 
     function closeModal() {
         document.getElementById('company-modal').classList.add('hidden');
     }
     
-    function editCompany(id, curr_initial, curr_name, curr_url, curr_db, curr_user, pass_str) {
-        openModal(id, curr_initial, curr_name, curr_url, curr_db, curr_user, pass_str);
+    function editCompany(id) {
+        const c = companiesCache.find(x => x.id === id);
+        openModal(c);
     }
     
     document.getElementById('btn-add').addEventListener('click', () => {
-        openModal(null, null, null, null, null, null, null);
+        openModal(null);
     });
 
     async function testConnection() {
@@ -546,7 +586,12 @@
             server_url: server_url,
             target_db_name: target_db_name,
             odoo_user: odoo_user,
-            odoo_password: odoo_password || (id ? null : "")
+            odoo_password: odoo_password || (id ? null : ""),
+            db_host: document.getElementById('form-db-host').value.trim() || null,
+            db_port: parseInt(document.getElementById('form-db-port').value) || 5432,
+            db_user: document.getElementById('form-db-user').value.trim() || null,
+            db_password: document.getElementById('form-db-pass').value || null,
+            ssh_host: document.getElementById('form-ssh-host').value.trim() || null
         };
 
         let endpoint = '/api/admin/companies';
