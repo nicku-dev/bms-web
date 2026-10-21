@@ -207,6 +207,7 @@ class FastMatrixCompiler:
                             val = 0.0
                             
                         cell['val'] = val
+                        cell['raw_val'] = val
                         cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
 
         # STEP 2.5: Calculate "Total Kapal Terpilih" base values by summing ship columns and copying val_c
@@ -245,6 +246,7 @@ class FastMatrixCompiler:
                             total_val += v
                             
                     cells[i]['val'] = total_val
+                    cells[i]['raw_val'] = total_val
                     cells[i]['val_r'] = "{:,.2f}".format(total_val) if abs(total_val) >= 0.005 else "-"
 
         # STEP 3: Store variables to env_vars for step 4
@@ -448,6 +450,98 @@ class FastMatrixCompiler:
                     continue
                     
                 is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)
+
+                # Proportional Allocation for Auto TAG / Tag / Account rows
+                if row.get('is_proportional') and row.get('multiplier_row'):
+                    if self.report_type == 'ho':
+                        # HO report retains raw full balances without vessel division
+                        continue
+
+                    mult_name = str(row.get('multiplier_row')).strip()
+                    mult_clean = mult_name.lower()
+
+                    # Check if multiplier row is formatted as percentage
+                    mult_is_pct = False
+                    for r_check in matrix.get('body', []):
+                        r_name = str(r_check.get('name') or r_check.get('code') or '').strip().lower()
+                        if r_name == mult_clean:
+                            if r_check.get('is_percentage') or r_check.get('format') == 'percentage' or '%' in str(r_check.get('label', '')):
+                                mult_is_pct = True
+                            break
+
+                    ship_totals = {}
+                    # Calculate allocated values for each individual ship column
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i >= len(col_map):
+                            continue
+                        vessel = col_map[i]['vessel_name']
+                        period = col_map[i]['period']
+
+                        if 'total' in vessel.lower():
+                            continue
+
+                        if period in ['q1', 'q2', 'q3', 'q4']:
+                            mult_val = env_vars[i].get(mult_clean, 0.0)
+                            if mult_val == 0.0 and mult_clean in ['ptpj', 'prop_tpj', 'prop_tpj_terpilih']:
+                                mult_val = env_vars[i].get('prop_tpj', 0.0) or env_vars[i].get('ptpj', 0.0)
+
+                            if abs(mult_val) > 1.0 and (mult_is_pct or 'prop' in mult_clean or 'persen' in mult_clean):
+                                factor = mult_val / 100.0
+                            else:
+                                factor = mult_val
+
+                            raw_val = cell.get('raw_val')
+                            if raw_val is None:
+                                raw_val = cell.get('val', 0.0) or 0.0
+                                cell['raw_val'] = raw_val
+
+                            allocated = float(raw_val) * float(factor)
+                            cell['val'] = allocated
+                            cell['val_r'] = "{:,.2f}".format(allocated) if abs(allocated) >= 0.005 else "-"
+
+                            ship_totals[period] = ship_totals.get(period, 0.0) + allocated
+
+                            row_name = str(row.get('name') or '').strip()
+                            if row_name:
+                                env_vars[i][row_name] = allocated
+                                env_vars[i][row_name.lower()] = allocated
+
+                    # Calculate YTD for each individual vessel
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i >= len(col_map):
+                            continue
+                        vessel = col_map[i]['vessel_name']
+                        period = col_map[i]['period']
+                        if 'total' not in vessel.lower() and period in ['ytd', 'total']:
+                            q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel]
+                            ytd_val = sum((row['cells'][j].get('val') or 0.0) for j in q_cols)
+                            cell['val'] = ytd_val
+                            cell['val_r'] = "{:,.2f}".format(ytd_val) if abs(ytd_val) >= 0.005 else "-"
+                            row_name = str(row.get('name') or '').strip()
+                            if row_name:
+                                env_vars[i][row_name] = ytd_val
+                                env_vars[i][row_name.lower()] = ytd_val
+
+                    # Calculate Total Kapal Terpilih columns
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i >= len(col_map):
+                            continue
+                        vessel = col_map[i]['vessel_name']
+                        period = col_map[i]['period']
+                        if 'total' in vessel.lower():
+                            if period in ['q1', 'q2', 'q3', 'q4']:
+                                tot = ship_totals.get(period, 0.0)
+                                cell['val'] = tot
+                                cell['val_r'] = "{:,.2f}".format(tot) if abs(tot) >= 0.005 else "-"
+                            elif period in ['ytd', 'total']:
+                                tot_ytd = sum(ship_totals.values())
+                                cell['val'] = tot_ytd
+                                cell['val_r'] = "{:,.2f}".format(tot_ytd) if abs(tot_ytd) >= 0.005 else "-"
+                            row_name = str(row.get('name') or '').strip()
+                            if row_name:
+                                env_vars[i][row_name] = cell['val']
+                                env_vars[i][row_name.lower()] = cell['val']
+                    continue
                 
                 for i, cell in enumerate(row.get('cells', [])):
                     if i >= len(col_map):

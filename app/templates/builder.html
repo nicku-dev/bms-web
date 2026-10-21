@@ -412,11 +412,11 @@
                             <tr>
                                 <th class="p-3 w-10 text-center" title="Tahan dan geser untuk memindahkan urutan">Urutan</th>
                                 <th class="p-3 w-12 text-center">No</th>
-                                <th class="p-3 w-20">Kode</th>
+                                <th class="p-3 w-28">Kode & Jenis</th>
                                 <th class="p-3 w-60">Nama Baris / Label</th>
-                                <th class="p-3 min-w-[220px]">Sumber Data (Tag) / Rumus Formula</th>
+                                <th class="p-3 min-w-[240px]">Sumber Data (Tag) / Rumus Formula</th>
                                 <th class="p-3 w-48 text-center">Format & Gaya</th>
-                                <th class="p-3 w-24 text-center">Aksi</th>
+                                <th class="p-3 w-36 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="rows-container" class="divide-y divide-slate-100">
@@ -1154,6 +1154,12 @@
                 r.bg_color = 'transparent';
             }
         }
+        if (r.is_proportional === undefined) {
+            r.is_proportional = false;
+        }
+        if (r.multiplier_row === undefined) {
+            r.multiplier_row = '';
+        }
     }
 
     function compileRowStyle(r) {
@@ -1357,6 +1363,130 @@
         renderRows();
     }
 
+    function duplicateRow(index) {
+        if (index < 0 || index >= reportRows.length) return;
+        const orig = reportRows[index];
+        rowCounter++;
+
+        let prefix = 'R';
+        if (orig.type === 'title') prefix = 'T';
+        else if (orig.type === 'query') prefix = 'K';
+        else if (orig.type === 'account') prefix = 'A';
+
+        let newCode = `${prefix}${rowCounter}`;
+        let newLabel = orig.label ? `${orig.label} (Copy)` : `Baris ${rowCounter}`;
+
+        let newExpr = orig.expression || '';
+        if (orig.type === 'formula' && newExpr.includes('=')) {
+            let rhs = newExpr.split('=', 1)[1] ? newExpr.split('=', 1)[1].trim() : '';
+            newExpr = `${newCode} = ${rhs}`;
+        }
+
+        const copy = {
+            id: rowCounter,
+            code: newCode,
+            type: orig.type,
+            label: newLabel,
+            expression: newExpr,
+            auto_expand_coa: orig.auto_expand_coa !== undefined ? orig.auto_expand_coa : true,
+            is_proportional: !!orig.is_proportional,
+            multiplier_row: orig.multiplier_row || '',
+            is_bold: !!orig.is_bold,
+            is_italic: !!orig.is_italic,
+            is_percentage: !!orig.is_percentage,
+            is_hidden: !!orig.is_hidden,
+            indent_level: orig.indent_level || 0,
+            bg_color: orig.bg_color || 'transparent'
+        };
+
+        reportRows.splice(index + 1, 0, copy);
+        renderRows();
+
+        setTimeout(() => {
+            const el = document.getElementById(`row-${index + 1}`);
+            if (el) {
+                el.classList.add('bg-blue-100/70');
+                setTimeout(() => el.classList.remove('bg-blue-100/70'), 1500);
+            }
+        }, 60);
+    }
+
+    function changeRowType(rowId, val) {
+        let r = reportRows.find(x => x.id === rowId);
+        if (!r) return;
+
+        if (val === 'data_auto') {
+            r.type = 'data';
+            r.auto_expand_coa = true;
+            if (!r.expression || !dbTags.includes(r.expression)) {
+                r.expression = dbTags.length > 0 ? dbTags[0] : '';
+            }
+        } else if (val === 'data_manual') {
+            r.type = 'data';
+            r.auto_expand_coa = false;
+            if (!r.expression || !dbTags.includes(r.expression)) {
+                r.expression = dbTags.length > 0 ? dbTags[0] : '';
+            }
+        } else if (val === 'query') {
+            r.type = 'query';
+            r.auto_expand_coa = false;
+            r.is_proportional = false;
+            let exists = dbQueries.some(q => q.code === r.expression);
+            if (!exists) {
+                r.expression = dbQueries.length > 0 ? dbQueries[0].code : 'KAPASITAS';
+            }
+        } else if (val === 'account') {
+            r.type = 'account';
+            r.auto_expand_coa = false;
+            r.is_proportional = false;
+            let exists = dbAccounts.some(a => a.code === r.expression);
+            if (!exists) {
+                r.expression = dbAccounts.length > 0 ? dbAccounts[0].code : '';
+            }
+        } else if (val === 'formula') {
+            r.type = 'formula';
+            r.auto_expand_coa = false;
+            r.is_proportional = false;
+            if (!r.expression || !r.expression.includes('=')) {
+                r.expression = `${r.code} = `;
+            }
+        } else if (val === 'title') {
+            r.type = 'title';
+            r.expression = '';
+            r.auto_expand_coa = false;
+            r.is_proportional = false;
+            r.is_bold = true;
+            r.bg_color = '#F8FAFC';
+        }
+        renderRows();
+    }
+
+    function getMultiplierRowOptions(currentId, selectedValue) {
+        let html = '';
+        const presets = [
+            { code: 'PTPJ', label: 'PTPJ (Proporsional TPJ Terpilih)' },
+            { code: 'PROP_TPJ', label: 'PROP_TPJ (Proporsional TPJ Semua Kapal)' }
+        ];
+        html += '<optgroup label="Preset Proporsional Standar">';
+        presets.forEach(p => {
+            let sel = selectedValue === p.code ? 'selected' : '';
+            html += `<option value="${p.code}" ${sel}>${p.code} - ${p.label}</option>`;
+        });
+        html += '</optgroup>';
+
+        let otherRows = reportRows.filter(row => row.id !== currentId && row.code && row.type !== 'title');
+        if (otherRows.length > 0) {
+            html += '<optgroup label="Baris dari Template">';
+            otherRows.forEach(row => {
+                let sel = selectedValue === row.code ? 'selected' : '';
+                let labelShort = (row.label || '').substring(0, 32);
+                html += `<option value="${row.code}" ${sel}>${row.code} [${row.type.toUpperCase()}] ${labelShort}</option>`;
+            });
+            html += '</optgroup>';
+        }
+        return html;
+    }
+
     function renderRows() {
         let html = '';
         document.getElementById('row-count-badge').innerText = `${reportRows.length} Baris dikonfigurasi`;
@@ -1409,7 +1539,26 @@
             } else if (r.type === 'query') {
                 inputHtml = `<select onchange="onQuerySelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-purple-200 rounded-lg bg-white font-medium text-purple-900 focus:ring-1 focus:ring-purple-500">${queryOptions}</select>`;
             } else if (r.type === 'account') {
-                inputHtml = `<select onchange="onAccountSelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-sky-200 rounded-lg bg-white font-medium text-sky-900 focus:ring-1 focus:ring-sky-500">${accountOptions}</select>`;
+                inputHtml = `
+                <div class="flex flex-col space-y-1.5">
+                    <select onchange="onAccountSelectChange(${r.id}, this.value)" class="w-full text-xs p-1.5 border border-sky-200 rounded-lg bg-white font-medium text-sky-900 focus:ring-1 focus:ring-sky-500">${accountOptions}</select>
+                    <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
+                        <label class="inline-flex items-center space-x-1.5 cursor-pointer text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 transition select-none" title="Aktifkan untuk membagi proporsional nilai akun ini ke masing-masing kapal berdasarkan baris pengali.">
+                            <input type="checkbox" onchange="updateRow(${r.id}, 'is_proportional', this.checked); renderRows();" ${r.is_proportional ? 'checked' : ''} class="w-3.5 h-3.5 text-emerald-600 rounded focus:ring-emerald-500 border-slate-300">
+                            <span>➗ Alokasi Proporsional</span>
+                        </label>
+                        ${r.is_proportional ? `
+                        <div class="flex items-center space-x-1 bg-emerald-50/50 px-2 py-0.5 rounded border border-emerald-200">
+                            <span class="text-[10px] font-bold text-emerald-700 select-none">× Pengali:</span>
+                            <select onchange="updateRow(${r.id}, 'multiplier_row', this.value); renderRows();" class="text-[10px] font-mono font-bold py-0.5 px-1.5 border border-emerald-300 rounded bg-white text-emerald-900 focus:ring-1 focus:ring-emerald-500">
+                                <option value="">-- Pilih Baris --</option>
+                                ${getMultiplierRowOptions(r.id, r.multiplier_row)}
+                            </select>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
             } else if (r.type === 'data') {
                 let isAuto = r.auto_expand_coa !== false; // Default true for Tag rows
                 if (r.auto_expand_coa === undefined) r.auto_expand_coa = true;
@@ -1420,12 +1569,29 @@
                         <select onchange="updateRow(${r.id}, 'expression', this.value); renderRows();" class="w-full text-xs p-1.5 border border-slate-200 rounded-lg bg-white font-medium text-slate-800 focus:ring-1 focus:ring-blue-500">${tagOptions}</select>
                     </div>
                     ${canBreakdown ? `
-                    <div class="flex items-center justify-between pt-0.5">
+                    <div class="flex flex-wrap items-center justify-between gap-1 pt-0.5">
                         <label class="inline-flex items-center space-x-1.5 cursor-pointer text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80 px-2 py-0.5 rounded border border-indigo-200/90 transition select-none" title="Seperti MIS Builder: Akun-akun COA di bawah tag ini otomatis keluar di laporan tanpa perlu tekan tombol urai manual. Bila di masa depan ada penambahan COA baru pada Tag ini, akun tersebut akan otomatis tampil di laporan.">
                             <input type="checkbox" onchange="updateRow(${r.id}, 'auto_expand_coa', this.checked); renderRows();" ${isAuto ? 'checked' : ''} class="w-3.5 h-3.5 text-indigo-600 rounded focus:ring-indigo-500 border-slate-300">
-                            <span>⚡ Otomatis Urai COA</span>
+                            <span>⚡ Otomatis Urai COA (AUTOTAG)</span>
                         </label>
                         ${isAuto ? '<span class="text-[10px] text-slate-400 italic">Dinamis saat laporan dihitung</span>' : `<button onclick="breakdownCOA(${r.id})" class="text-[10px] text-slate-500 hover:text-indigo-600 font-medium underline" title="Urai manual jadi baris statis di tabel">Urai Manual</button>`}
+                    </div>
+                    
+                    <!-- Proportional Allocation Toggle & Multiplier Row Selector -->
+                    <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
+                        <label class="inline-flex items-center space-x-1.5 cursor-pointer text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200 transition select-none" title="Aktifkan untuk membagi proporsional nilai baris ini dan seluruh COA turunannya ke masing-masing kapal berdasarkan baris pengali.">
+                            <input type="checkbox" onchange="updateRow(${r.id}, 'is_proportional', this.checked); renderRows();" ${r.is_proportional ? 'checked' : ''} class="w-3.5 h-3.5 text-emerald-600 rounded focus:ring-emerald-500 border-slate-300">
+                            <span>➗ Alokasi Proporsional</span>
+                        </label>
+                        ${r.is_proportional ? `
+                        <div class="flex items-center space-x-1 bg-emerald-50/50 px-2 py-0.5 rounded border border-emerald-200">
+                            <span class="text-[10px] font-bold text-emerald-700 select-none">× Pengali:</span>
+                            <select onchange="updateRow(${r.id}, 'multiplier_row', this.value); renderRows();" class="text-[10px] font-mono font-bold py-0.5 px-1.5 border border-emerald-300 rounded bg-white text-emerald-900 focus:ring-1 focus:ring-emerald-500">
+                                <option value="">-- Pilih Baris --</option>
+                                ${getMultiplierRowOptions(r.id, r.multiplier_row)}
+                            </select>
+                        </div>
+                        ` : ''}
                     </div>
                     ` : ''}
                 </div>
@@ -1434,22 +1600,36 @@
                 inputHtml = `<div class="flex items-center space-x-1"><span class="text-xs font-mono text-slate-400">=</span><input type="text" oninput="updateRow(${r.id}, 'expression', this.value)" value="${r.expression.replace(r.code + ' =', '').trim()}" class="w-full text-xs p-1.5 border border-amber-200 rounded-lg bg-white font-mono text-amber-900 focus:ring-1 focus:ring-amber-500" placeholder="Misal: R1 / K1"></div>`;
             }
 
-            let badgeType = '';
-            if (r.type === 'title') {
-                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-800 text-white border border-slate-800">Judul</span>';
-            } else if (r.type === 'query') {
-                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-purple-50 text-purple-700 border border-purple-200">Query</span>';
-            } else if (r.type === 'account') {
-                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-sky-50 text-sky-700 border border-sky-200">COA</span>';
-            } else if (r.type === 'data') {
-                if (r.auto_expand_coa) {
-                    badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-indigo-50 text-indigo-700 border border-indigo-200" title="Akun COA di bawah tag ini otomatis diurai">Tag • Auto</span>';
-                } else {
-                    badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">Tag</span>';
-                }
-            } else {
-                badgeType = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Formula</span>';
+            let typeValue = r.type;
+            if (r.type === 'data') {
+                typeValue = r.auto_expand_coa !== false ? 'data_auto' : 'data_manual';
             }
+
+            let typeClass = 'bg-white border-slate-200 text-slate-700';
+            if (typeValue === 'data_auto') {
+                typeClass = 'bg-indigo-50 border-indigo-300 text-indigo-700 font-bold';
+            } else if (typeValue === 'data_manual') {
+                typeClass = 'bg-emerald-50 border-emerald-300 text-emerald-700 font-bold';
+            } else if (typeValue === 'query') {
+                typeClass = 'bg-purple-50 border-purple-300 text-purple-700 font-bold';
+            } else if (typeValue === 'account') {
+                typeClass = 'bg-sky-50 border-sky-300 text-sky-700 font-bold';
+            } else if (typeValue === 'formula') {
+                typeClass = 'bg-amber-50 border-amber-300 text-amber-700 font-bold';
+            } else if (typeValue === 'title') {
+                typeClass = 'bg-slate-800 border-slate-800 text-white font-bold';
+            }
+
+            let typeSelectHtml = `
+            <select onchange="changeRowType(${r.id}, this.value)" class="w-full text-[10px] py-1 px-1 rounded-md border ${typeClass} cursor-pointer focus:ring-1 focus:ring-blue-500 shadow-2xs font-sans" title="Ubah jenis baris (misal: Query jadi AUTOTAG)">
+                <option value="data_auto" ${typeValue === 'data_auto' ? 'selected' : ''}>🏷️ AUTOTAG</option>
+                <option value="data_manual" ${typeValue === 'data_manual' ? 'selected' : ''}>🏷️ Tag Akun</option>
+                <option value="query" ${typeValue === 'query' ? 'selected' : ''}>📊 Query KPI</option>
+                <option value="account" ${typeValue === 'account' ? 'selected' : ''}>📑 Akun COA</option>
+                <option value="formula" ${typeValue === 'formula' ? 'selected' : ''}>🧮 Formula</option>
+                <option value="title" ${typeValue === 'title' ? 'selected' : ''}>📌 Judul</option>
+            </select>
+            `;
 
             let indentPadding = (r.indent_level || 0) * 1.25;
             let indentStyle = indentPadding > 0 ? `padding-left: ${indentPadding}rem;` : '';
@@ -1461,6 +1641,7 @@
                 ${(r.indent_level > 0 || r.is_child) ? '<span class="text-slate-400 font-mono text-xs select-none">↳</span>' : ''}
                 ${r.type === 'title' ? '<span class="text-slate-400 text-xs select-none">📌</span>' : ''}
                 <input type="text" oninput="updateRow(${r.id}, 'label', this.value)" value="${r.label}" class="w-full text-xs ${labelClasses} bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none" placeholder="Label baris...">
+                ${r.is_proportional ? '<span class="text-[9px] font-bold px-1 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-300 shrink-0 select-none" title="Alokasi Proporsional Aktif">➗ PROP</span>' : ''}
                 ${r.is_percentage ? '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 shrink-0 select-none" title="Format Nilai: Persentase (%)">%</span>' : ''}
                 ${r.is_hidden ? '<span class="text-[9px] font-bold uppercase px-1 py-0.5 bg-rose-50 text-rose-600 rounded border border-rose-200 shrink-0 select-none">Hidden</span>' : ''}
             </div>
@@ -1509,9 +1690,9 @@
                 </td>
                 <td class="p-3 text-center text-xs font-bold text-slate-400">${idx + 1}</td>
                 <td class="p-3">
-                    <div class="flex items-center space-x-1.5">
-                        <input type="text" oninput="updateRow(${r.id}, 'code', this.value)" value="${r.code}" class="w-12 text-xs font-mono font-bold text-blue-600 bg-transparent p-1 border-b border-transparent focus:border-blue-400 outline-none">
-                        ${badgeType}
+                    <div class="flex flex-col space-y-1 w-28">
+                        <input type="text" oninput="updateRow(${r.id}, 'code', this.value)" value="${r.code}" class="w-full text-xs font-mono font-bold text-blue-600 bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:border-blue-400 outline-none shadow-2xs" title="Kode variabel baris (misal: R1, K1)">
+                        ${typeSelectHtml}
                     </div>
                 </td>
                 <td class="p-3">${labelInput}</td>
@@ -1521,7 +1702,8 @@
                     <div class="flex items-center justify-center space-x-1">
                         <button onclick="moveRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs p-1 rounded hover:bg-slate-100 transition" title="Pindah ke Atas">▲</button>
                         <button onclick="moveRow(${idx}, 1)" ${idx === reportRows.length - 1 ? 'disabled' : ''} class="text-slate-400 hover:text-slate-700 disabled:opacity-20 text-xs p-1 rounded hover:bg-slate-100 transition" title="Pindah ke Bawah">▼</button>
-                        <button onclick="removeRow(${r.id})" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-2 py-1 rounded-lg transition font-medium ml-1">Hapus</button>
+                        <button onclick="duplicateRow(${idx})" class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs px-2 py-1 rounded-lg transition font-medium flex items-center gap-0.5" title="Duplikasi baris ini"><span>📑</span><span>Duplikat</span></button>
+                        <button onclick="removeRow(${r.id})" class="text-red-400 hover:text-red-600 hover:bg-red-50 text-xs px-1.5 py-1 rounded-lg transition font-medium ml-1" title="Hapus baris ini">Hapus</button>
                     </div>
                 </td>
             </tr>

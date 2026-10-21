@@ -561,6 +561,9 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                             val_c = f'{var_name}.{q} = balp[(\"tag_ids.name\",\"=\",\"{expr}\")][(\"date\", \">=\", \"{sd}\"),(\"date\", \"<=\", \"{ed}\")]'
                         cells.append({'val': 0.0, 'val_r': '-', 'val_c': val_c})
                     
+            is_proportional = bool(r.get('is_proportional'))
+            multiplier_row = str(r.get('multiplier_row') or '').strip()
+
             body.append({
                 'label': label,
                 'name': var_name,
@@ -570,6 +573,8 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                 'is_hidden': is_hidden,
                 'is_percentage': bool(r.get('is_percentage')),
                 'auto_expand_coa': auto_expand,
+                'is_proportional': is_proportional,
+                'multiplier_row': multiplier_row,
                 'cells': cells
             })
 
@@ -615,6 +620,8 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                         'row_type': 'account',
                         'is_child': True,
                         'parent_code': var_name,
+                        'is_proportional': is_proportional,
+                        'multiplier_row': multiplier_row,
                         'style': 'font-style: italic; text-indent: 2em;',
                         'cells': child_cells
                     })
