@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Response
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -149,9 +149,36 @@ def get_accounts(company_id: int, tag_name: Optional[str] = None, db: Session = 
     return accounts
 
 @router.get("/templates")
-def list_templates(company_id: int, db: Session = Depends(get_db)):
-    templates = db.query(CustomBuilderTemplate).filter(CustomBuilderTemplate.company_id == company_id).all()
-    return [{"id": t.id, "name": t.name, "created_at": t.created_at, "updated_at": t.updated_at} for t in templates]
+def list_templates(company_id: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(CustomBuilderTemplate)
+    if company_id and company_id != "all":
+        try:
+            cid = int(company_id)
+            query = query.filter(CustomBuilderTemplate.company_id == cid)
+        except ValueError:
+            pass
+    templates = query.order_by(CustomBuilderTemplate.company_id, CustomBuilderTemplate.id).all()
+    companies_map = {c.id: c for c in db.query(Company).all()}
+    res = []
+    for t in templates:
+        comp = companies_map.get(t.company_id)
+        try:
+            cfg = json.loads(t.config_json)
+        except Exception:
+            cfg = {}
+        res.append({
+            "id": t.id,
+            "company_id": t.company_id,
+            "company_initial": comp.initial_pt if comp else "UNKNOWN",
+            "company_name": comp.name if comp else "Unknown Company",
+            "name": t.name,
+            "vessels_count": len(cfg.get("vessels", [])),
+            "rows_count": len(cfg.get("rows", [])),
+            "year": cfg.get("year", "2026"),
+            "created_at": t.created_at,
+            "updated_at": t.updated_at
+        })
+    return res
 
 @router.get("/templates/{template_id}")
 def get_template(template_id: int, db: Session = Depends(get_db)):
@@ -229,6 +256,208 @@ def duplicate_template(template_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(dup)
     return {"status": "success", "id": dup.id, "name": dup.name}
+
+@router.get("/templates/{template_id}/export")
+def export_template(template_id: int, db: Session = Depends(get_db)):
+    t = db.query(CustomBuilderTemplate).filter(CustomBuilderTemplate.id == template_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    comp = db.query(Company).filter(Company.id == t.company_id).first()
+    comp_init = comp.initial_pt if comp else "UNKNOWN"
+    comp_name = comp.name if comp else "Unknown Company"
+    
+    export_data = {
+        "version": "1.0",
+        "system": "bms-report-builder",
+        "exported_at": datetime.now().isoformat(),
+        "count": 1,
+        "templates": [
+            {
+                "name": t.name,
+                "company_initial": comp_init,
+                "company_name": comp_name,
+                "config": json.loads(t.config_json)
+            }
+        ]
+    }
+    
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', f"{comp_init}_{t.name}")
+    filename = f"template_{clean_name}.json"
+    json_bytes = json.dumps(export_data, indent=2, ensure_ascii=False)
+    
+    return Response(
+        content=json_bytes,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+@router.get("/templates/export-all")
+def export_all_templates(company_id: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(CustomBuilderTemplate)
+    comp_init = "ALL"
+    if company_id and company_id != "all":
+        try:
+            cid = int(company_id)
+            query = query.filter(CustomBuilderTemplate.company_id == cid)
+            comp = db.query(Company).filter(Company.id == cid).first()
+            if comp:
+                comp_init = comp.initial_pt or f"COMP_{cid}"
+        except ValueError:
+            pass
+            
+    templates_records = query.order_by(CustomBuilderTemplate.company_id, CustomBuilderTemplate.id).all()
+    companies_map = {c.id: c for c in db.query(Company).all()}
+    
+    templates_list = []
+    for t in templates_records:
+        comp = companies_map.get(t.company_id)
+        templates_list.append({
+            "name": t.name,
+            "company_initial": comp.initial_pt if comp else "UNKNOWN",
+            "company_name": comp.name if comp else "Unknown Company",
+            "config": json.loads(t.config_json)
+        })
+        
+    export_data = {
+        "version": "1.0",
+        "system": "bms-report-builder",
+        "exported_at": datetime.now().isoformat(),
+        "count": len(templates_list),
+        "templates": templates_list
+    }
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"templates_backup_{comp_init}_{timestamp}.json"
+    json_bytes = json.dumps(export_data, indent=2, ensure_ascii=False)
+    
+    return Response(
+        content=json_bytes,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+class ImportTemplateRequest(BaseModel):
+    data: Any
+    target_company_id: Optional[int] = None
+    overwrite: bool = True
+
+@router.post("/templates/import")
+def import_templates(payload: ImportTemplateRequest, db: Session = Depends(get_db)):
+    raw = payload.data
+    target_company_id = payload.target_company_id
+    overwrite = payload.overwrite
+    
+    items_to_import = []
+    if isinstance(raw, dict):
+        if "templates" in raw and isinstance(raw["templates"], list):
+            items_to_import = raw["templates"]
+        elif "rows" in raw or "vessels" in raw:
+            items_to_import = [{
+                "name": f"Imported Template {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                "config": raw
+            }]
+        elif "name" in raw and ("config" in raw or "config_json" in raw):
+            cfg = raw.get("config") or (json.loads(raw["config_json"]) if isinstance(raw.get("config_json"), str) else {})
+            items_to_import = [{
+                "name": raw["name"],
+                "company_initial": raw.get("company_initial"),
+                "company_name": raw.get("company_name"),
+                "config": cfg
+            }]
+        else:
+            raise HTTPException(status_code=400, detail="Format JSON tidak dikenali sebagai template builder")
+    elif isinstance(raw, list):
+        items_to_import = raw
+    else:
+        raise HTTPException(status_code=400, detail="Data template harus berupa JSON Object atau Array")
+
+    if not items_to_import:
+        raise HTTPException(status_code=400, detail="Tidak ada template yang ditemukan di dalam data JSON")
+
+    companies = db.query(Company).all()
+    comp_by_id = {c.id: c for c in companies}
+    comp_by_initial = {c.initial_pt.strip().upper(): c for c in companies if c.initial_pt}
+    comp_by_name = {c.name.strip().upper(): c for c in companies if c.name}
+
+    results = []
+    now = datetime.now().isoformat()
+
+    for item in items_to_import:
+        if not isinstance(item, dict):
+            continue
+            
+        tpl_name = str(item.get("name") or "Unnamed Template").strip()
+        config_data = item.get("config")
+        if not config_data and "config_json" in item:
+            try:
+                config_data = json.loads(item["config_json"]) if isinstance(item["config_json"], str) else item["config_json"]
+            except Exception:
+                config_data = {}
+        if not isinstance(config_data, dict):
+            config_data = {}
+
+        resolved_comp = None
+        if target_company_id and target_company_id in comp_by_id:
+            resolved_comp = comp_by_id[target_company_id]
+        elif item.get("company_initial") and str(item["company_initial"]).strip().upper() in comp_by_initial:
+            resolved_comp = comp_by_initial[str(item["company_initial"]).strip().upper()]
+        elif item.get("company_name") and str(item["company_name"]).strip().upper() in comp_by_name:
+            resolved_comp = comp_by_name[str(item["company_name"]).strip().upper()]
+        elif len(companies) == 1:
+            resolved_comp = companies[0]
+
+        if not resolved_comp:
+            resolved_comp = db.query(Company).filter(Company.is_active == True).first()
+            if not resolved_comp:
+                raise HTTPException(status_code=400, detail=f"Tidak ditemukan perusahaan untuk template '{tpl_name}'")
+
+        existing = db.query(CustomBuilderTemplate).filter(
+            CustomBuilderTemplate.company_id == resolved_comp.id,
+            CustomBuilderTemplate.name == tpl_name
+        ).first()
+
+        if existing and overwrite:
+            existing.config_json = json.dumps(config_data)
+            existing.updated_at = now
+            db.commit()
+            results.append({
+                "id": existing.id,
+                "name": existing.name,
+                "company": resolved_comp.initial_pt or resolved_comp.name,
+                "action": "updated"
+            })
+        else:
+            final_name = tpl_name
+            if existing and not overwrite:
+                final_name = f"{tpl_name} (Imported {datetime.now().strftime('%H%M%S')})"
+                
+            new_tpl = CustomBuilderTemplate(
+                company_id=resolved_comp.id,
+                name=final_name,
+                config_json=json.dumps(config_data),
+                created_at=now,
+                updated_at=now
+            )
+            db.add(new_tpl)
+            db.commit()
+            db.refresh(new_tpl)
+            results.append({
+                "id": new_tpl.id,
+                "name": new_tpl.name,
+                "company": resolved_comp.initial_pt or resolved_comp.name,
+                "action": "created"
+            })
+
+    return {
+        "status": "success",
+        "message": f"Berhasil mengimpor {len(results)} template",
+        "imported": results
+    }
 
 class PreviewRequest(BaseModel):
     company_id: int

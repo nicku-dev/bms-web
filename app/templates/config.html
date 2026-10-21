@@ -187,7 +187,60 @@
     </div>
   </div>
 
+  <!-- Migrasi & Backup Template (Report Builder) -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <h3 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+          <span>📦</span> Migrasi &amp; Backup Template Laporan
+        </h3>
+        <p class="text-xs text-gray-500 mt-0.5">Export template untuk deployment ke server lain (Dev/SIT/Production), atau Import template (.json) dari mesin lain.</p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="exportAllTemplatesSystem()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-xs flex items-center space-x-1.5 transition active:scale-95">
+          <span>📤</span>
+          <span>Export Semua (Semua PT)</span>
+        </button>
+        <button onclick="openConfigImportModal()" class="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-xs flex items-center space-x-1.5 transition active:scale-95">
+          <span>📥</span>
+          <span>Import Template (.json)</span>
+        </button>
+      </div>
+    </div>
+    
+    <div class="p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+        <div class="flex items-center space-x-2">
+          <label class="text-xs font-semibold text-slate-700">Filter Perusahaan:</label>
+          <select id="config-tpl-comp-filter" onchange="loadConfigTemplates()" class="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white font-medium text-gray-800 focus:ring-2 focus:ring-blue-500">
+            <option value="all">Semua Perusahaan</option>
+          </select>
+        </div>
+        <button onclick="exportFilteredTemplates()" class="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center space-x-1.5 active:scale-95">
+          <span>📤</span>
+          <span>Export Template Terfilter</span>
+        </button>
+      </div>
 
+      <div class="overflow-x-auto border border-gray-200 rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">ID</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Perusahaan</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Nama Template Laporan</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Statistik</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Terakhir Update</th>
+              <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="config-template-table" class="bg-white divide-y divide-gray-200 text-sm">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <!-- Manajemen User -->
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
@@ -661,7 +714,321 @@
             alert("Error: " + e);
         }
     }
+
+    // --- Template Migration & Backup Logic --- //
+    let configImportPayload = null;
+
+    async function loadConfigTemplates() {
+        const filterVal = document.getElementById('config-tpl-comp-filter') ? document.getElementById('config-tpl-comp-filter').value : 'all';
+        const url = `/api/builder/templates${filterVal && filterVal !== 'all' ? '?company_id=' + filterVal : ''}`;
+        
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const tbody = document.getElementById('config-template-table');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (Array.isArray(data) && data.length > 0) {
+                data.forEach(t => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/80 transition';
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap text-xs font-mono text-slate-500">${t.id}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                ${t.company_initial}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-900">${t.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-600 font-medium space-x-1">
+                            <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">⛴️ ${t.vessels_count} Kapal</span>
+                            <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">📋 ${t.rows_count} Baris</span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-500">${t.updated_at ? t.updated_at.split('T')[0] : '-'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold space-x-2">
+                            <button onclick="exportSingleTemplate(${t.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md transition shadow-2xs">
+                                📤 Export
+                            </button>
+                            <a href="/builder?company_id=${t.company_id}&template_id=${t.id}" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-md transition shadow-2xs inline-block">
+                                🛠️ Builder
+                            </a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-xs text-slate-400">Belum ada template laporan untuk filter ini.</td></tr>';
+            }
+        } catch (e) {
+            console.error("Gagal memuat template config:", e);
+        }
+    }
+
+    async function populateConfigCompanyFilter() {
+        try {
+            const res = await fetch('/api/companies');
+            const data = await res.json();
+            const filterSel = document.getElementById('config-tpl-comp-filter');
+            if (filterSel && data.status === 'success') {
+                filterSel.innerHTML = '<option value="all">Semua Perusahaan</option>';
+                data.companies.forEach(c => {
+                    filterSel.innerHTML += `<option value="${c.id}">${c.name} (${c.initial_pt || 'ID ' + c.id})</option>`;
+                });
+            }
+        } catch (e) {
+            console.error("Gagal populate company filter:", e);
+        }
+    }
+
+    function exportSingleTemplate(id) {
+        window.location.href = `/api/builder/templates/${id}/export`;
+    }
+
+    function exportFilteredTemplates() {
+        const filterVal = document.getElementById('config-tpl-comp-filter').value;
+        const url = `/api/builder/templates/export-all${filterVal && filterVal !== 'all' ? '?company_id=' + filterVal : ''}`;
+        window.location.href = url;
+    }
+
+    function exportAllTemplatesSystem() {
+        window.location.href = `/api/builder/templates/export-all`;
+    }
+
+    async function openConfigImportModal() {
+        const modal = document.getElementById('config-import-modal');
+        if (!modal) return;
+
+        configImportPayload = null;
+        document.getElementById('config-import-file-input').value = '';
+        document.getElementById('config-import-preview-box').classList.add('hidden');
+        document.getElementById('config-import-status-alert').classList.add('hidden');
+        document.getElementById('btn-config-submit-import').disabled = true;
+
+        const compSelect = document.getElementById('config-import-target-company');
+        compSelect.innerHTML = '<option value="">-- Otomatis Cocokkan dari File --</option>';
+        try {
+            const res = await fetch('/api/companies');
+            const data = await res.json();
+            if (data.status === 'success') {
+                data.companies.forEach(c => {
+                    compSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.initial_pt || 'ID ' + c.id})</option>`;
+                });
+            }
+        } catch (e) {}
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeConfigImportModal() {
+        const modal = document.getElementById('config-import-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function handleConfigImportFileSelect(e) {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            processConfigImportFile(files[0]);
+        }
+    }
+
+    function processConfigImportFile(file) {
+        if (!file.name.endsWith('.json')) {
+            alert('File harus berekstensi .json!');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                configImportPayload = parsed;
+                
+                const previewBox = document.getElementById('config-import-preview-box');
+                const fileNameEl = document.getElementById('config-import-file-name');
+                const fileStatsEl = document.getElementById('config-import-file-stats');
+                const listEl = document.getElementById('config-import-templates-list');
+                const submitBtn = document.getElementById('btn-config-submit-import');
+
+                fileNameEl.textContent = file.name;
+                const fileSizeKb = (file.size / 1024).toFixed(1);
+
+                let tpls = [];
+                if (parsed && typeof parsed === 'object') {
+                    if (Array.isArray(parsed.templates)) tpls = parsed.templates;
+                    else if (Array.isArray(parsed)) tpls = parsed;
+                    else if (parsed.name) tpls = [parsed];
+                    else if (parsed.rows || parsed.vessels) tpls = [{ name: 'Template Baru (Raw Config)', config: parsed }];
+                }
+
+                if (tpls.length === 0) {
+                    alert('Tidak ditemukan template yang valid di dalam file JSON ini.');
+                    previewBox.classList.add('hidden');
+                    submitBtn.disabled = true;
+                    return;
+                }
+
+                fileStatsEl.textContent = `${fileSizeKb} KB • ${tpls.length} Template terdeteksi`;
+                listEl.innerHTML = '';
+                tpls.forEach((t, idx) => {
+                    const tName = t.name || `Template #${idx+1}`;
+                    const comp = t.company_initial || t.company_name || 'Auto';
+                    const cfg = t.config || {};
+                    const vesselsCount = Array.isArray(cfg.vessels) ? cfg.vessels.length : 0;
+                    const rowsCount = Array.isArray(cfg.rows) ? cfg.rows.length : 0;
+
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex items-center justify-between p-1.5 rounded bg-slate-50 border border-slate-100';
+                    itemDiv.innerHTML = `
+                        <div class="flex items-center space-x-2 truncate">
+                            <span class="font-bold text-slate-800">${tName}</span>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">${comp}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 shrink-0 font-medium space-x-1.5">
+                            <span>${vesselsCount} Kapal</span>
+                            <span>•</span>
+                            <span>${rowsCount} Baris</span>
+                        </div>
+                    `;
+                    listEl.appendChild(itemDiv);
+                });
+
+                previewBox.classList.remove('hidden');
+                submitBtn.disabled = false;
+            } catch (err) {
+                alert('Gagal membaca JSON: ' + err.message);
+                configImportPayload = null;
+                document.getElementById('config-import-preview-box').classList.add('hidden');
+                document.getElementById('btn-config-submit-import').disabled = true;
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    async function executeConfigImport() {
+        if (!configImportPayload) return;
+
+        const submitBtn = document.getElementById('btn-config-submit-import');
+        const targetCompanyId = document.getElementById('config-import-target-company').value;
+        const overwrite = document.getElementById('config-import-overwrite-checkbox').checked;
+        const alertEl = document.getElementById('config-import-status-alert');
+
+        submitBtn.disabled = true;
+        const origText = submitBtn.innerHTML;
+        submitBtn.innerHTML = `<span>⏳</span><span>Sedang Mengimpor...</span>`;
+        alertEl.classList.add('hidden');
+
+        try {
+            const res = await fetch('/api/builder/templates/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: configImportPayload,
+                    target_company_id: targetCompanyId ? parseInt(targetCompanyId) : null,
+                    overwrite: overwrite
+                })
+            });
+
+            const resJson = await res.json();
+
+            if (res.ok && resJson.status === 'success') {
+                alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200';
+                let detailsHtml = (resJson.imported || []).map(i => `• ${i.name} (${i.company}): ${i.action === 'updated' ? 'Diperbarui' : 'Dibuat'}`).join('<br>');
+                alertEl.innerHTML = `🎉 ${resJson.message}!<div class="mt-1.5 font-normal text-[11px] text-emerald-700">${detailsHtml}</div>`;
+                alertEl.classList.remove('hidden');
+
+                await loadConfigTemplates();
+
+                setTimeout(() => {
+                    closeConfigImportModal();
+                }, 2000);
+            } else {
+                alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200';
+                alertEl.innerHTML = `⚠️ Gagal mengimpor: ${resJson.detail || resJson.message || 'Terjadi kesalahan'}`;
+                alertEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200';
+            alertEl.innerHTML = `⚠️ Error koneksi: ${err.message}`;
+            alertEl.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origText;
+        }
+    }
+
+    // Initialize config page data
+    populateConfigCompanyFilter();
+    loadConfigTemplates();
   </script>
+
+  <!-- Modal Import Template di Config -->
+  <div id="config-import-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span>📥</span> Import Template Laporan
+          </h3>
+          <p class="text-xs text-slate-500">Unggah file template (.json) untuk dipasang ke server ini.</p>
+        </div>
+        <button onclick="closeConfigImportModal()" class="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+        <div onclick="document.getElementById('config-import-file-input').click()" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/40">
+          <input type="file" id="config-import-file-input" accept=".json,application/json" class="hidden" onchange="handleConfigImportFileSelect(event)">
+          <div class="space-y-2">
+            <span class="text-3xl">📄</span>
+            <div class="text-xs font-bold text-slate-700">Klik untuk memilih file JSON atau seret file ke sini</div>
+            <p class="text-[11px] text-slate-400">Mendukung backup template tunggal atau multi-template</p>
+          </div>
+        </div>
+
+        <div id="config-import-preview-box" class="hidden border border-blue-100 bg-blue-50/50 rounded-xl p-4 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">📋</span>
+              <div>
+                <div id="config-import-file-name" class="text-xs font-bold text-slate-900 truncate max-w-xs">filename.json</div>
+                <div id="config-import-file-stats" class="text-[11px] text-slate-500">0 KB • 0 Template terdeteksi</div>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">JSON Valid</span>
+          </div>
+          <div id="config-import-templates-list" class="max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar bg-white rounded-lg p-2.5 border border-blue-100 text-xs">
+          </div>
+        </div>
+
+        <div class="space-y-3 pt-1">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Perusahaan Tujuan</label>
+            <select id="config-import-target-company" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Otomatis Cocokkan dari File --</option>
+            </select>
+            <p class="text-[10px] text-slate-400 mt-1">Jika dipilih, seluruh template dalam file akan dimasukkan ke perusahaan ini.</p>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" id="config-import-overwrite-checkbox" checked class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 border-slate-300">
+            <label for="config-import-overwrite-checkbox" class="text-xs text-slate-700 font-semibold cursor-pointer">
+              Timpa konfigurasi jika template dengan nama yang sama sudah ada (Overwrite)
+            </label>
+          </div>
+        </div>
+
+        <div id="config-import-status-alert" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
+        <button type="button" onclick="closeConfigImportModal()" class="px-3.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold">Tutup</button>
+        <button type="button" id="btn-config-submit-import" onclick="executeConfigImport()" disabled class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-xs flex items-center space-x-1.5">
+          <span>🚀</span>
+          <span>Mulai Import</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </main>
 <!-- END: MainContentArea -->
 <!-- BEGIN: Footer -->
@@ -678,206 +1045,5 @@
 </div>
 </footer>
 <!-- END: Footer -->
-<script>
-  document.getElementById('perusahaan-select').addEventListener('change', async (e) => {
-    const companyId = e.target.value;
-    const reportSelect = document.getElementById('laporan-select');
-    
-    if (!companyId) {
-      reportSelect.innerHTML = '<option value="">Pilih perusahaan dahulu</option>';
-      return;
-    }
-    
-    reportSelect.innerHTML = '<option value="">Memuat template laporan...</option>';
-    
-    try {
-      const response = await fetch(`/api/reports/${companyId}`);
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        reportSelect.innerHTML = '';
-        if (data.reports && data.reports.length > 0) {
-          data.reports.forEach(report => {
-            const option = document.createElement('option');
-            option.value = report.id;
-            option.textContent = report.name;
-            reportSelect.appendChild(option);
-          });
-        } else {
-          reportSelect.innerHTML = '<option value="">Tidak ada laporan ditemukan</option>';
-        }
-      } else {
-        reportSelect.innerHTML = `<option value="">Gagal memuat: ${data.message || 'Error'}</option>`;
-      }
-    } catch(err) {
-      reportSelect.innerHTML = '<option value="">Error memuat laporan</option>';
-      console.error(err);
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const response = await fetch('/api/companies');
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        const select = document.getElementById('perusahaan-select');
-        select.innerHTML = '';
-        data.companies.forEach(company => {
-          const option = document.createElement('option');
-          option.value = company.id;
-          option.textContent = company.name;
-          select.appendChild(option);
-        });
-        
-        // Trigger select change to load reports for the first company
-        if (data.companies.length > 0) {
-          select.dispatchEvent(new Event('change'));
-        }
-      }
-    } catch (e) {
-      console.error("Gagal memuat daftar perusahaan:", e);
-    }
-  });
-
-  let currentAbortController = null;
-
-  document.getElementById('btn-cancel-report').addEventListener('click', () => {
-    if (currentAbortController) {
-      currentAbortController.abort();
-    }
-  });
-
-  document.getElementById('btn-generate-report').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-generate-report');
-    const cancelBtn = document.getElementById('btn-cancel-report');
-    const companyId = document.getElementById('perusahaan-select').value;
-    const reportSelect = document.getElementById('laporan-select');
-    const reportTemplate = reportSelect.value;
-    const reportName = reportSelect.options[reportSelect.selectedIndex]?.text || "Laporan";
-    const forceRefresh = document.getElementById('force-refresh-checkbox').checked;
-    
-    // UI Reset
-    document.getElementById('pipeline-progress').classList.remove('hidden');
-    document.getElementById('progress-bar-fill').style.width = '10%';
-    document.getElementById('status-alert').classList.add('hidden');
-    document.getElementById('download-section').classList.add('hidden');
-    cancelBtn.classList.remove('hidden');
-    
-    currentAbortController = new AbortController();
-    
-    const originalContent = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<span class="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin inline-block"></span><span class="ml-2">Memproses...</span>`;
-    
-    // Simulate progress animation
-    setTimeout(() => { document.getElementById('progress-bar-fill').style.width = '60%'; }, 1000);
-    
-    try {
-      const response = await fetch('/api/generate_report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company_id: companyId, template: reportTemplate, template_name: reportName, force_refresh: forceRefresh }),
-        signal: currentAbortController.signal
-      });
-      const data = await response.json();
-      
-      document.getElementById('progress-bar-fill').style.width = '100%';
-      
-      if (response.ok && data.status === 'success') {
-        setTimeout(() => {
-          document.getElementById('status-alert').classList.remove('hidden');
-          document.getElementById('download-section').classList.remove('hidden');
-          if(data.file_url) {
-            let downloadBtn = document.getElementById('btn-download-file');
-            if (!downloadBtn) {
-              // try finding the button via class or querySelector if id doesn't exist
-              const buttons = document.querySelectorAll('button');
-              buttons.forEach(btn => {
-                if(btn.textContent.includes('Unduh File Spreadsheet')) downloadBtn = btn;
-              });
-            }
-            if (downloadBtn) {
-              // we can set window.location or handle it depending on structure
-              downloadBtn.onclick = () => window.location.href = data.file_url;
-            }
-          }
-          
-          if(data.matrix) {
-            const thead = document.getElementById('report-thead');
-            const tbody = document.getElementById('report-tbody');
-            
-            // Render Header
-            let headHtml = '';
-            data.matrix.header.forEach((row, i) => {
-              headHtml += '<tr>';
-              if (i === 0) {
-                headHtml += '<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider w-1/3 min-w-[340px] border-r border-slate-200/70" scope="col">Uraian / Keterangan</th>';
-              } else {
-                headHtml += '<th class="py-3 px-4 border-r border-slate-200/70"></th>';
-              }
-              row.cols.forEach(col => {
-                headHtml += `<th class="py-3 px-4 font-bold text-[11px] uppercase tracking-wider text-right border-r border-slate-200/70" colspan="${col.colspan || 1}">${col.label || ''}</th>`;
-              });
-              headHtml += '</tr>';
-            });
-            thead.innerHTML = headHtml;
-            
-            // Render Body
-            let bodyHtml = '';
-            data.matrix.body.forEach(row => {
-              let isBold = row.style && row.style.includes('font-weight: bold');
-              let indentMatch = row.style ? row.style.match(/text-indent:\s*([0-9.]+)em/) : null;
-              let plClass = indentMatch ? `pl-${Math.min(parseInt(parseFloat(indentMatch[1]) * 4) + 4, 16)}` : 'pl-4';
-              let rowClasses = isBold ? 'bg-slate-50 font-semibold text-slate-900' : 'hover:bg-slate-50/80 text-slate-700 transition';
-              
-              let rowStyleAttr = row.style ? `style="${row.style}"` : '';
-              bodyHtml += `<tr class="${rowClasses}" ${rowStyleAttr}>`;
-              bodyHtml += `<td class="py-2 px-4 ${plClass} font-sans border-r border-slate-200/70">${row.label || ''}</td>`;
-              
-              if (row.cells) {
-                row.cells.forEach(cell => {
-                  let val = (cell.val_r !== undefined && cell.val_r !== null && cell.val_r !== "") ? cell.val_r : (cell.val !== null ? cell.val : '');
-                  if (typeof val === 'number') {
-                    val = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-                  }
-                  let cellBold = cell.style && cell.style.includes('font-weight: bold');
-                  let cellClasses = cellBold ? 'font-bold text-slate-900' : '';
-                  let cellStyleAttr = cell.style ? `style="${cell.style}"` : '';
-                  bodyHtml += `<td class="py-2 px-4 text-right border-r border-slate-200/70 ${cellClasses}" ${cellStyleAttr}>${val}</td>`;
-                });
-              }
-              bodyHtml += '</tr>';
-            });
-            tbody.innerHTML = bodyHtml;
-            
-            // Update Title
-            const reportSelect = document.getElementById('laporan-select');
-            const titleEl = document.getElementById('preview-report-title');
-            if (titleEl && reportSelect.options[reportSelect.selectedIndex]) {
-               titleEl.textContent = reportSelect.options[reportSelect.selectedIndex].text;
-            }
-          }
-        }, 500);
-      } else {
-        alert(data.message || "Gagal membuat laporan.");
-      }
-    } catch (e) {
-      if (e.name === 'AbortError') {
-        alert("Proses dibatalkan oleh pengguna.");
-      } else {
-        alert("Terjadi kesalahan koneksi saat memproses laporan.");
-      }
-    } finally {
-      currentAbortController = null;
-      cancelBtn.classList.add('hidden');
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalContent;
-        setTimeout(() => {
-            document.getElementById('pipeline-progress').classList.add('hidden');
-            document.getElementById('progress-bar-fill').style.width = '0%';
-        }, 3000);
-      }, 500);
-    }
-  });
-</script>
-</body></html>
+</body>
+</html>

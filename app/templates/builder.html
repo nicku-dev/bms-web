@@ -273,6 +273,46 @@
                         <span>➕</span>
                         <span>Baru</span>
                     </button>
+                    
+                    <span class="text-slate-200 font-light mx-0.5">|</span>
+
+                    <!-- Export Dropdown -->
+                    <div class="relative inline-block" id="export-dropdown-wrapper">
+                        <button type="button" onclick="toggleExportMenu(event)" class="inline-flex items-center space-x-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition shadow-2xs active:scale-95" title="Export template ke file JSON">
+                            <span>📤</span>
+                            <span>Export</span>
+                            <span class="text-[9px] text-emerald-600">▼</span>
+                        </button>
+                        <div id="export-menu" class="hidden absolute right-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 text-xs text-slate-700 font-semibold animate-in fade-in zoom-in-95 duration-100">
+                            <button type="button" onclick="exportCurrentTemplate()" class="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-800 flex items-center space-x-2.5">
+                                <span>📄</span>
+                                <div>
+                                    <div class="font-bold">Export Template Aktif</div>
+                                    <div class="text-[10px] text-slate-400 font-normal">Hanya template yang sedang dipilih</div>
+                                </div>
+                            </button>
+                            <button type="button" onclick="exportAllTemplatesForCompany()" class="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-800 flex items-center space-x-2.5 border-t border-slate-100">
+                                <span>📦</span>
+                                <div>
+                                    <div class="font-bold">Export Semua Template (PT Ini)</div>
+                                    <div class="text-[10px] text-slate-400 font-normal">Seluruh template milik perusahaan aktif</div>
+                                </div>
+                            </button>
+                            <button type="button" onclick="exportAllTemplatesSystem()" class="w-full text-left px-3.5 py-2 hover:bg-emerald-50 hover:text-emerald-800 flex items-center space-x-2.5 border-t border-slate-100">
+                                <span>🌐</span>
+                                <div>
+                                    <div class="font-bold">Export Seluruh Sistem</div>
+                                    <div class="text-[10px] text-slate-400 font-normal">Semua template dari semua PT (Deploy)</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Import Button -->
+                    <button type="button" onclick="openImportModal()" class="inline-flex items-center space-x-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold transition shadow-2xs active:scale-95" title="Import template dari file JSON">
+                        <span>📥</span>
+                        <span>Import</span>
+                    </button>
                 </div>
             </div>
 
@@ -1815,6 +1855,268 @@
         `;
     }
 
+    // --- Export & Import Template Logic --- //
+    let importedFilePayload = null;
+
+    function toggleExportMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('export-menu');
+        if (menu) menu.classList.toggle('hidden');
+    }
+
+    window.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('export-dropdown-wrapper');
+        const menu = document.getElementById('export-menu');
+        if (wrapper && menu && !wrapper.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    function exportCurrentTemplate() {
+        const menu = document.getElementById('export-menu');
+        if (menu) menu.classList.add('hidden');
+
+        if (!currentTemplateId) {
+            alert("Pilih template tersimpan terlebih dahulu di dropdown 'Template Tersimpan' untuk diexport!");
+            return;
+        }
+        window.location.href = `/api/builder/templates/${currentTemplateId}/export`;
+    }
+
+    function exportAllTemplatesForCompany() {
+        const menu = document.getElementById('export-menu');
+        if (menu) menu.classList.add('hidden');
+
+        const companyId = document.getElementById('company-select').value;
+        if (!companyId) {
+            alert("Pilih perusahaan terlebih dahulu!");
+            return;
+        }
+        window.location.href = `/api/builder/templates/export-all?company_id=${companyId}`;
+    }
+
+    function exportAllTemplatesSystem() {
+        const menu = document.getElementById('export-menu');
+        if (menu) menu.classList.add('hidden');
+        window.location.href = `/api/builder/templates/export-all`;
+    }
+
+    function openImportModal() {
+        const modal = document.getElementById('import-modal');
+        if (!modal) return;
+
+        // Reset state
+        importedFilePayload = null;
+        document.getElementById('import-file-input').value = '';
+        document.getElementById('import-preview-box').classList.add('hidden');
+        document.getElementById('import-status-alert').classList.add('hidden');
+        document.getElementById('btn-submit-import').disabled = true;
+
+        // Populate target company select
+        const compSelect = document.getElementById('import-target-company');
+        const currentActiveCompId = document.getElementById('company-select').value;
+        compSelect.innerHTML = '<option value="">-- Otomatis Cocokkan dari File --</option>';
+        allCompanies.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.name} (${c.initial_pt || 'ID ' + c.id})`;
+            if (String(c.id) === String(currentActiveCompId)) {
+                opt.selected = true;
+            }
+            compSelect.appendChild(opt);
+        });
+
+        // Setup dropzone listeners
+        const dropzone = document.getElementById('import-dropzone');
+        if (dropzone && !dropzone.dataset.bound) {
+            dropzone.dataset.bound = 'true';
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('border-blue-500', 'bg-blue-50/60');
+                }, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('border-blue-500', 'bg-blue-50/60');
+                }, false);
+            });
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    processImportFile(files[0]);
+                }
+            }, false);
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeImportModal() {
+        const modal = document.getElementById('import-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function handleImportFileSelect(e) {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            processImportFile(files[0]);
+        }
+    }
+
+    function processImportFile(file) {
+        if (!file.name.endsWith('.json')) {
+            alert('File harus berekstensi .json!');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                importedFilePayload = parsed;
+                displayImportPreview(file, parsed);
+            } catch (err) {
+                alert('Gagal membaca JSON: Format file tidak valid (' + err.message + ')');
+                importedFilePayload = null;
+                document.getElementById('import-preview-box').classList.add('hidden');
+                document.getElementById('btn-submit-import').disabled = true;
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function displayImportPreview(file, data) {
+        const previewBox = document.getElementById('import-preview-box');
+        const fileNameEl = document.getElementById('import-file-name');
+        const fileStatsEl = document.getElementById('import-file-stats');
+        const listEl = document.getElementById('import-templates-preview-list');
+        const submitBtn = document.getElementById('btn-submit-import');
+
+        fileNameEl.textContent = file.name;
+        const fileSizeKb = (file.size / 1024).toFixed(1);
+
+        let tpls = [];
+        if (data && typeof data === 'object') {
+            if (Array.isArray(data.templates)) {
+                tpls = data.templates;
+            } else if (Array.isArray(data)) {
+                tpls = data;
+            } else if (data.name && (data.config || data.config_json)) {
+                tpls = [data];
+            } else if (data.rows || data.vessels) {
+                tpls = [{ name: 'Template Baru (Raw Config)', config: data }];
+            }
+        }
+
+        if (tpls.length === 0) {
+            alert('Tidak ditemukan template yang valid di dalam file JSON ini.');
+            previewBox.classList.add('hidden');
+            submitBtn.disabled = true;
+            return;
+        }
+
+        fileStatsEl.textContent = `${fileSizeKb} KB • ${tpls.length} Template terdeteksi`;
+
+        listEl.innerHTML = '';
+        tpls.forEach((t, idx) => {
+            const tName = t.name || `Template #${idx+1}`;
+            const comp = t.company_initial || t.company_name || 'Auto';
+            const cfg = t.config || {};
+            const vesselsCount = Array.isArray(cfg.vessels) ? cfg.vessels.length : 0;
+            const rowsCount = Array.isArray(cfg.rows) ? cfg.rows.length : 0;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex items-center justify-between p-1.5 rounded bg-slate-50 border border-slate-100';
+            itemDiv.innerHTML = `
+                <div class="flex items-center space-x-2 truncate">
+                    <span class="font-bold text-slate-800">${tName}</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">${comp}</span>
+                </div>
+                <div class="text-[11px] text-slate-500 shrink-0 font-medium space-x-1.5">
+                    <span>${vesselsCount} Kapal</span>
+                    <span>•</span>
+                    <span>${rowsCount} Baris</span>
+                </div>
+            `;
+            listEl.appendChild(itemDiv);
+        });
+
+        previewBox.classList.remove('hidden');
+        submitBtn.disabled = false;
+    }
+
+    async function executeImport() {
+        if (!importedFilePayload) return;
+
+        const submitBtn = document.getElementById('btn-submit-import');
+        const targetCompanyId = document.getElementById('import-target-company').value;
+        const overwrite = document.getElementById('import-overwrite-checkbox').checked;
+        const alertEl = document.getElementById('import-status-alert');
+
+        submitBtn.disabled = true;
+        const origText = submitBtn.innerHTML;
+        submitBtn.innerHTML = `<span>⏳</span><span>Sedang Mengimpor...</span>`;
+        alertEl.classList.add('hidden');
+
+        try {
+            const res = await fetch('/api/builder/templates/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: importedFilePayload,
+                    target_company_id: targetCompanyId ? parseInt(targetCompanyId) : null,
+                    overwrite: overwrite
+                })
+            });
+
+            const resJson = await res.json();
+
+            if (res.ok && resJson.status === 'success') {
+                alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200';
+                
+                let detailsHtml = (resJson.imported || []).map(i => `• ${i.name} (${i.company}): ${i.action === 'updated' ? 'Diperbarui' : 'Dibuat'}`).join('<br>');
+                alertEl.innerHTML = `🎉 ${resJson.message}!<div class="mt-1.5 font-normal text-[11px] text-emerald-700">${detailsHtml}</div>`;
+                alertEl.classList.remove('hidden');
+
+                // Reload saved templates in builder
+                const currentCompId = document.getElementById('company-select').value;
+                await loadSavedTemplates(parseInt(currentCompId));
+
+                // If first imported template matches current company, load it
+                if (resJson.imported && resJson.imported.length > 0) {
+                    const firstTpl = resJson.imported[0];
+                    if (firstTpl.id) {
+                        setTimeout(() => {
+                            const sel = document.getElementById('saved-templates-select');
+                            sel.value = firstTpl.id;
+                            loadTemplate(firstTpl.id);
+                        }, 500);
+                    }
+                }
+
+                setTimeout(() => {
+                    closeImportModal();
+                }, 2000);
+            } else {
+                alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200';
+                alertEl.innerHTML = `⚠️ Gagal mengimpor: ${resJson.detail || resJson.message || 'Terjadi kesalahan'}`;
+                alertEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200';
+            alertEl.innerHTML = `⚠️ Error koneksi: ${err.message}`;
+            alertEl.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origText;
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         initBuilder();
     });
@@ -1868,6 +2170,82 @@
                 <button type="button" onclick="closeFleetModal()" class="px-3.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold">Batal</button>
                 <button type="button" onclick="applyFleetModal()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs">Terapkan Pilihan</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Import Template -->
+<div id="import-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>📥</span> Import Template Laporan
+                </h3>
+                <p class="text-xs text-slate-500">Unggah file template (.json) untuk dipasang di sistem ini.</p>
+            </div>
+            <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg">✕</button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+            <!-- Dropzone / File Picker -->
+            <div id="import-dropzone" onclick="document.getElementById('import-file-input').click()" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/40">
+                <input type="file" id="import-file-input" accept=".json,application/json" class="hidden" onchange="handleImportFileSelect(event)">
+                <div class="space-y-2">
+                    <span class="text-3xl">📄</span>
+                    <div class="text-xs font-bold text-slate-700">Klik untuk memilih file JSON atau seret file ke sini</div>
+                    <p class="text-[11px] text-slate-400">Mendukung backup tunggal atau backup multi-template dari server lain</p>
+                </div>
+            </div>
+
+            <!-- Preview Card (hidden until file selected) -->
+            <div id="import-preview-box" class="hidden border border-blue-100 bg-blue-50/50 rounded-xl p-4 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-base">📋</span>
+                        <div>
+                            <div id="import-file-name" class="text-xs font-bold text-slate-900 truncate max-w-xs">filename.json</div>
+                            <div id="import-file-stats" class="text-[11px] text-slate-500">0 KB • 0 Template terdeteksi</div>
+                        </div>
+                    </div>
+                    <span id="import-badge-type" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">JSON Valid</span>
+                </div>
+                <div id="import-templates-preview-list" class="max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar bg-white rounded-lg p-2.5 border border-blue-100 text-xs">
+                    <!-- Preview items -->
+                </div>
+            </div>
+
+            <!-- Target Company & Options -->
+            <div class="space-y-3 pt-1">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Perusahaan Tujuan</label>
+                    <select id="import-target-company" class="w-full text-xs font-semibold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Otomatis Cocokkan dari File --</option>
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">Jika dipilih, seluruh template dalam file akan dimasukkan ke perusahaan ini.</p>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="import-overwrite-checkbox" checked class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 border-slate-300">
+                    <label for="import-overwrite-checkbox" class="text-xs text-slate-700 font-semibold cursor-pointer">
+                        Timpa konfigurasi jika template dengan nama yang sama sudah ada (Overwrite)
+                    </label>
+                </div>
+            </div>
+
+            <!-- Import Status Alert -->
+            <div id="import-status-alert" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
+            <button type="button" onclick="closeImportModal()" class="px-3.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold">Tutup</button>
+            <button type="button" id="btn-submit-import" onclick="executeImport()" disabled class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-xs flex items-center space-x-1.5">
+                <span>🚀</span>
+                <span>Mulai Import</span>
+            </button>
         </div>
     </div>
 </div>
