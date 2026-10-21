@@ -236,27 +236,18 @@ class PreviewRequest(BaseModel):
     vessels: List[Dict[str, Any]]
     rows: List[Dict[str, Any]]
 
-@router.post("/preview")
-def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
-    company = db.query(Company).filter(Company.id == payload.company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
-        
-    vessels = payload.vessels
+def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None) -> dict:
+    """Constructs the base matrix structure (header and body rows with val_c expressions) from builder config."""
     if not vessels:
-        # Mode HO (Head Office): Tidak ada kapal individual, langsung entitas Head Office
         vessels = [{'id': 0, 'name': 'HEAD OFFICE (HO)', 'is_ho': True}]
-        
-    if not payload.rows:
-        raise HTTPException(status_code=400, detail="Tambahkan minimal 1 baris laporan.")
 
-    year = str(payload.year)
+    year_str = str(year)
     quarters = [
-        ('q1', f'{year}-01-01', f'{year}-03-31'),
-        ('q2', f'{year}-04-01', f'{year}-06-30'),
-        ('q3', f'{year}-07-01', f'{year}-09-30'),
-        ('q4', f'{year}-10-01', f'{year}-12-31'),
-        ('ytd', f'{year}-01-01', f'{year}-12-31')
+        ('q1', f'{year_str}-01-01', f'{year_str}-03-31'),
+        ('q2', f'{year_str}-04-01', f'{year_str}-06-30'),
+        ('q3', f'{year_str}-07-01', f'{year_str}-09-30'),
+        ('q4', f'{year_str}-10-01', f'{year_str}-12-31'),
+        ('ytd', f'{year_str}-01-01', f'{year_str}-12-31')
     ]
 
     h0 = []
@@ -268,19 +259,20 @@ def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
         for q, _, _ in quarters:
             h1.append({'label': q.upper() if q != 'ytd' else 'YTD'})
 
+    has_auto_expand = any(r.get('auto_expand_coa') or r.get('auto_expand') for r in rows)
     body = []
     engine = None
-    try:
-        engine = ReportEngine(company.target_db_name, pg_kwargs=company.get_pg_kwargs())
-    except Exception as e:
-        print(f"ReportEngine preview init failed for company {company.name}: {e}")
-        engine = None
+    if has_auto_expand:
+        try:
+            engine = ReportEngine(company.target_db_name, pg_kwargs=company.get_pg_kwargs())
+        except Exception as e:
+            print(f"ReportEngine preview init failed for company {company.name}: {e}")
+            engine = None
 
     try:
-        # Collect existing explicit account codes to avoid duplicating them
-        existing_acc_codes = {str(row.get('expression', '')).strip() for row in payload.rows if row.get('type') == 'account'}
+        existing_acc_codes = {str(row.get('expression', '')).strip() for row in rows if row.get('type') == 'account'}
 
-        for r in payload.rows:
+        for r in rows:
             var_name = r.get('code', '').strip()
             label = r.get('label', '').strip() or var_name
             row_type = r.get('type', 'data')
@@ -321,7 +313,6 @@ def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
             for v in vessels:
                 for q, sd, ed in quarters:
                     if row_type == 'title':
-                        # Pure title / section heading has no numeric values
                         cells.append({'val': None, 'val_r': '', 'val_c': ''})
                     elif row_type == 'query':
                         val_c = f'{var_name}.{q} = kpi_{expr.lower()}'
@@ -333,7 +324,6 @@ def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
                         val_c = f'{var_name}.{q} = {formula_rhs}'
                         cells.append({'val': 0.0, 'val_r': '-', 'val_c': val_c})
                     else:
-                        # Account or Tag row
                         acc_match = re.search(r'^(\d{4,})', expr) or re.search(r'^(\d{4,})', label)
                         if acc_match or row_type == 'account':
                             acc_code = acc_match.group(1) if acc_match else expr
@@ -385,7 +375,7 @@ def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
                     child_code = f"{var_name}_{child_idx}"
                     child_idx += 1
                     child_cells = []
-                    for v in payload.vessels:
+                    for v in vessels:
                         for q, sd, ed in quarters:
                             val_c = f'{child_code}.{q} = balp[(\"account_id.code\",\"=\",\"{acc_code}\")][(\"date\", \">=\", \"{sd}\"),(\"date\", \"<=\", \"{ed}\")]'
                             child_cells.append({'val': 0.0, 'val_r': '-', 'val_c': val_c})
@@ -406,13 +396,33 @@ def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
             except Exception:
                 pass
 
-    matrix = {'header': [h0, h1], 'body': body}
+    return {'header': [h0, h1], 'body': body}
+
+def build_and_compile_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None) -> dict:
+    """Builds the raw matrix from builder definition and evaluates all DuckDB accounting queries and formulas."""
+    raw_matrix = build_raw_matrix(company, year, vessels, rows, db)
+    from app.compiler import FastMatrixCompiler
+    compiler = FastMatrixCompiler(db_name=company.target_db_name, year=str(year), pg_kwargs=company.get_pg_kwargs())
+    return compiler.compile(raw_matrix)
+
+@router.post("/preview")
+def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
+    company = db.query(Company).filter(Company.id == payload.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+        
+    vessels = payload.vessels
+    if not vessels:
+        vessels = [{'id': 0, 'name': 'HEAD OFFICE (HO)', 'is_ho': True}]
+        
+    if not payload.rows:
+        raise HTTPException(status_code=400, detail="Tambahkan minimal 1 baris laporan.")
+
+    year = str(payload.year)
     try:
-        from app.compiler import FastMatrixCompiler
-        compiler = FastMatrixCompiler(db_name=company.target_db_name, year=year, pg_kwargs=company.get_pg_kwargs())
-        compiled_matrix = compiler.compile(matrix)
+        compiled_matrix = build_and_compile_matrix(company, year, vessels, payload.rows, db)
         return {"status": "success", "data": compiled_matrix}
     except Exception as e:
         print(f"FastMatrixCompiler preview failed: {e}")
-        # Return base preview matrix so UI preview continues to render
-        return {"status": "success", "data": matrix, "warning": f"Matriks belum dikompilasi nilai DuckDB: {str(e)}"}
+        raw_matrix = build_raw_matrix(company, year, vessels, payload.rows, db)
+        return {"status": "success", "data": raw_matrix, "warning": f"Matriks belum dikompilasi nilai DuckDB: {str(e)}"}

@@ -152,13 +152,11 @@ async def api_get_reports(company_id: int, request: Request):
         if not company:
             return JSONResponse(status_code=400, content={"status": "error", "message": "Perusahaan tidak ditemukan."})
 
-        from app.models import ReportTemplate
-        synced_reports = db.query(ReportTemplate).filter(
-            ReportTemplate.company_id == company.id, 
-            ReportTemplate.is_active == True,
-            ReportTemplate.skeleton_json != None
-        ).all()
-        reports = [{"id": r.odoo_report_id, "name": r.report_name} for r in synced_reports]
+        from app.models import CustomBuilderTemplate
+        builder_templates = db.query(CustomBuilderTemplate).filter(
+            CustomBuilderTemplate.company_id == company.id
+        ).order_by(CustomBuilderTemplate.id).all()
+        reports = [{"id": r.id, "name": r.name} for r in builder_templates]
         
         return {"status": "success", "reports": reports}
     except Exception as e:
@@ -471,24 +469,6 @@ async def api_admin_toggle_company_active(company_id: int, req: CompanyActiveReq
     finally:
         db.close()
 
-@app.get("/api/admin/odoo_reports/{company_id}")
-async def api_admin_odoo_reports(company_id: int):
-    db = SessionLocal()
-    from app.odoo_api import OdooAPI
-    company = db.query(Company).filter(Company.id == company_id).first()
-    if not company:
-        return JSONResponse(status_code=404, content={"status": "error", "message": "Company not found"})
-    try:
-        api = OdooAPI(
-            db_name=company.target_db_name, 
-            url=company.server_url, 
-            username=company.odoo_user, 
-            password=company.odoo_password
-        )
-        reports = api.search_read('mis.report.instance', ['|', ('active', '=', True), ('active', '=', False)], ['id', 'name', 'active'])
-        return {"status": "success", "data": reports}
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal terhubung ke Odoo ({company.name}): {str(e)}"})
 @app.post("/api/admin/test_connection")
 async def api_admin_test_connection(req: TestConnectionRequest):
     from app.odoo_api import OdooAPI
@@ -518,349 +498,11 @@ async def api_admin_test_connection(req: TestConnectionRequest):
     finally:
         db.close()
 
-class SyncItem(BaseModel):
-    odoo_report_id: int
-    report_name: str
-    is_fast_sync: bool = False
-
-class SyncTemplatesRequest(BaseModel):
-    company_id: int
-    templates: list[SyncItem]
-
-from fastapi import BackgroundTasks
-
-def background_sync_templates(company_id: int, templates_data: list):
-    import json
-    from datetime import datetime
-    from app.odoo_api import OdooAPI
-    from app.models import ReportTemplate
-    from app.db import SessionLocal
-    from app.models import Company
-    
-    db = SessionLocal()
-    try:
-        company = db.query(Company).filter(Company.id == company_id).first()
-        if not company:
-            return
-            
-        api = OdooAPI(
-            db_name=company.target_db_name, 
-            url=company.server_url, 
-            username=company.odoo_user, 
-            password=company.odoo_password
-        )
-        
-        for item in templates_data:
-            try:
-                import time
-                start_time = time.time()
-                
-                if getattr(item, 'is_fast_sync', False):
-                    # Fetch periods
-                    periods = api.search_read('mis.report.instance.period', [['report_instance_id', '=', item.odoo_report_id]], ['id', 'date_from', 'date_to'])
-                    old_dates = {p['id']: {'date_from': p['date_from'], 'date_to': p['date_to']} for p in periods}
-                    try:
-                        # Set to 1970 temporarily to avoid timeout
-                        for p in periods:
-                            api.execute_kw('mis.report.instance.period', 'write', [[p['id']], {'date_from': '1970-01-01', 'date_to': '1970-01-01'}])
-                        
-                        matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
-                    finally:
-                        # Revert back
-                        for p_id, dates in old_dates.items():
-                            api.execute_kw('mis.report.instance.period', 'write', [[p_id], dates])
-                else:
-                    matrix = api.generate_mis_report(item.odoo_report_id, '1970-01-01', '1970-01-01')
-                    
-                if matrix is None:
-                    raise Exception("Odoo returned empty matrix")
-                    
-                template = db.query(ReportTemplate).filter(
-                    ReportTemplate.company_id == company.id,
-                    ReportTemplate.odoo_report_id == item.odoo_report_id
-                ).first()
-                
-                if template:
-                    duration = time.time() - start_time
-                    template.skeleton_json = json.dumps(matrix)
-                    template.last_sync = f"Ready ({duration:.1f}s) - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-                    db.commit()
-            except Exception as e:
-                print(f"Error syncing template {item.odoo_report_id}: {e}")
-                db.rollback()
-                template = db.query(ReportTemplate).filter(
-                    ReportTemplate.company_id == company.id,
-                    ReportTemplate.odoo_report_id == item.odoo_report_id
-                ).first()
-                if template:
-                    template.last_sync = f"Failed: {str(e)[:40]}"
-                    db.commit()
-    finally:
-        db.close()
-
-@app.post("/api/admin/sync_templates")
-async def api_admin_sync_templates(req: SyncTemplatesRequest, background_tasks: BackgroundTasks):
-    from app.models import Company, ReportTemplate
-    db = SessionLocal()
-    try:
-        company = db.query(Company).filter(Company.id == req.company_id, Company.is_active == True).first()
-        if not company:
-            return JSONResponse(status_code=404, content={"status": "error", "message": "Company not found"})
-            
-        templates_to_sync = []
-        for item in req.templates:
-            template = db.query(ReportTemplate).filter(
-                ReportTemplate.company_id == company.id,
-                ReportTemplate.odoo_report_id == item.odoo_report_id
-            ).first()
-            
-            # Prevent multiple clicks running parallel heavy queries
-            if template and template.last_sync and template.last_sync.startswith("Syncing"):
-                continue
-                
-            if not template:
-                template = ReportTemplate(company_id=company.id, odoo_report_id=item.odoo_report_id, report_name=item.report_name)
-                db.add(template)
-            elif not template.report_name:
-                template.report_name = item.report_name
-                
-            template.skeleton_json = None
-            template.last_sync = "Syncing (Fetching from Odoo...)"
-            templates_to_sync.append(item)
-            
-        db.commit()
-        
-        if not templates_to_sync:
-            return {"status": "success", "message": "Semua template yang dipilih sudah dalam proses sinkronisasi."}
-        
-        background_tasks.add_task(background_sync_templates, company.id, templates_to_sync)
-        return {"status": "success", "message": f"{len(templates_to_sync)} Template sedang ditarik di latar belakang. Silakan refresh tabel beberapa saat lagi."}
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal memulai sync latar belakang: {str(e)}"})
-    finally:
-        db.close()
-
-@app.get("/api/admin/templates")
-async def api_admin_templates():
-    db = SessionLocal()
-    from app.models import ReportTemplate
-    templates = db.query(ReportTemplate).join(Company).all()
-    data = []
-    for t in templates:
-        data.append({
-            "id": t.id,
-            "company_initial": t.company.initial_pt or t.company.name,
-            "report_name": t.report_name,
-            "odoo_report_id": t.odoo_report_id,
-            "is_active": t.is_active,
-            "last_sync": t.last_sync
-        })
-    return {"status": "success", "data": data}
-
-@app.get("/api/admin/template/{template_id}")
-async def api_admin_template_detail(template_id: int):
-    db = SessionLocal()
-    from app.models import ReportTemplate
-    try:
-        t = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
-        if not t:
-            return JSONResponse(status_code=404, content={"status": "error", "message": "Template tidak ditemukan"})
-            
-        data = {
-            "id": t.id,
-            "report_name": t.report_name,
-            "last_sync": t.last_sync,
-            "rows": [],
-            "cols": []
-        }
-        
-        if t.skeleton_json:
-            skeleton = json.loads(t.skeleton_json)
-            if "body" in skeleton:
-                for row in skeleton["body"]:
-                    label = row.get("label", "")
-                    if label:
-                        data["rows"].append(label)
-                        
-            if "header" in skeleton and len(skeleton["header"]) > 0:
-                h0 = skeleton["header"][0]
-                cols = h0 if isinstance(h0, list) else h0.get("cols", [])
-                for col in cols:
-                    if isinstance(col, dict):
-                        data["cols"].append(col.get("label", col.get("val", "")))
-                    elif isinstance(col, str):
-                        data["cols"].append(col)
-                    
-        return {"status": "success", "data": data}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-    finally:
-        db.close()
-
-class TemplateUpdateRequest(BaseModel):
-    report_name: str
-    is_active: Optional[bool] = True
-
-@app.put("/api/admin/template/{template_id}")
-async def api_admin_update_template(template_id: int, req: TemplateUpdateRequest):
-    db = SessionLocal()
-    from app.models import ReportTemplate
-    try:
-        t = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
-        if not t:
-            return JSONResponse(status_code=404, content={"status": "error", "message": "Template tidak ditemukan"})
-        
-        t.report_name = req.report_name.strip()
-        if req.is_active is not None:
-            t.is_active = req.is_active
-            
-        db.commit()
-        return {"status": "success", "message": "Template berhasil diperbarui"}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-    finally:
-        db.close()
-
-@app.delete("/api/admin/template/{template_id}")
-async def api_admin_delete_template(template_id: int):
-    db = SessionLocal()
-    from app.models import ReportTemplate
-    try:
-        t = db.query(ReportTemplate).filter(ReportTemplate.id == template_id).first()
-        if not t:
-            return JSONResponse(status_code=404, content={"status": "error", "message": "Template tidak ditemukan"})
-        
-        db.delete(t)
-        db.commit()
-        return {"status": "success", "message": "Template berhasil dihapus"}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
-    finally:
-        db.close()
-
-
-
 class ReportRequest(BaseModel):
     company_id: int
     template: str
     template_name: str
     force_refresh: bool = False
-
-@app.post("/api/odoo/compute_booster_direct")
-async def api_odoo_compute_booster_direct(req: Request):
-    """
-    Direct endpoint for Odoo Booster.
-    Odoo generates the skeleton by temporarily switching dates to 1970.
-    Odoo sends the skeleton here, and we just compile it and return it.
-    """
-    data = await req.json()
-    skeleton_matrix = data.get("skeleton_json")
-    db_name = data.get("target_db_name")
-    report_name = data.get("report_name", "")
-    
-    if not skeleton_matrix or not db_name:
-        return JSONResponse(status_code=400, content={"detail": "Missing skeleton_json or target_db_name"})
-        
-    try:
-        # Determine report type
-        report_type = 'fps'
-        if 'HO' in report_name.upper() or 'HEAD OFFICE' in report_name.upper():
-            report_type = 'ho'
-        elif 'NON BMS' in report_name.upper() or 'NON-BMS' in report_name.upper():
-            report_type = 'non_bms'
-        elif 'BMS' in report_name.upper(): 
-            report_type = 'non_fps'
-            
-        # Determine year from name (basic fallback)
-        import re, datetime
-        year_match = re.search(r'\d{4}', report_name)
-        year = int(year_match.group()) if year_match else datetime.date.today().year
-        
-        import json
-        with open("skeleton_debug.json", "w") as f:
-            json.dump(skeleton_matrix, f, indent=2)
-            
-        pg_kwargs = {
-            'db_host': data.get('db_host'),
-            'db_port': data.get('db_port'),
-            'db_user': data.get('db_user'),
-            'db_password': data.get('db_password'),
-        }
-            
-        from app.compiler import FastMatrixCompiler
-        compiler = FastMatrixCompiler(
-            db_name=db_name, 
-            year=year, 
-            report_type=report_type, 
-            odoo_report_id=data.get('report_id') or 0, # mis.report template id (for MIS query vars like tbg.sumq3_25)
-            pg_kwargs=pg_kwargs,
-            template_name=report_name
-        )
-        compiled = compiler.compile(skeleton_matrix)
-        
-        with open("compiled_debug.json", "w") as f:
-            json.dump(compiled, f, indent=2)
-            
-        return compiled
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(status_code=500, content={"detail": str(e)})
-
-@app.post("/api/odoo/compute_booster")
-async def api_odoo_compute_booster(req: Request):
-    # This endpoint is called directly by Odoo backend (BMS DuckDB Booster module).
-    # It takes odoo_report_id, finds the template, runs FastMatrixCompiler, and returns the dict.
-    data = await req.json()
-    odoo_report_id = data.get("odoo_report_instance_id")
-    if not odoo_report_id:
-        return JSONResponse(status_code=400, content={"detail": "Missing odoo_report_instance_id"})
-        
-    db = SessionLocal()
-    try:
-        from app.models import ReportTemplate, Company
-        t = db.query(ReportTemplate).filter(ReportTemplate.odoo_report_id == odoo_report_id).first()
-        if not t:
-            return JSONResponse(status_code=404, content={"detail": "Report template not found in bms-web database. Please sync templates first."})
-            
-        company = db.query(Company).filter(Company.id == t.company_id).first()
-        import json
-        matrix = json.loads(t.skeleton_json)
-        
-        # Determine report type
-        report_type = 'fps'
-        if 'HO' in t.report_name.upper() or 'HEAD OFFICE' in t.report_name.upper():
-            report_type = 'ho'
-        elif 'NON BMS' in t.report_name.upper() or 'NON-BMS' in t.report_name.upper():
-            report_type = 'non_bms'
-        elif 'BMS' in t.report_name.upper(): 
-            report_type = 'non_fps'
-            
-        # Determine year from name (basic fallback)
-        import re, datetime
-        year_match = re.search(r'\d{4}', t.report_name)
-        year = int(year_match.group()) if year_match else datetime.date.today().year
-        
-        from app.compiler import FastMatrixCompiler
-        compiler = FastMatrixCompiler(
-            db_name=company.target_db_name, 
-            year=year, 
-            report_type=report_type, 
-            odoo_report_id=t.odoo_report_id,
-            template_name=t.report_name,
-            pg_kwargs=company.get_pg_kwargs()
-        )
-        compiled = compiler.compile(matrix)
-        
-        # Odoo's mis_builder expects the raw dictionary from kpi_matrix.as_dict()
-        # FastMatrixCompiler mutates and returns the exact dictionary structure!
-        return compiled
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(status_code=500, content={"detail": str(e)})
-    finally:
-        db.close()
 
 @app.post("/api/generate_report")
 async def api_generate_report(req: ReportRequest, request: Request):
@@ -895,53 +537,50 @@ async def api_generate_report(req: ReportRequest, request: Request):
         date_from = f"{year}-01-01"
         date_to = f"{year}-12-31"
         
-        # ID dari frontend
-        odoo_report_id = int(req.template)
-        
-        # Ambil Skeleton dari SQLite (Sinkronisasi Admin)
-        from app.models import ReportTemplate
-        template_record = db.query(ReportTemplate).filter(
-            ReportTemplate.company_id == company.id,
-            ReportTemplate.odoo_report_id == odoo_report_id
-        ).first()
-        
-        if not template_record or not template_record.skeleton_json:
+        # Parse template ID from frontend (menunjuk ke CustomBuilderTemplate.id)
+        try:
+            template_id = int(req.template)
+        except (ValueError, TypeError):
+            template_id = None
+
+        from app.models import CustomBuilderTemplate
+        template_record = None
+        if template_id:
+            template_record = db.query(CustomBuilderTemplate).filter(
+                CustomBuilderTemplate.company_id == company.id,
+                CustomBuilderTemplate.id == template_id
+            ).first()
+
+        if not template_record and req.template_name:
+            template_record = db.query(CustomBuilderTemplate).filter(
+                CustomBuilderTemplate.company_id == company.id,
+                CustomBuilderTemplate.name == req.template_name
+            ).first()
+
+        if not template_record:
             return JSONResponse(status_code=400, content={
                 "status": "error", 
-                "message": f"Template '{req.template_name}' belum disinkronisasi. Silakan hubungi Admin untuk melakukan sinkronisasi di Konfigurasi Sistem."
+                "message": f"Template '{req.template_name}' tidak ditemukan di Report Builder. Silakan buat template terlebih dahulu di menu Report Builder."
             })
             
-        print(f"SQLite Skeleton HIT for Report {odoo_report_id} - {year}")
-        matrix = json.loads(template_record.skeleton_json)
+        cfg = json.loads(template_record.config_json)
+        vessels = cfg.get("vessels", [])
+        rows = cfg.get("rows", [])
         
-        compile_status = "OK (Live Odoo Data)"
-        # Skenario 1 Full: Inject Live Data!
-        try:
-            report_type = 'fps'
-            if 'HO' in req.template_name.upper() or 'HEAD OFFICE' in req.template_name.upper():
-                report_type = 'ho'
-            elif 'NON BMS' in req.template_name.upper() or 'NON-BMS' in req.template_name.upper():
-                report_type = 'non_bms'
-            elif 'BMS' in req.template_name.upper():
-                report_type = 'non_fps'
-                
-            from app.compiler import FastMatrixCompiler
-            compiler = FastMatrixCompiler(
-                db_name=company.target_db_name, 
-                year=year, 
-                report_type=report_type, 
-                odoo_report_id=odoo_report_id,
-                template_name=req.template_name,
-                pg_kwargs=company.get_pg_kwargs()
-            )
-            matrix = compiler.compile(matrix)
-        except Exception as e:
-            compile_status = f"FALLBACK SKELETON (Error: {str(e)})"
-            print("FastMatrixCompiler fallback to pure skeleton: ", e)
+        # Determine year: from config, or from template_name, fallback to current year
+        year = cfg.get("year")
+        if not year:
+            year_match = re.search(r'\d{4}', req.template_name or template_record.name)
+            year = int(year_match.group()) if year_match else datetime.date.today().year
+        else:
+            year = int(year)
 
+        from app.builder import build_and_compile_matrix
+        matrix = build_and_compile_matrix(company, str(year), vessels, rows, db)
+        compile_status = "OK (Live Matrix Compiler)"
         
-        import datetime
-        clean_name = req.template_name.replace(' ', '_').replace('/', '_')
+        report_display_name = template_record.name
+        clean_name = report_display_name.replace(' ', '_').replace('/', '_')
         
         if str(year) in clean_name:
             clean_name = clean_name.replace(f"_{year}", "")
@@ -957,7 +596,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
         writer = ExcelWriter(
             output_path=output_path,
             matrix_data=matrix,
-            report_name=req.template_name,
+            report_name=report_display_name,
             company_name=company.name,
             year=year,
             db_name=company.target_db_name,
@@ -971,7 +610,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
         history = ReportHistory(
             user_id=user.id if user else None,
             company_id=company.id,
-            template_name=req.template_name,
+            template_name=report_display_name,
             file_name=output_filename,
             file_path=output_path,
             generated_at=now_str

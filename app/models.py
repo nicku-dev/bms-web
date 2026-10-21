@@ -31,7 +31,7 @@ class Company(Base):
     ssh_host = Column(String(100), nullable=True) # Bastion / SSH tunnel host (e.g. nicku.admin@10.110.1.8)
     is_active = Column(Boolean, default=True)
     
-    reports = relationship('ReportTemplate', back_populates='company', cascade="all, delete-orphan")
+    builder_templates = relationship('CustomBuilderTemplate', back_populates='company', cascade="all, delete-orphan")
     users = relationship('User', back_populates='company')
 
     def get_pg_kwargs(self) -> dict:
@@ -42,18 +42,6 @@ class Company(Base):
             'db_password': self.db_password,
             'ssh_host': self.ssh_host,
         }
-
-class ReportTemplate(Base):
-    __tablename__ = 'report_templates'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    company_id = Column(Integer, ForeignKey('companies.id'), nullable=False)
-    odoo_report_id = Column(Integer, nullable=False)
-    report_name = Column(String(100), nullable=False)
-    skeleton_json = Column(String, nullable=True) # JSON stored as string
-    last_sync = Column(String(50), nullable=True)
-    is_active = Column(Boolean, default=True)
-    
-    company = relationship('Company', back_populates='reports')
 
 class ReportHistory(Base):
     __tablename__ = 'report_history'
@@ -77,4 +65,4 @@ class CustomBuilderTemplate(Base):
     created_at = Column(String(50), nullable=False)
     updated_at = Column(String(50), nullable=False)
     
-    company = relationship('Company')
+    company = relationship('Company', back_populates='builder_templates')

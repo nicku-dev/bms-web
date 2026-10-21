@@ -51,18 +51,6 @@ class FastMatrixCompiler:
             return True
         if rtype in ['NON_BMS', 'NON-BMS', 'NON BMS']:
             return True
-        if self.odoo_report_id:
-            try:
-                from app.db import SessionLocal
-                from app.models import ReportTemplate
-                db = SessionLocal()
-                t = db.query(ReportTemplate).filter(ReportTemplate.odoo_report_id == self.odoo_report_id).first()
-                if t and t.report_name and ('NON BMS' in t.report_name.upper() or 'NON-BMS' in t.report_name.upper()):
-                    db.close()
-                    return True
-                db.close()
-            except Exception:
-                pass
         return False
 
     def compile(self, matrix):

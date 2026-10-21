@@ -498,7 +498,7 @@
       return;
     }
     
-    reportSelect.innerHTML = '<option value="">Memuat laporan dari Odoo...</option>';
+    reportSelect.innerHTML = '<option value="">Memuat template laporan...</option>';
     
     try {
       const response = await fetch(`/api/reports/${companyId}`);
@@ -519,7 +519,7 @@
         reportSelect.innerHTML = `<option value="">Gagal memuat: ${data.message || 'Error'}</option>`;
       }
     } catch(err) {
-      reportSelect.innerHTML = '<option value="">Error koneksi Odoo</option>';
+      reportSelect.innerHTML = '<option value="">Error memuat laporan</option>';
       console.error(err);
     }
   });
