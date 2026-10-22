@@ -629,6 +629,29 @@ class FastMatrixCompiler:
                             else:
                                 cell['val'] = val
                                 cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+
+            # STEP 4.5: Roll up / Aggregate child rows into parent group row (auto_expand_coa)
+            parent_children_map = {}
+            for r in matrix.get('body', []):
+                pcode = r.get('parent_code')
+                if pcode:
+                    parent_children_map.setdefault(pcode, []).append(r)
+
+            for p_row in matrix.get('body', []):
+                rname = str(p_row.get('name') or p_row.get('code') or '').strip()
+                if rname and rname in parent_children_map:
+                    children = parent_children_map[rname]
+                    for i, cell in enumerate(p_row.get('cells', [])):
+                        if i >= len(col_map):
+                            continue
+                        tot_raw = sum((ch['cells'][i].get('raw_val') if ch['cells'][i].get('raw_val') is not None else (ch['cells'][i].get('val') or 0.0)) for ch in children if i < len(ch.get('cells', [])))
+                        tot_val = sum((ch['cells'][i].get('val') or 0.0) for ch in children if i < len(ch.get('cells', [])))
+                        cell['raw_val'] = tot_raw
+                        cell['val'] = tot_val
+                        cell['val_r'] = "{:,.2f}".format(tot_val) if abs(tot_val) >= 0.005 else "-"
+                        
+                        env_vars[i][rname] = tot_val
+                        env_vars[i][rname.lower()] = tot_val
                                 
         # STEP 5: Title Row & Error Cleanup
         # Blank out cells for rows that are purely titles (no formula, no account code),

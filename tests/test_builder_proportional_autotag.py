@@ -114,3 +114,91 @@ def test_autotag_proportional_allocation():
             assert round(tot_q3_val, 2) == round(v1_q3_val + v2_q3_val, 2)
     finally:
         db.close()
+
+def test_perjalanan_dinas_and_kantor_parent_rollup():
+    db = SessionLocal()
+    try:
+        payload = PreviewRequest(
+            company_id=2,
+            year="2026",
+            vessels=[
+                {"id": 75, "name": "TB.BMS 004/TK.BMS 004A"},
+                {"id": 80, "name": "SPOB BINA MARITIM 3401"}
+            ],
+            rows=[
+                {
+                    "id": 1,
+                    "code": "R1",
+                    "type": "data",
+                    "label": "PENDAPATAN JASA",
+                    "expression": "TW_PENDAPATAN JASA"
+                },
+                {
+                    "id": 2,
+                    "code": "K32",
+                    "type": "query",
+                    "label": "Total Pendapatan Kapal Terpilih",
+                    "expression": "TPJ_TERPILIH"
+                },
+                {
+                    "id": 3,
+                    "code": "R36",
+                    "type": "formula",
+                    "label": "Proportional TPJ",
+                    "expression": "R1 / K32",
+                    "is_percentage": True
+                },
+                {
+                    "id": 4,
+                    "code": "R68",
+                    "type": "data",
+                    "label": "Biaya Perjalanan Dinas",
+                    "expression": "TW_Biaya Perjalanan Dinas",
+                    "auto_expand_coa": True,
+                    "is_proportional": True,
+                    "multiplier_row": "R36"
+                },
+                {
+                    "id": 5,
+                    "code": "R70",
+                    "type": "data",
+                    "label": "Biaya Kantor",
+                    "expression": "TW_Biaya Kantor",
+                    "auto_expand_coa": True,
+                    "is_proportional": True,
+                    "multiplier_row": "R36"
+                }
+            ]
+        )
+
+        res = preview_template(payload, db=db)
+        assert res["status"] == "success"
+        body = res["data"]["body"]
+        row_map = {r["name"]: r for r in body}
+
+        # Parent R68 and R70
+        r68 = row_map["R68"]
+        r70 = row_map["R70"]
+
+        # Child rows for R68 and R70
+        r68_children = [r for r in body if r.get("parent_code") == "R68"]
+        r70_children = [r for r in body if r.get("parent_code") == "R70"]
+        assert len(r68_children) > 0
+        assert len(r70_children) > 0
+
+        # For every cell, parent value must exactly equal the sum of children values
+        for col_idx in range(len(r68["cells"])):
+            expected_r68 = sum((ch["cells"][col_idx].get("val") or 0.0) for ch in r68_children)
+            assert round(r68["cells"][col_idx]["val"], 2) == round(expected_r68, 2)
+
+            expected_r70 = sum((ch["cells"][col_idx].get("val") or 0.0) for ch in r70_children)
+            assert round(r70["cells"][col_idx]["val"], 2) == round(expected_r70, 2)
+
+        # Check SPOB BINA MARITIM 3401 Q3 cell specifically (col_idx = 7)
+        spob_q3_r68 = r68["cells"][7]["val"]
+        assert spob_q3_r68 > 0
+        spob_q3_r70 = r70["cells"][7]["val"]
+        assert spob_q3_r70 > 0
+    finally:
+        db.close()
+
