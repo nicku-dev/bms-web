@@ -172,7 +172,18 @@ class FastMatrixCompiler:
                             if vessel_df.empty:
                                 vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
                             if vessel_df.empty and 'ALL' in df['vessel_name'].values:
-                                vessel_df = df[df['vessel_name'] == 'ALL']
+                                # Fallback 'ALL' should only apply to general indirect overhead / company-wide shared expenses (accounts 6/7/8/9, proportional rows, or HO).
+                                # Direct vessel accounts (Revenue 4xxx and Direct COGS 5xxx) belong strictly to the specific vessel and must NEVER inherit 'ALL'!
+                                is_indirect = bool(
+                                    row.get('is_proportional') 
+                                    or self.report_type == 'ho' 
+                                    or clean_vessel.upper() in ['HO', 'HEAD OFFICE']
+                                    or (account_code and str(account_code)[0] in ['6', '7', '8', '9'])
+                                    or ('GAJI' in label.upper() and 'CREW' not in label.upper())
+                                    or any(k in label.upper() for k in ['OVERHEAD', 'ADMINISTRASI', 'TIDAK LANGSUNG', 'BUNGA', 'PAJAK'])
+                                )
+                                if is_expense and is_indirect:
+                                    vessel_df = df[df['vessel_name'] == 'ALL']
                             
                         if not vessel_df.empty:
                             if period in ['q1', 'q2', 'q3', 'q4']:
