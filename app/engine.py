@@ -226,12 +226,9 @@ class ReportEngine:
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
                 GROUP BY fc.name, EXTRACT(QUARTER FROM aml.date)
-            """
-        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
-        df = self.conn.execute(duckdb_query).df()
-        if df.empty and (tag_name or account_code):
-            # Fallback for indirect/HO tags or general costs with no ship allocation
-            fb_query = f"""
+
+                UNION ALL
+
                 SELECT 
                     'ALL' AS vessel_name,
                     EXTRACT(QUARTER FROM aml.date)::int AS quarter,
@@ -243,14 +240,20 @@ class ReportEngine:
                   {tag_filter}
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
+                  AND (
+                      aml.analytic_distribution IS NULL 
+                      OR aml.analytic_distribution::text = '{{}}'
+                      OR NOT EXISTS (
+                          SELECT 1 
+                          FROM jsonb_each_text(aml.analytic_distribution) j(k, v)
+                          JOIN regexp_split_to_table(j.k, ',') as sk ON sk ~ '^[0-9]+$'
+                          JOIN fleet_combination fc ON fc.analytic_account_id = sk::int
+                      )
+                  )
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
             """
-            try:
-                df_fb = self.conn.execute(f"SELECT * FROM postgres_query('pg', '{fb_query.replace(chr(39), chr(39)*2)}')").df()
-                if not df_fb.empty:
-                    return df_fb
-            except Exception:
-                pass
+        duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
+        df = self.conn.execute(duckdb_query).df()
         return df
 
     def get_kpi_trip(self, year: int, report_type: str = 'fps') -> pd.DataFrame:
