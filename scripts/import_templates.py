@@ -24,38 +24,63 @@ def import_templates(db_path, file_path, company=None, overwrite=False):
         print(f"Error: JSON file not found at {file_path}", file=sys.stderr)
         sys.exit(1)
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        raw_data = json.load(f)
-
-    # Parse templates list
     items = []
-    if isinstance(raw_data, dict):
-        if "templates" in raw_data and isinstance(raw_data["templates"], list):
-            items = raw_data["templates"]
-        elif "rows" in raw_data or "vessels" in raw_data:
-            items = [{
-                "name": f"Imported Template {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                "config": raw_data
-            }]
-        elif "name" in raw_data and ("config" in raw_data or "config_json" in raw_data):
-            cfg = raw_data.get("config") or (json.loads(raw_data["config_json"]) if isinstance(raw_data.get("config_json"), str) else {})
-            items = [{
-                "name": raw_data["name"],
-                "company_initial": raw_data.get("company_initial"),
-                "company_name": raw_data.get("company_name"),
-                "config": cfg
-            }]
+    if file_path.lower().endswith(('.xlsx', '.xlsm')):
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+        from app.builder_excel import parse_template_excel
+        with open(file_path, "rb") as f:
+            content = f.read()
+        parsed = parse_template_excel(content)
+        if parsed.get("is_bundle"):
+            items = parsed.get("bundled_templates", [])
         else:
-            print("Error: Format JSON tidak dikenali sebagai template builder.", file=sys.stderr)
-            sys.exit(1)
-    elif isinstance(raw_data, list):
-        items = raw_data
+            tpl_name = parsed.get("template_name")
+            if not tpl_name:
+                clean_fn = os.path.splitext(os.path.basename(file_path))[0]
+                tpl_name = clean_fn.replace("template_", "").replace("_", " ").strip()
+                if not tpl_name:
+                    tpl_name = f"Template Excel {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            items = [{
+                "name": tpl_name,
+                "company_initial": parsed.get("company_initial"),
+                "company_name": parsed.get("company_name"),
+                "config": {
+                    "rows": parsed.get("rows", []),
+                    "vessels": parsed.get("vessels", [])
+                }
+            }]
     else:
-        print("Error: File JSON harus berupa Object atau Array.", file=sys.stderr)
-        sys.exit(1)
+        with open(file_path, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+
+        # Parse templates list
+        if isinstance(raw_data, dict):
+            if "templates" in raw_data and isinstance(raw_data["templates"], list):
+                items = raw_data["templates"]
+            elif "rows" in raw_data or "vessels" in raw_data:
+                items = [{
+                    "name": f"Imported Template {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    "config": raw_data
+                }]
+            elif "name" in raw_data and ("config" in raw_data or "config_json" in raw_data):
+                cfg = raw_data.get("config") or (json.loads(raw_data["config_json"]) if isinstance(raw_data.get("config_json"), str) else {})
+                items = [{
+                    "name": raw_data["name"],
+                    "company_initial": raw_data.get("company_initial"),
+                    "company_name": raw_data.get("company_name"),
+                    "config": cfg
+                }]
+            else:
+                print("Error: Format JSON tidak dikenali sebagai template builder.", file=sys.stderr)
+                sys.exit(1)
+        elif isinstance(raw_data, list):
+            items = raw_data
+        else:
+            print("Error: File harus berupa JSON Object/Array atau Excel (.xlsx).", file=sys.stderr)
+            sys.exit(1)
 
     if not items:
-        print("Peringatan: Tidak ada template ditemukan dalam file JSON.")
+        print("Peringatan: Tidak ada template ditemukan dalam file.")
         return
 
     conn = sqlite3.connect(db_path)

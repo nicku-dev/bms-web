@@ -194,16 +194,20 @@
         <h3 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
           <span>📦</span> Migrasi &amp; Backup Template Laporan
         </h3>
-        <p class="text-xs text-gray-500 mt-0.5">Export template untuk deployment ke server lain (Dev/SIT/Production), atau Import template (.json) dari mesin lain.</p>
+        <p class="text-xs text-gray-500 mt-0.5">Export template ke Excel (.xlsx gaya Odoo untuk kemudahan editing) atau JSON, serta Import template ke server.</p>
       </div>
       <div class="flex items-center space-x-2">
-        <button onclick="exportAllTemplatesSystem()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-xs flex items-center space-x-1.5 transition active:scale-95">
-          <span>📤</span>
-          <span>Export Semua (Semua PT)</span>
+        <button onclick="exportAllTemplatesSystemExcel()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-xs flex items-center space-x-1.5 transition active:scale-95" title="Export seluruh template ke Excel (.xlsx)">
+          <span>📊</span>
+          <span>Export Excel (Semua PT)</span>
+        </button>
+        <button onclick="exportAllTemplatesSystem()" class="px-3 py-1.5 text-xs font-semibold bg-slate-700 text-white rounded-lg hover:bg-slate-800 shadow-xs flex items-center space-x-1.5 transition active:scale-95" title="Export backup format JSON">
+          <span>📄</span>
+          <span>Export JSON</span>
         </button>
         <button onclick="openConfigImportModal()" class="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-xs flex items-center space-x-1.5 transition active:scale-95">
           <span>📥</span>
-          <span>Import Template (.json)</span>
+          <span>Import (Excel / JSON)</span>
         </button>
       </div>
     </div>
@@ -216,10 +220,16 @@
             <option value="all">Semua Perusahaan</option>
           </select>
         </div>
-        <button onclick="exportFilteredTemplates()" class="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center space-x-1.5 active:scale-95">
-          <span>📤</span>
-          <span>Export Template Terfilter</span>
-        </button>
+        <div class="flex items-center space-x-2">
+          <button onclick="exportFilteredTemplatesExcel()" class="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center space-x-1.5 active:scale-95" title="Export template terfilter ke Excel">
+            <span>📊</span>
+            <span>Export Excel</span>
+          </button>
+          <button onclick="exportFilteredTemplates()" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition flex items-center space-x-1.5 active:scale-95" title="Export template terfilter ke JSON">
+            <span>📄</span>
+            <span>Export JSON</span>
+          </button>
+        </div>
       </div>
 
       <div class="overflow-x-auto border border-gray-200 rounded-lg">
@@ -746,11 +756,14 @@
                             <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">📋 ${t.rows_count} Baris</span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-500">${t.updated_at ? t.updated_at.split('T')[0] : '-'}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold space-x-2">
-                            <button onclick="exportSingleTemplate(${t.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md transition shadow-2xs">
-                                📤 Export
+                        <td class="px-4 py-3 whitespace-nowrap text-right text-xs font-semibold space-x-1.5">
+                            <button onclick="exportSingleTemplateExcel(${t.id})" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md transition shadow-2xs font-semibold" title="Export Excel (Gaya Odoo - Mudah Diedit)">
+                                📊 Excel
                             </button>
-                            <a href="/builder?company_id=${t.company_id}&template_id=${t.id}" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-md transition shadow-2xs inline-block">
+                            <button onclick="exportSingleTemplate(${t.id})" class="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-md transition shadow-2xs text-[11px]" title="Export JSON">
+                                📄 JSON
+                            </button>
+                            <a href="/builder?company_id=${t.company_id}&template_id=${t.id}" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-md transition shadow-2xs inline-block">
                                 🛠️ Builder
                             </a>
                         </td>
@@ -781,6 +794,22 @@
         }
     }
 
+    // Excel Exports (Gaya Odoo)
+    function exportSingleTemplateExcel(id) {
+        window.location.href = `/api/builder/templates/${id}/export-excel`;
+    }
+
+    function exportFilteredTemplatesExcel() {
+        const filterVal = document.getElementById('config-tpl-comp-filter').value;
+        const url = `/api/builder/templates/export-all-excel${filterVal && filterVal !== 'all' ? '?company_id=' + filterVal : ''}`;
+        window.location.href = url;
+    }
+
+    function exportAllTemplatesSystemExcel() {
+        window.location.href = `/api/builder/templates/export-all-excel`;
+    }
+
+    // JSON Exports
     function exportSingleTemplate(id) {
         window.location.href = `/api/builder/templates/${id}/export`;
     }
@@ -795,10 +824,15 @@
         window.location.href = `/api/builder/templates/export-all`;
     }
 
+    let configImportFileObj = null;
+    let configImportFileType = null;
+
     async function openConfigImportModal() {
         const modal = document.getElementById('config-import-modal');
         if (!modal) return;
 
+        configImportFileObj = null;
+        configImportFileType = null;
         configImportPayload = null;
         document.getElementById('config-import-file-input').value = '';
         document.getElementById('config-import-preview-box').classList.add('hidden');
@@ -832,81 +866,169 @@
         }
     }
 
-    function processConfigImportFile(file) {
-        if (!file.name.endsWith('.json')) {
-            alert('File harus berekstensi .json!');
-            return;
-        }
+    async function processConfigImportFile(file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        configImportFileObj = file;
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
+        if (ext === 'xlsx' || ext === 'xlsm') {
+            configImportFileType = 'excel';
+            const previewBox = document.getElementById('config-import-preview-box');
+            const fileNameEl = document.getElementById('config-import-file-name');
+            const fileStatsEl = document.getElementById('config-import-file-stats');
+            const listEl = document.getElementById('config-import-templates-list');
+            const submitBtn = document.getElementById('btn-config-submit-import');
+            const badgeType = document.getElementById('config-import-badge-type');
+
+            fileNameEl.textContent = file.name;
+            fileStatsEl.textContent = `${(file.size / 1024).toFixed(1)} KB • Membaca file Excel...`;
+            if (badgeType) {
+                badgeType.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+                badgeType.textContent = 'Excel Odoo';
+            }
+            listEl.innerHTML = '<div class="text-center py-2 text-slate-400">Sedang membaca sheet baris dan kapal...</div>';
+            previewBox.classList.remove('hidden');
+
             try {
-                const parsed = JSON.parse(e.target.result);
-                configImportPayload = parsed;
-                
-                const previewBox = document.getElementById('config-import-preview-box');
-                const fileNameEl = document.getElementById('config-import-file-name');
-                const fileStatsEl = document.getElementById('config-import-file-stats');
-                const listEl = document.getElementById('config-import-templates-list');
-                const submitBtn = document.getElementById('btn-config-submit-import');
+                const fd = new FormData();
+                fd.append('file', file);
+                const res = await fetch('/api/builder/templates/preview-excel', {
+                    method: 'POST',
+                    body: fd
+                });
+                const resJson = await res.json();
+                if (!res.ok || resJson.status !== 'success') {
+                    throw new Error(resJson.detail || 'Gagal membaca format Excel');
+                }
 
-                fileNameEl.textContent = file.name;
+                configImportPayload = resJson.data;
+                const data = resJson.data;
                 const fileSizeKb = (file.size / 1024).toFixed(1);
 
-                let tpls = [];
-                if (parsed && typeof parsed === 'object') {
-                    if (Array.isArray(parsed.templates)) tpls = parsed.templates;
-                    else if (Array.isArray(parsed)) tpls = parsed;
-                    else if (parsed.name) tpls = [parsed];
-                    else if (parsed.rows || parsed.vessels) tpls = [{ name: 'Template Baru (Raw Config)', config: parsed }];
-                }
+                if (data.is_bundle) {
+                    const tpls = data.bundled_templates || [];
+                    fileStatsEl.textContent = `${fileSizeKb} KB • Multi-Template (${tpls.length} Template)`;
+                    listEl.innerHTML = '';
+                    tpls.forEach(t => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100';
+                        itemDiv.innerHTML = `
+                            <div class="flex items-center space-x-2 truncate">
+                                <span class="font-bold text-slate-800">${t.name}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${t.company_initial || 'Auto'}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 font-medium">
+                                ${(t.config && t.config.rows) ? t.config.rows.length : 0} Baris Laporan
+                            </div>
+                        `;
+                        listEl.appendChild(itemDiv);
+                    });
+                } else {
+                    const rowsCount = Array.isArray(data.rows) ? data.rows.length : 0;
+                    const vesselsCount = Array.isArray(data.vessels) ? data.vessels.length : 0;
+                    const tName = data.template_name || file.name.replace(/\.[^/.]+$/, "");
+                    const comp = data.company_initial || 'Auto';
 
-                if (tpls.length === 0) {
-                    alert('Tidak ditemukan template yang valid di dalam file JSON ini.');
-                    previewBox.classList.add('hidden');
-                    submitBtn.disabled = true;
-                    return;
-                }
-
-                fileStatsEl.textContent = `${fileSizeKb} KB • ${tpls.length} Template terdeteksi`;
-                listEl.innerHTML = '';
-                tpls.forEach((t, idx) => {
-                    const tName = t.name || `Template #${idx+1}`;
-                    const comp = t.company_initial || t.company_name || 'Auto';
-                    const cfg = t.config || {};
-                    const vesselsCount = Array.isArray(cfg.vessels) ? cfg.vessels.length : 0;
-                    const rowsCount = Array.isArray(cfg.rows) ? cfg.rows.length : 0;
-
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'flex items-center justify-between p-1.5 rounded bg-slate-50 border border-slate-100';
-                    itemDiv.innerHTML = `
-                        <div class="flex items-center space-x-2 truncate">
-                            <span class="font-bold text-slate-800">${tName}</span>
-                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">${comp}</span>
-                        </div>
-                        <div class="text-[11px] text-slate-500 shrink-0 font-medium space-x-1.5">
-                            <span>${vesselsCount} Kapal</span>
-                            <span>•</span>
-                            <span>${rowsCount} Baris</span>
+                    fileStatsEl.textContent = `${fileSizeKb} KB • 1 Template Excel`;
+                    listEl.innerHTML = `
+                        <div class="p-2 rounded bg-slate-50 border border-slate-100 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-800">${tName}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${comp}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 font-medium space-x-1.5">
+                                <span>${vesselsCount} Kapal</span>
+                                <span>•</span>
+                                <span class="font-bold text-emerald-700">${rowsCount} Baris Laporan</span>
+                            </div>
                         </div>
                     `;
-                    listEl.appendChild(itemDiv);
-                });
+                }
 
-                previewBox.classList.remove('hidden');
                 submitBtn.disabled = false;
             } catch (err) {
-                alert('Gagal membaca JSON: ' + err.message);
-                configImportPayload = null;
-                document.getElementById('config-import-preview-box').classList.add('hidden');
-                document.getElementById('btn-config-submit-import').disabled = true;
+                alert('Gagal membaca file Excel: ' + err.message);
+                previewBox.classList.add('hidden');
+                submitBtn.disabled = true;
             }
-        };
-        reader.readAsText(file);
+        } else if (ext === 'json') {
+            configImportFileType = 'json';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    configImportPayload = parsed;
+                    
+                    const previewBox = document.getElementById('config-import-preview-box');
+                    const fileNameEl = document.getElementById('config-import-file-name');
+                    const fileStatsEl = document.getElementById('config-import-file-stats');
+                    const listEl = document.getElementById('config-import-templates-list');
+                    const submitBtn = document.getElementById('btn-config-submit-import');
+                    const badgeType = document.getElementById('config-import-badge-type');
+
+                    fileNameEl.textContent = file.name;
+                    const fileSizeKb = (file.size / 1024).toFixed(1);
+                    if (badgeType) {
+                        badgeType.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700';
+                        badgeType.textContent = 'JSON Valid';
+                    }
+
+                    let tpls = [];
+                    if (parsed && typeof parsed === 'object') {
+                        if (Array.isArray(parsed.templates)) tpls = parsed.templates;
+                        else if (Array.isArray(parsed)) tpls = parsed;
+                        else if (parsed.name) tpls = [parsed];
+                        else if (parsed.rows || parsed.vessels) tpls = [{ name: 'Template Baru (Raw Config)', config: parsed }];
+                    }
+
+                    if (tpls.length === 0) {
+                        alert('Tidak ditemukan template yang valid di dalam file JSON ini.');
+                        previewBox.classList.add('hidden');
+                        submitBtn.disabled = true;
+                        return;
+                    }
+
+                    fileStatsEl.textContent = `${fileSizeKb} KB • ${tpls.length} Template terdeteksi`;
+                    listEl.innerHTML = '';
+                    tpls.forEach((t, idx) => {
+                        const tName = t.name || `Template #${idx+1}`;
+                        const comp = t.company_initial || t.company_name || 'Auto';
+                        const cfg = t.config || {};
+                        const vesselsCount = Array.isArray(cfg.vessels) ? cfg.vessels.length : 0;
+                        const rowsCount = Array.isArray(cfg.rows) ? cfg.rows.length : 0;
+
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'flex items-center justify-between p-1.5 rounded bg-slate-50 border border-slate-100';
+                        itemDiv.innerHTML = `
+                            <div class="flex items-center space-x-2 truncate">
+                                <span class="font-bold text-slate-800">${tName}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">${comp}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 shrink-0 font-medium space-x-1.5">
+                                <span>${vesselsCount} Kapal</span>
+                                <span>•</span>
+                                <span>${rowsCount} Baris</span>
+                            </div>
+                        `;
+                        listEl.appendChild(itemDiv);
+                    });
+
+                    previewBox.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                } catch (err) {
+                    alert('Gagal membaca JSON: ' + err.message);
+                    configImportPayload = null;
+                    document.getElementById('config-import-preview-box').classList.add('hidden');
+                    document.getElementById('btn-config-submit-import').disabled = true;
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            alert('File harus berekstensi .xlsx atau .json!');
+        }
     }
 
     async function executeConfigImport() {
-        if (!configImportPayload) return;
+        if (!configImportPayload && !configImportFileObj) return;
 
         const submitBtn = document.getElementById('btn-config-submit-import');
         const targetCompanyId = document.getElementById('config-import-target-company').value;
@@ -919,15 +1041,27 @@
         alertEl.classList.add('hidden');
 
         try {
-            const res = await fetch('/api/builder/templates/import', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    data: configImportPayload,
-                    target_company_id: targetCompanyId ? parseInt(targetCompanyId) : null,
-                    overwrite: overwrite
-                })
-            });
+            let res;
+            if (configImportFileType === 'excel') {
+                const fd = new FormData();
+                fd.append('file', configImportFileObj);
+                if (targetCompanyId) fd.append('target_company_id', targetCompanyId);
+                fd.append('overwrite', overwrite ? 'true' : 'false');
+                res = await fetch('/api/builder/templates/import-excel', {
+                    method: 'POST',
+                    body: fd
+                });
+            } else {
+                res = await fetch('/api/builder/templates/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: configImportPayload,
+                        target_company_id: targetCompanyId ? parseInt(targetCompanyId) : null,
+                        overwrite: overwrite
+                    })
+                });
+            }
 
             const resJson = await res.json();
 
@@ -968,35 +1102,35 @@
       <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
         <div>
           <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <span>📥</span> Import Template Laporan
+            <span>📥</span> Import Template Laporan (Excel / JSON)
           </h3>
-          <p class="text-xs text-slate-500">Unggah file template (.json) untuk dipasang ke server ini.</p>
+          <p class="text-xs text-slate-500">Unggah file template Excel (.xlsx Gaya Odoo) atau file .json.</p>
         </div>
         <button onclick="closeConfigImportModal()" class="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg">✕</button>
       </div>
 
       <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
-        <div onclick="document.getElementById('config-import-file-input').click()" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/40">
-          <input type="file" id="config-import-file-input" accept=".json,application/json" class="hidden" onchange="handleConfigImportFileSelect(event)">
+        <div onclick="document.getElementById('config-import-file-input').click()" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-emerald-50/40">
+          <input type="file" id="config-import-file-input" accept=".xlsx,.xlsm,.json,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" onchange="handleConfigImportFileSelect(event)">
           <div class="space-y-2">
-            <span class="text-3xl">📄</span>
-            <div class="text-xs font-bold text-slate-700">Klik untuk memilih file JSON atau seret file ke sini</div>
-            <p class="text-[11px] text-slate-400">Mendukung backup template tunggal atau multi-template</p>
+            <span class="text-3xl">📊</span>
+            <div class="text-xs font-bold text-slate-700">Klik untuk memilih file Excel (.xlsx) atau JSON, atau seret ke sini</div>
+            <p class="text-[11px] text-slate-500 font-medium">✨ Direkomendasikan: File Excel (.xlsx) gaya Odoo — mudah diedit langsung di spreadsheet</p>
           </div>
         </div>
 
-        <div id="config-import-preview-box" class="hidden border border-blue-100 bg-blue-50/50 rounded-xl p-4 space-y-2.5">
+        <div id="config-import-preview-box" class="hidden border border-emerald-100 bg-emerald-50/50 rounded-xl p-4 space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <span class="text-base">📋</span>
+              <span id="config-import-icon-preview" class="text-base">📋</span>
               <div>
-                <div id="config-import-file-name" class="text-xs font-bold text-slate-900 truncate max-w-xs">filename.json</div>
+                <div id="config-import-file-name" class="text-xs font-bold text-slate-900 truncate max-w-xs">filename.xlsx</div>
                 <div id="config-import-file-stats" class="text-[11px] text-slate-500">0 KB • 0 Template terdeteksi</div>
               </div>
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">JSON Valid</span>
+            <span id="config-import-badge-type" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Excel Odoo</span>
           </div>
-          <div id="config-import-templates-list" class="max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar bg-white rounded-lg p-2.5 border border-blue-100 text-xs">
+          <div id="config-import-templates-list" class="max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar bg-white rounded-lg p-2.5 border border-emerald-100 text-xs">
           </div>
         </div>
 

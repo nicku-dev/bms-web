@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body, Response
+from fastapi import APIRouter, Depends, HTTPException, Body, Response, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -9,6 +9,11 @@ from .db import get_db
 from .models import Company, CustomBuilderTemplate
 from .engine import ReportEngine
 from .odoo_api import OdooAPI
+from .builder_excel import (
+    export_single_template_excel,
+    export_all_templates_bundle_excel,
+    parse_template_excel
+)
 
 router = APIRouter(prefix="/api/builder", tags=["builder"])
 
@@ -341,43 +346,79 @@ def export_all_templates(company_id: Optional[str] = None, db: Session = Depends
         }
     )
 
-class ImportTemplateRequest(BaseModel):
-    data: Any
-    target_company_id: Optional[int] = None
-    overwrite: bool = True
-
-@router.post("/templates/import")
-def import_templates(payload: ImportTemplateRequest, db: Session = Depends(get_db)):
-    raw = payload.data
-    target_company_id = payload.target_company_id
-    overwrite = payload.overwrite
+@router.get("/templates/{template_id}/export-excel")
+def export_template_excel(template_id: int, db: Session = Depends(get_db)):
+    t = db.query(CustomBuilderTemplate).filter(CustomBuilderTemplate.id == template_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Template not found")
     
-    items_to_import = []
-    if isinstance(raw, dict):
-        if "templates" in raw and isinstance(raw["templates"], list):
-            items_to_import = raw["templates"]
-        elif "rows" in raw or "vessels" in raw:
-            items_to_import = [{
-                "name": f"Imported Template {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                "config": raw
-            }]
-        elif "name" in raw and ("config" in raw or "config_json" in raw):
-            cfg = raw.get("config") or (json.loads(raw["config_json"]) if isinstance(raw.get("config_json"), str) else {})
-            items_to_import = [{
-                "name": raw["name"],
-                "company_initial": raw.get("company_initial"),
-                "company_name": raw.get("company_name"),
-                "config": cfg
-            }]
-        else:
-            raise HTTPException(status_code=400, detail="Format JSON tidak dikenali sebagai template builder")
-    elif isinstance(raw, list):
-        items_to_import = raw
-    else:
-        raise HTTPException(status_code=400, detail="Data template harus berupa JSON Object atau Array")
+    comp = db.query(Company).filter(Company.id == t.company_id).first()
+    comp_init = comp.initial_pt if comp else "UNKNOWN"
+    comp_name = comp.name if comp else "Unknown Company"
+    
+    try:
+        cfg = json.loads(t.config_json)
+    except Exception:
+        cfg = {}
+        
+    excel_bytes = export_single_template_excel(t.name, comp_init, comp_name, cfg)
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', f"{comp_init}_{t.name}")
+    filename = f"template_{clean_name}.xlsx"
+    
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
 
+@router.get("/templates/export-all-excel")
+def export_all_templates_excel(company_id: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(CustomBuilderTemplate)
+    comp_init = "ALL"
+    if company_id and company_id != "all":
+        try:
+            cid = int(company_id)
+            query = query.filter(CustomBuilderTemplate.company_id == cid)
+            comp = db.query(Company).filter(Company.id == cid).first()
+            if comp:
+                comp_init = comp.initial_pt or f"COMP_{cid}"
+        except ValueError:
+            pass
+            
+    templates_records = query.order_by(CustomBuilderTemplate.company_id, CustomBuilderTemplate.id).all()
+    companies_map = {c.id: c for c in db.query(Company).all()}
+    
+    templates_list = []
+    for t in templates_records:
+        comp = companies_map.get(t.company_id)
+        try:
+            cfg = json.loads(t.config_json)
+        except Exception:
+            cfg = {}
+        templates_list.append({
+            "name": t.name,
+            "company_initial": comp.initial_pt if comp else "UNKNOWN",
+            "company_name": comp.name if comp else "Unknown Company",
+            "config": cfg
+        })
+        
+    excel_bytes = export_all_templates_bundle_excel(templates_list, title_suffix=comp_init)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"templates_backup_{comp_init}_{timestamp}.xlsx"
+    
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+def save_imported_templates_core(items_to_import: list, target_company_id: Optional[int], overwrite: bool, db: Session) -> dict:
     if not items_to_import:
-        raise HTTPException(status_code=400, detail="Tidak ada template yang ditemukan di dalam data JSON")
+        raise HTTPException(status_code=400, detail="Tidak ada template yang ditemukan untuk diimpor")
 
     companies = db.query(Company).all()
     comp_by_id = {c.id: c for c in companies}
@@ -458,6 +499,102 @@ def import_templates(payload: ImportTemplateRequest, db: Session = Depends(get_d
         "message": f"Berhasil mengimpor {len(results)} template",
         "imported": results
     }
+
+class ImportTemplateRequest(BaseModel):
+    data: Any
+    target_company_id: Optional[int] = None
+    overwrite: bool = True
+
+@router.post("/templates/import")
+def import_templates(payload: ImportTemplateRequest, db: Session = Depends(get_db)):
+    raw = payload.data
+    target_company_id = payload.target_company_id
+    overwrite = payload.overwrite
+    
+    items_to_import = []
+    if isinstance(raw, dict):
+        if "templates" in raw and isinstance(raw["templates"], list):
+            items_to_import = raw["templates"]
+        elif "rows" in raw or "vessels" in raw:
+            items_to_import = [{
+                "name": f"Imported Template {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                "config": raw
+            }]
+        elif "name" in raw and ("config" in raw or "config_json" in raw):
+            cfg = raw.get("config") or (json.loads(raw["config_json"]) if isinstance(raw.get("config_json"), str) else {})
+            items_to_import = [{
+                "name": raw["name"],
+                "company_initial": raw.get("company_initial"),
+                "company_name": raw.get("company_name"),
+                "config": cfg
+            }]
+        else:
+            raise HTTPException(status_code=400, detail="Format JSON tidak dikenali sebagai template builder")
+    elif isinstance(raw, list):
+        items_to_import = raw
+    else:
+        raise HTTPException(status_code=400, detail="Data template harus berupa JSON Object atau Array")
+
+    return save_imported_templates_core(items_to_import, target_company_id, overwrite, db)
+
+@router.post("/templates/preview-excel")
+async def preview_template_excel(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(('.xlsx', '.xlsm')):
+        raise HTTPException(status_code=400, detail="File harus berformat Excel (.xlsx)")
+    try:
+        content = await file.read()
+        parsed = parse_template_excel(content)
+        return {"status": "success", "data": parsed}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Gagal memproses file Excel: {str(e)}")
+
+@router.post("/templates/import-excel")
+async def import_template_excel(
+    file: UploadFile = File(...),
+    target_company_id: Optional[str] = Form(None),
+    overwrite: str = Form("true"),
+    template_name_override: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    if not file.filename.lower().endswith(('.xlsx', '.xlsm')):
+        raise HTTPException(status_code=400, detail="File harus berformat Excel (.xlsx)")
+        
+    try:
+        content = await file.read()
+        parsed = parse_template_excel(content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Gagal membaca file Excel: {str(e)}")
+
+    target_cid = None
+    if target_company_id and target_company_id != "null" and target_company_id != "":
+        try:
+            target_cid = int(target_company_id)
+        except ValueError:
+            target_cid = None
+
+    is_overwrite = (str(overwrite).lower() in ("true", "1", "yes"))
+
+    if parsed.get("is_bundle"):
+        items_to_import = parsed.get("bundled_templates", [])
+    else:
+        name = template_name_override.strip() if template_name_override and template_name_override.strip() else parsed.get("template_name")
+        if not name:
+            clean_fn = re.sub(r'\.(xlsx|xlsm)$', '', file.filename, flags=re.IGNORECASE)
+            name = clean_fn.replace("template_", "").replace("_", " ").strip()
+            if not name:
+                name = f"Template Excel {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                
+        items_to_import = [{
+            "name": name,
+            "company_initial": parsed.get("company_initial"),
+            "company_name": parsed.get("company_name"),
+            "config": {
+                "rows": parsed.get("rows", []),
+                "vessels": parsed.get("vessels", [])
+            }
+        }]
+
+    return save_imported_templates_core(items_to_import, target_cid, is_overwrite, db)
 
 class PreviewRequest(BaseModel):
     company_id: int
