@@ -240,16 +240,6 @@ class ReportEngine:
                   {tag_filter}
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
-                  AND (
-                      aml.analytic_distribution IS NULL 
-                      OR aml.analytic_distribution::text = '{{}}'
-                      OR NOT EXISTS (
-                          SELECT 1 
-                          FROM jsonb_each_text(aml.analytic_distribution) j(k, v)
-                          JOIN regexp_split_to_table(j.k, ',') as sk ON sk ~ '^[0-9]+$'
-                          JOIN fleet_combination fc ON fc.analytic_account_id = sk::int
-                      )
-                  )
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
             """
         duckdb_query = f"SELECT * FROM postgres_query('pg', '{query.replace(chr(39), chr(39)*2)}')"
