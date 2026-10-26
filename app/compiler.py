@@ -299,7 +299,10 @@ class FastMatrixCompiler:
                 row_name = str(row.get('name') or '').strip()
                 if row_name:
                     if row_name not in env_vars[i] or not row.get('is_child'):
-                        env_vars[i][row_name] = _num(cell.get('val', 0.0))
+                        val_num = _num(cell.get('val', 0.0))
+                        env_vars[i][row_name] = val_num
+                        env_vars[i][row_name.lower()] = val_num
+                        env_vars[i][row_name.upper()] = val_num
                 
                 query_code_r = str(row.get('query_code') or '').upper()
                 if 'KAPASITAS' in label or query_code_r == 'KAPASITAS':
@@ -368,31 +371,10 @@ class FastMatrixCompiler:
             label = str(row.get('label', '')).upper()
             query_code = str(row.get('query_code') or '').upper()
             row_name = str(row.get('name') or '').strip()
-            if 'TPJ PER KAPAL' in label:
-                if self.report_type == 'ho' or self.is_non_bms:
-                    for cell in row.get('cells', []):
-                        cell['val'] = 0.0
-                        cell['val_r'] = "-"
-                else:
-                    for i, cell in enumerate(row.get('cells', [])):
-                        if i < len(env_vars):
-                            val = env_vars[i].get('tpj', 0.0)
-                            cell['val'] = val
-                            cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
-                            if row_name:
-                                env_vars[i][row_name] = val
-                                env_vars[i][row_name.lower()] = val
-            elif 'TPJ SEMUA KAPAL' in label or query_code == 'TPJ_SEMUA':
-                for i, cell in enumerate(row.get('cells', [])):
-                    if i < len(env_vars):
-                        val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('tpj_semua', 0.0)
-                        cell['val'] = val
-                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
-                        if row_name:
-                            env_vars[i][row_name] = val
-                            env_vars[i][row_name.lower()] = val
-            
-            elif 'TPJ KAPAL TERPILIH' in label or 'TPJ TERPILIH' in label or query_code in ['TPJ_TERPILIH', 'TPJ_KAPAL_TERPILIH']:
+            row_type = row.get('row_type', '')
+
+            # Query precedence first
+            if query_code in ['TPJ_TERPILIH', 'TPJ_KAPAL_TERPILIH'] or (row_type == 'query' and ('TERPILIH' in label or 'KAPAL TERPILIH' in label)):
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
                         val = 0.0 if (self.report_type == 'ho') else env_vars[i].get('tpj_terpilih', 0.0)
@@ -401,16 +383,49 @@ class FastMatrixCompiler:
                         if row_name:
                             env_vars[i][row_name] = val
                             env_vars[i][row_name.lower()] = val
-
-            elif 'PROPORTIONAL TPJ' in label or 'PROPORSIONAL TPJ' in label:
+                            env_vars[i][row_name.upper()] = val
+            elif query_code in ['TPJ_SEMUA', 'TPJ_SEMUA_KAPAL'] or (row_type == 'query' and 'TPJ SEMUA KAPAL' in label):
                 for i, cell in enumerate(row.get('cells', [])):
                     if i < len(env_vars):
-                        val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('prop_tpj', 0.0)
+                        val = 0.0 if (self.report_type == 'ho' or self.is_non_bms) else env_vars[i].get('tpj_semua', 0.0)
                         cell['val'] = val
-                        cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
+                        cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
                         if row_name:
                             env_vars[i][row_name] = val
                             env_vars[i][row_name.lower()] = val
+                            env_vars[i][row_name.upper()] = val
+            elif 'TPJ PER KAPAL' in label:
+                if self.report_type == 'ho' or self.is_non_bms:
+                    for cell in row.get('cells', []):
+                        cell['val'] = 0.0
+                        cell['val_r'] = "-"
+                elif row_type != 'formula':
+                    # Only override if NOT a custom formula row
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i < len(env_vars):
+                            val = env_vars[i].get('tpj', 0.0)
+                            cell['val'] = val
+                            cell['val_r'] = "{:,.2f}".format(val) if abs(val) >= 0.005 else "-"
+                            if row_name:
+                                env_vars[i][row_name] = val
+                                env_vars[i][row_name.lower()] = val
+                                env_vars[i][row_name.upper()] = val
+            elif 'PROPORTIONAL TPJ' in label or 'PROPORSIONAL TPJ' in label:
+                if self.report_type == 'ho' or self.is_non_bms:
+                    for cell in row.get('cells', []):
+                        cell['val'] = 0.0
+                        cell['val_r'] = "-"
+                elif row_type != 'formula':
+                    # Only override if NOT a custom formula row
+                    for i, cell in enumerate(row.get('cells', [])):
+                        if i < len(env_vars):
+                            val = env_vars[i].get('prop_tpj', 0.0)
+                            cell['val'] = val
+                            cell['val_r'] = "{:,.2f} %".format(val * 100) if abs(val) >= 0.00005 else "-"
+                            if row_name:
+                                env_vars[i][row_name] = val
+                                env_vars[i][row_name.lower()] = val
+                                env_vars[i][row_name.upper()] = val
 
             # MARGIN LABA logic
             elif 'MARGIN' in label and 'LABA' in label:
@@ -456,9 +471,12 @@ class FastMatrixCompiler:
                 label_upper = str(row.get('label', '')).upper()
                 
                 # Prevent Odoo algebraic formulas from overwriting KPI data
-                kpi_labels = ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'TPJ KAPAL TERPILIH', 'TPJ TERPILIH', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']
-                if label_upper in kpi_labels or row.get('row_type') == 'query' or row.get('query_code'):
+                if row.get('row_type') == 'query' or row.get('query_code'):
                     continue
+                if row.get('row_type') != 'formula':
+                    kpi_labels = ['KAPASITAS', 'KAPASITAS KAPAL', 'TRIP', 'TRIP KAPAL', 'TPJ PER KAPAL', 'TPJ SEMUA KAPAL', 'TPJ KAPAL TERPILIH', 'TPJ TERPILIH', 'PROPORTIONAL TPJ', 'PROPORSIONAL TPJ']
+                    if any(k in label_upper for k in kpi_labels):
+                        continue
                     
                 is_expense = ('BIAYA' in label_upper or 'BEBAN' in label_upper or 'PENYUSUTAN' in label_upper)
 
@@ -604,10 +622,15 @@ class FastMatrixCompiler:
                             # (only the row that owns the variable; children never overwrite parents).
                             var_name = parts[0].strip()
                             var_name_clean = var_name.split('.')[0]
-                            if var_owner.get((i, var_name_clean)) == row_idx:
+                            if var_owner.get((i, var_name_clean)) == row_idx or (i, var_name_clean) not in var_owner:
                                 env_vars[i][var_name_clean] = val
-                            if var_owner.get((i, var_name)) == row_idx:
+                                env_vars[i][var_name_clean.lower()] = val
+                                env_vars[i][var_name_clean.upper()] = val
+                            if var_owner.get((i, var_name)) == row_idx or (i, var_name) not in var_owner:
                                 env_vars[i][var_name] = val
+                            if 'PROPORTIONAL TPJ' in label_upper or 'PROPORSIONAL TPJ' in label_upper or var_name_clean.lower() in ['ptpj', 'prop_tpj', 'r36']:
+                                env_vars[i]['prop_tpj'] = val
+                                env_vars[i]['ptpj'] = val
 
                             # Format as percentage if is_percentage flag is set or label begins/ends with %
                             is_pct = bool(

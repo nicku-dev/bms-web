@@ -1,7 +1,10 @@
 from app.db import SessionLocal
 from app.models import Company
 from app.builder import build_and_compile_matrix, PreviewRequest, preview_template
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 
 def test_autotag_proportional_allocation():
     db = SessionLocal()
@@ -201,4 +204,80 @@ def test_perjalanan_dinas_and_kantor_parent_rollup():
         assert spob_q3_r70 > 0
     finally:
         db.close()
+
+def test_tpj_custom_formula_and_query():
+    db = SessionLocal()
+    try:
+        payload = PreviewRequest(
+            company_id=2,
+            year="2026",
+            vessels=[
+                {"id": 75, "name": "TB.BMS 004/TK.BMS 004A"}
+            ],
+            rows=[
+                {
+                    "id": 1,
+                    "code": "R1",
+                    "type": "data",
+                    "label": "PENDAPATAN JASA",
+                    "expression": "TW_PENDAPATAN JASA"
+                },
+                {
+                    "id": 2,
+                    "code": "R79",
+                    "type": "formula",
+                    "label": "TPJ Per Kapal",
+                    "expression": "(R1)*4"
+                },
+                {
+                    "id": 3,
+                    "code": "R80",
+                    "type": "query",
+                    "label": "TPJ Semua Kapal FPS",
+                    "expression": "TPJ_TERPILIH"
+                },
+                {
+                    "id": 4,
+                    "code": "R36",
+                    "type": "formula",
+                    "label": "Proportional TPJ",
+                    "expression": "R79/R80",
+                    "is_percentage": True
+                }
+            ]
+        )
+
+        res = preview_template(payload, db=db)
+        assert res["status"] == "success"
+        body = res["data"]["body"]
+        row_map = {r["name"]: r for r in body}
+
+        r1 = row_map["R1"]
+        r79 = row_map["R79"]
+        r80 = row_map["R80"]
+        r36 = row_map["R36"]
+
+        # Check Q3 values (cell index 2 for single vessel: Q1, Q2, Q3, Q4, YTD)
+        # R79 must equal R1 * 4
+        v_r1 = r1["cells"][2]["val"]
+        v_r79 = r79["cells"][2]["val"]
+        assert round(v_r79, 2) == round(v_r1 * 4, 2)
+        
+        # R80 must have non-zero value for TPJ_TERPILIH
+        v_r80 = r80["cells"][2]["val"]
+        assert v_r80 > 0
+        
+        # R36 must equal R79 / R80
+        v_r36 = r36["cells"][2]["val"]
+        assert round(v_r36, 6) == round(v_r79 / v_r80, 6)
+        print(f"R1={v_r1}, R79={v_r79}, R80={v_r80}, R36={v_r36}")
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    test_autotag_proportional_allocation()
+    test_perjalanan_dinas_and_kantor_parent_rollup()
+    test_tpj_custom_formula_and_query()
+    print("ALL TESTS PASSED SUCCESSFULLY!")
+
 

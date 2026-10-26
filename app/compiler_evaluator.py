@@ -23,7 +23,11 @@ class CompilerEvaluator:
         safe_env = defaultdict(float)
         for k, v in env_vars.items():
             if isinstance(v, (int, float)):
-                safe_env[k] = SmartVar(v)
+                sv = SmartVar(v)
+                safe_env[k] = sv
+                if isinstance(k, str):
+                    safe_env[k.lower()] = sv
+                    safe_env[k.upper()] = sv
             else:
                 safe_env[k] = v
         
