@@ -159,10 +159,7 @@ class FastMatrixCompiler:
                     is_expense = False
                     label_upper = label.upper()
                     acc_str = str(account_code or '').strip()
-                    if any(k in label_upper for k in ['BIAYA', 'BEBAN', 'RUGI']):
-                        if 'PENDAPATAN' not in label_upper and 'LABA' not in label_upper:
-                            is_expense = True
-                    elif acc_str.startswith(('5', '6', '7', '9')):
+                    if acc_str.startswith(('5', '6', '7', '9')):
                         is_expense = True
                     elif acc_str.startswith('8'):
                         # 800001xxxx: Other Income (Bunga, Dividen, Laba Kurs) -> REVENUE (credit) -> is_expense = False
@@ -170,6 +167,11 @@ class FastMatrixCompiler:
                         if acc_str.startswith('800001') or 'PENDAPATAN' in label_upper or 'LABA' in label_upper:
                             is_expense = False
                         else:
+                            is_expense = True
+                    elif acc_str.startswith('4'):
+                        is_expense = False
+                    elif any(k in label_upper for k in ['BIAYA', 'BEBAN', 'RUGI', 'PAJAK']):
+                        if 'PENDAPATAN JASA' not in label_upper and 'PENDAPATAN BUNGA' not in label_upper and 'LABA' not in label_upper:
                             is_expense = True
                         
                     val = cell.get('val', 0.0)
@@ -245,7 +247,7 @@ class FastMatrixCompiler:
             if rname and rname in parent_children_map:
                 children = parent_children_map[rname]
                 p_label = str(p_row.get('label', '')).upper()
-                is_revenue_parent = ('PENDAPATAN' in p_label or 'REVENUE' in p_label)
+                is_revenue_parent = (rname == 'R1' or 'PENDAPATAN JASA' in p_label or 'PENDAPATAN USAHA' in p_label)
 
                 for i, cell in enumerate(p_row.get('cells', [])):
                     if i >= len(col_map):
@@ -714,7 +716,7 @@ class FastMatrixCompiler:
                 rname = str(p_row.get('name') or p_row.get('code') or '').strip()
                 if rname and rname in parent_children_map:
                     p_label = str(p_row.get('label', '')).upper()
-                    is_revenue_parent = ('PENDAPATAN' in p_label or 'REVENUE' in p_label)
+                    is_revenue_parent = (rname == 'R1' or 'PENDAPATAN JASA' in p_label or 'PENDAPATAN USAHA' in p_label)
                     for i, cell in enumerate(p_row.get('cells', [])):
                         if i < len(env_vars):
                             v = cell.get('val', 0.0)
