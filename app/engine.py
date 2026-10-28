@@ -89,8 +89,16 @@ class ReportEngine:
         return self._account_code_column
 
     def get_all_tags(self) -> list[str]:
-        """Fetches all unique account tags from the database."""
-        query = "SELECT DISTINCT name->>'en_US' as tag_name FROM account_account_tag WHERE name->>'en_US' IS NOT NULL ORDER BY tag_name"
+        """Fetches all unique account tags that are strictly joined between CoA (account_account) and account_account_tag."""
+        query = """
+            SELECT DISTINCT 
+                COALESCE(aat.name->>'en_US', aat.name->>'id_ID', aat.name::text) AS tag_name 
+            FROM account_account aa
+            JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+            JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            WHERE (aat.name->>'en_US' IS NOT NULL OR aat.name->>'id_ID' IS NOT NULL OR aat.name IS NOT NULL)
+            ORDER BY tag_name
+        """
         duckdb_query = f"SELECT * FROM postgres_query('pg', $${query}$$)"
         try:
             df = self.conn.execute(duckdb_query).df()
@@ -114,7 +122,7 @@ class ReportEngine:
         """
         Fetches Chart of Accounts (COA) with id, code, name, and tag.
         Supports both Odoo 18 code_store JSON and standard code column.
-        Optionally filters by tag_name.
+        Strictly joins account_account (CoA) with account_account_tag.
         """
         if self.account_code_column == 'code_store':
             code_expr = """
@@ -129,6 +137,7 @@ class ReportEngine:
             code_expr = "COALESCE(aa.code, '')"
 
         tag_filter = ""
+        join_clause = "JOIN" if tag_name else "LEFT JOIN"
         if tag_name:
             tag_escaped = tag_name.replace("'", "''")
             tag_filter = f"WHERE (aat.name->>'en_US' = '{tag_escaped}' OR aat.name->>'id_ID' = '{tag_escaped}' OR aat.name::text = '{tag_escaped}' OR aat.name::text = '\"{tag_escaped}\"')"
@@ -140,8 +149,8 @@ class ReportEngine:
                 COALESCE(aa.name->>'id_ID', aa.name->>'en_US', '') AS name,
                 COALESCE(aat.name->>'en_US', aat.name->>'id_ID', '') AS tag_name
             FROM account_account aa
-            LEFT JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
-            LEFT JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
+            {join_clause} account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
+            {join_clause} account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
             {tag_filter}
             ORDER BY code, name
         """

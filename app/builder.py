@@ -41,9 +41,17 @@ def get_tags(company_id: int, db: Session = Depends(get_db)):
                 username=company.odoo_user,
                 password=company.odoo_password
             )
-            raw = api.search_read('account.account.tag', [], ['id', 'name'])
-            if raw:
-                tags = list(set([t['name'] for t in raw if t.get('name')]))
+            # Mutlak JOIN antara account.account (CoA) dan account.account.tag
+            accounts = api.search_read('account.account', [('tag_ids', '!=', False)], ['tag_ids'])
+            if accounts:
+                tag_ids = set()
+                for a in accounts:
+                    for tid in (a.get('tag_ids') or []):
+                        tag_ids.add(tid)
+                if tag_ids:
+                    raw = api.search_read('account.account.tag', [('id', 'in', list(tag_ids))], ['id', 'name'])
+                    if raw:
+                        tags = list(set([t['name'] for t in raw if t.get('name')]))
         except Exception as e:
             print(f"OdooAPI get_tags fallback failed for company {company.name}: {e}")
     
