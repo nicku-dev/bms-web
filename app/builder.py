@@ -757,6 +757,8 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                         'row_type': 'account',
                         'is_child': True,
                         'parent_code': var_name,
+                        'parent_tag': expr,
+                        'tag_name': expr,
                         'is_proportional': is_proportional,
                         'multiplier_row': multiplier_row,
                         'style': 'font-style: italic; text-indent: 2em;',

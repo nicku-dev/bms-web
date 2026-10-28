@@ -130,7 +130,8 @@ class ReportEngine:
 
         tag_filter = ""
         if tag_name:
-            tag_filter = f"WHERE (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            tag_escaped = tag_name.replace("'", "''")
+            tag_filter = f"WHERE (aat.name->>'en_US' = '{tag_escaped}' OR aat.name->>'id_ID' = '{tag_escaped}' OR aat.name::text = '{tag_escaped}' OR aat.name::text = '\"{tag_escaped}\"')"
 
         query = f"""
             SELECT DISTINCT
@@ -167,7 +168,8 @@ class ReportEngine:
         tag_filter = ""
         join_tags = ""
         if tag_name:
-            tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            tag_escaped = tag_name.replace("'", "''")
+            tag_filter = f"AND (aat.name->>'en_US' = '{tag_escaped}' OR aat.name->>'id_ID' = '{tag_escaped}' OR aat.name::text = '{tag_escaped}' OR aat.name::text = '\"{tag_escaped}\"')"
             join_tags = """
                 JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
                 JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
@@ -311,7 +313,7 @@ class ReportEngine:
             JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id
             WHERE aml.parent_state = 'posted'
               AND (fc.is_third_party = false OR (fc.id IS NULL AND aap.name::text ILIKE '%Kapal%'))
-              AND (aat.name->>'en_US' = 'TW_PENDAPATAN JASA' OR aat.name::text LIKE '%TW_PENDAPATAN JASA%')
+              AND (aat.name->>'en_US' = 'TW_PENDAPATAN JASA' OR aat.name->>'id_ID' = 'TW_PENDAPATAN JASA' OR aat.name::text = 'TW_PENDAPATAN JASA' OR aat.name::text = '"TW_PENDAPATAN JASA"')
               AND EXTRACT(YEAR FROM aml.date) = {year}
             GROUP BY EXTRACT(QUARTER FROM aml.date)
         """
@@ -340,7 +342,7 @@ class ReportEngine:
         
         # Filter Tag Pendapatan
         tag_escaped = tag_name.replace("'", "''")
-        conditions.append(f"(aat.name->>'en_US' = '{tag_escaped}' OR aat.name::text LIKE '%{tag_escaped}%')")
+        conditions.append(f"(aat.name->>'en_US' = '{tag_escaped}' OR aat.name->>'id_ID' = '{tag_escaped}' OR aat.name::text = '{tag_escaped}' OR aat.name::text = '\"{tag_escaped}\"')")
         
         # Filter Kapal Terpilih
         vessel_filters = []
@@ -512,7 +514,8 @@ class ReportEngine:
         tag_filter = ""
         join_tags = ""
         if tag_name:
-            tag_filter = f"AND (aat.name->>'en_US' = '{tag_name}' OR aat.name->>'id_ID' = '{tag_name}' OR aat.name::text LIKE '%{tag_name}%')"
+            tag_escaped = tag_name.replace("'", "''")
+            tag_filter = f"AND (aat.name->>'en_US' = '{tag_escaped}' OR aat.name->>'id_ID' = '{tag_escaped}' OR aat.name::text = '{tag_escaped}' OR aat.name::text = '\"{tag_escaped}\"')"
             join_tags = """
                 JOIN account_account_account_tag aat_rel ON aa.id = aat_rel.account_account_id
                 JOIN account_account_tag aat ON aat.id = aat_rel.account_account_tag_id

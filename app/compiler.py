@@ -156,23 +156,19 @@ class FastMatrixCompiler:
                     if not vessel:
                         continue
                         
+                    # Determine is_expense strictly from account tag or label, NEVER from COA code prefix
                     is_expense = False
                     label_upper = label.upper()
-                    acc_str = str(account_code or '').strip()
-                    if acc_str.startswith(('5', '6', '7', '9')):
+                    effective_tag = str(tag_name or row.get('tag_name') or row.get('parent_tag') or '').upper()
+                    if any(k in effective_tag for k in ['BIAYA', 'BEBAN', 'RUGI', 'PAJAK', 'COST', 'EXPENSE']):
                         is_expense = True
-                    elif acc_str.startswith('8'):
-                        # 800001xxxx: Other Income (Bunga, Dividen, Laba Kurs) -> REVENUE (credit) -> is_expense = False
-                        # 800002xxxx+: Beban Keuangan / Beban Lain -> EXPENSE (debit) -> is_expense = True
-                        if acc_str.startswith('800001') or 'PENDAPATAN' in label_upper or 'LABA' in label_upper:
-                            is_expense = False
-                        else:
-                            is_expense = True
-                    elif acc_str.startswith('4'):
+                    elif any(k in effective_tag for k in ['PENDAPATAN', 'LABA', 'INCOME', 'REVENUE']):
                         is_expense = False
-                    elif any(k in label_upper for k in ['BIAYA', 'BEBAN', 'RUGI', 'PAJAK']):
+                    elif any(k in label_upper for k in ['BIAYA', 'BEBAN', 'RUGI', 'PAJAK', 'KLAIM']):
                         if 'PENDAPATAN JASA' not in label_upper and 'PENDAPATAN BUNGA' not in label_upper and 'LABA' not in label_upper:
                             is_expense = True
+                        else:
+                            is_expense = False
                         
                     val = cell.get('val', 0.0)
                     if 'total' not in vessel.lower():
@@ -184,15 +180,15 @@ class FastMatrixCompiler:
                             if vessel_df.empty:
                                 vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
                             if vessel_df.empty and 'ALL' in df['vessel_name'].values:
-                                # Fallback 'ALL' should only apply to general indirect overhead / company-wide shared expenses (accounts 6/7/8/9, proportional rows, or HO).
-                                # Direct vessel accounts (Revenue 4xxx and Direct COGS 5xxx) belong strictly to the specific vessel and must NEVER inherit 'ALL'!
+                                # Fallback 'ALL' applies to general indirect overhead / company-wide shared expenses (proportional rows, HO, or general tags).
+                                # Direct vessel accounts belong strictly to the specific vessel and must NEVER inherit 'ALL'!
                                 is_indirect = bool(
                                     row.get('is_proportional') 
                                     or self.report_type == 'ho' 
                                     or clean_vessel.upper() in ['HO', 'HEAD OFFICE']
-                                    or (account_code and str(account_code)[0] in ['6', '7', '8', '9'])
-                                    or ('GAJI' in label.upper() and 'CREW' not in label.upper())
-                                    or any(k in label.upper() for k in ['OVERHEAD', 'ADMINISTRASI', 'TIDAK LANGSUNG', 'BUNGA', 'PAJAK'])
+                                    or ('GAJI' in label_upper and 'CREW' not in label_upper)
+                                    or any(k in effective_tag for k in ['GA', 'OVERHEAD', 'BUNGA', 'PAJAK', 'KANTOR', 'DINAS', 'KONSULTAN', 'ADMIN'])
+                                    or any(k in label_upper for k in ['OVERHEAD', 'ADMINISTRASI', 'TIDAK LANGSUNG', 'BUNGA', 'PAJAK'])
                                 )
                                 if is_expense and is_indirect:
                                     vessel_df = df[df['vessel_name'] == 'ALL']
@@ -264,9 +260,11 @@ class FastMatrixCompiler:
 
                         # Expense / contra accounts under revenue parent must be subtracted
                         ch_label = str(ch.get('label', '')).upper()
-                        acc_match = re.search(r'^(\d+)', ch_label)
-                        acc_code = acc_match.group(1) if acc_match else ''
-                        is_contra = (acc_code.startswith(('5', '6', '7', '8', '9')) or 'BIAYA' in ch_label or 'BEBAN' in ch_label or 'KLAIM' in ch_label)
+                        ch_tag = str(ch.get('tag_name') or ch.get('parent_tag') or '').upper()
+                        is_contra = (
+                            any(k in ch_tag for k in ['BIAYA', 'BEBAN', 'RUGI', 'KLAIM', 'POTONGAN']) 
+                            or any(k in ch_label for k in ['BIAYA', 'BEBAN', 'KLAIM', 'POTONGAN', 'DISCOUNT', 'RETUR'])
+                        )
 
                         if is_revenue_parent and is_contra:
                             tot_raw -= ch_raw
