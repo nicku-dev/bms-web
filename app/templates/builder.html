@@ -2020,6 +2020,7 @@
                 let colH1 = h1[cIdx] ? (h1[cIdx].label || '').toUpperCase() : '';
                 let isYtd = colH1 === 'YTD';
                 let cellBg = (isYtd && !customBg && !isTitle) ? 'bg-blue-50/20' : '';
+                let valStr = isTitle ? '' : (c.val_r !== undefined ? c.val_r : (c.val || '-'));
                 let isPct = !!(r.is_percentage || r.format === 'percentage');
                 if (isPct && !isTitle && valStr && !String(valStr).includes('%') && valStr !== '-') {
                     let num = parseFloat(c.val !== undefined && c.val !== null ? c.val : valStr);
