@@ -267,8 +267,8 @@ class FastMatrixCompiler:
                         )
 
                         if is_revenue_parent and is_contra:
-                            tot_raw -= ch_raw
-                            tot_val -= ch_val
+                            tot_raw -= abs(ch_raw)
+                            tot_val -= abs(ch_val)
                         else:
                             tot_raw += ch_raw
                             tot_val += ch_val
@@ -688,13 +688,10 @@ class FastMatrixCompiler:
                                 env_vars[i]['prop_tpj'] = val
                                 env_vars[i]['ptpj'] = val
 
-                            # Format as percentage if is_percentage flag is set or label begins/ends with %
+                            # Format as percentage only if is_percentage flag is explicitly set or format == 'percentage'
                             is_pct = bool(
                                 row.get('is_percentage') or 
-                                row.get('format') == 'percentage' or 
-                                label_upper.strip().startswith('%') or 
-                                label_upper.strip().endswith('%') or
-                                'PERSEN' in label_upper
+                                row.get('format') == 'percentage'
                             )
                             if is_pct:
                                 cell['val'] = val
