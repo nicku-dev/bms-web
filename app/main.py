@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -909,7 +909,8 @@ async def checker_ui(request: Request):
         return RedirectResponse(url="/login", status_code=303)
         
     db = SessionLocal()
-    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
+    companies = db.query(Company).filter(Company.is_active == True).all()
+    comp_list = [{"id": c.id, "name": c.name, "target_db_name": c.target_db_name} for c in companies]
     db.close()
     
     if not user:
@@ -920,7 +921,11 @@ async def checker_ui(request: Request):
     if not is_admin and 'checker' not in perms:
         return RedirectResponse(url="/dashboard", status_code=303)
 
-    return templates.TemplateResponse(request=request, name="checker.html", context={"request": request, "user": user})
+    return templates.TemplateResponse(request=request, name="checker.html", context={"request": request, "user": user, "companies": comp_list})
+
+@app.get("/reconcile")
+async def reconcile_page_redirect():
+    return RedirectResponse(url="/checker?tab=reconcile", status_code=303)
 
 class CheckerQuery(BaseModel):
     db_name: str
@@ -984,3 +989,83 @@ async def execute_checker_query(payload: CheckerQuery):
         return {"status": "success", "data": data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.post("/api/checker/reconcile")
+async def reconcile_mis_builder(
+    request: Request,
+    company_id: int = Form(...),
+    template_id: int = Form(...),
+    year: int = Form(...),
+    tolerance: float = Form(1.0),
+    file: UploadFile = File(...)
+):
+    import os
+    import datetime
+    from app.models import CustomBuilderTemplate
+    from app.builder import build_and_compile_matrix
+    from app.diff_checker import parse_mis_builder_excel, compare_matrices, export_diff_matrix_excel
+    
+    db = SessionLocal()
+    try:
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Perusahaan tidak ditemukan."})
+            
+        template_record = db.query(CustomBuilderTemplate).filter(
+            CustomBuilderTemplate.id == template_id,
+            CustomBuilderTemplate.company_id == company.id
+        ).first()
+        if not template_record:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Template tidak ditemukan."})
+            
+        file_bytes = await file.read()
+        if not file_bytes:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "File Excel kosong."})
+            
+        try:
+            mis_data = parse_mis_builder_excel(file_bytes)
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"status": "error", "message": f"Gagal membaca format Excel MIS Builder: {str(e)}"})
+            
+        cfg = json.loads(template_record.config_json)
+        vessels = cfg.get("vessels", [])
+        rows = cfg.get("rows", [])
+        
+        # Live matrix compilation via DuckDB
+        bms_matrix = build_and_compile_matrix(company, str(year), vessels, rows, db)
+        
+        # Compare matrices cell by cell
+        diff_result = compare_matrices(bms_matrix, mis_data, tolerance=tolerance)
+        
+        # Generate & save Diff Excel
+        clean_name = template_record.name.replace(' ', '_').replace('/', '_')
+        timestamp_seq = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"reconcile_diff_{clean_name}_{year}_{timestamp_seq}.xlsx"
+        
+        os.makedirs("app/static/reports", exist_ok=True)
+        output_path = f"app/static/reports/{output_filename}"
+        
+        excel_bytes = export_diff_matrix_excel(diff_result, company.name, template_record.name, year)
+        with open(output_path, "wb") as f_out:
+            f_out.write(excel_bytes)
+            
+        return {
+            "status": "success",
+            "kpi": diff_result["kpi"],
+            "headers": diff_result["headers"],
+            "rows": diff_result["rows"],
+            "discrepancies": diff_result["discrepancies"],
+            "excel_url": f"/static/reports/{output_filename}",
+            "mis_meta": {
+                "company_name": mis_data.get("company_name"),
+                "report_title": mis_data.get("report_title"),
+                "year": mis_data.get("year")
+            }
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"status": "error", "message": f"Proses rekonsiliasi gagal: {str(e)}"})
+    finally:
+        db.close()
+
