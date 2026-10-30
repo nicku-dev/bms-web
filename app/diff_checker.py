@@ -17,6 +17,10 @@ def clean_vessel_name(name: str) -> str:
     elif n.upper().startswith("KAPAL-"):
         n = n[6:].strip()
         
+    # Normalize Head Office representation
+    if 'HEAD OFFICE' in n.upper() or n.upper() == 'HO':
+        return 'Head Office'
+        
     # Normalize multiple whitespaces
     n = re.sub(r'\s+', ' ', n)
     return n

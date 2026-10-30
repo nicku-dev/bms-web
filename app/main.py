@@ -576,7 +576,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
             year = int(year)
 
         from app.builder import build_and_compile_matrix
-        matrix = build_and_compile_matrix(company, str(year), vessels, rows, db)
+        matrix = build_and_compile_matrix(company, str(year), vessels, rows, db, template_name=template_record.name)
         compile_status = "OK (Live Matrix Compiler)"
         
         report_display_name = template_record.name
@@ -1033,7 +1033,7 @@ async def reconcile_mis_builder(
         rows = cfg.get("rows", [])
         
         # Live matrix compilation via DuckDB
-        bms_matrix = build_and_compile_matrix(company, str(year), vessels, rows, db)
+        bms_matrix = build_and_compile_matrix(company, str(year), vessels, rows, db, template_name=template_record.name)
         
         # Compare matrices cell by cell
         diff_result = compare_matrices(bms_matrix, mis_data, tolerance=tolerance)

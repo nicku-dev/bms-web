@@ -205,17 +205,14 @@ class ReportEngine:
                   {tag_filter}
                   {acc_filter}
                   AND EXTRACT(YEAR FROM aml.date) = {year}
-                  AND (
-                      aml.analytic_distribution IS NULL
-                      OR EXISTS (
-                          SELECT 1 
-                          FROM regexp_split_to_table(jad.key, ',') s
-                          JOIN account_analytic_account aaa ON aaa.id = s::int
-                          WHERE aaa.name->>'en_US' IN ('Head Office', 'HO') 
-                             OR aaa.name->>'id_ID' IN ('Head Office', 'HO')
-                             OR aaa.name::text ILIKE '%Head Office%' 
-                             OR aaa.name::text ILIKE '%"HO"%'
-                      )
+                  AND EXISTS (
+                      SELECT 1 
+                      FROM regexp_split_to_table(jad.key, ',') s
+                      JOIN account_analytic_account aaa ON aaa.id = s::int
+                      WHERE aaa.name->>'en_US' IN ('Head Office', 'HO') 
+                         OR aaa.name->>'id_ID' IN ('Head Office', 'HO')
+                         OR aaa.name::text ILIKE '%Head Office%' 
+                         OR aaa.name::text ILIKE '%"HO"%'
                   )
                 GROUP BY EXTRACT(QUARTER FROM aml.date)
             """

@@ -781,11 +781,30 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
 
     return {'header': [h0, h1], 'body': body}
 
-def build_and_compile_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None) -> dict:
+def build_and_compile_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None, template_name: str = '') -> dict:
     """Builds the raw matrix from builder definition and evaluates all DuckDB accounting queries and formulas."""
     raw_matrix = build_raw_matrix(company, year, vessels, rows, db)
     from app.compiler import FastMatrixCompiler
-    compiler = FastMatrixCompiler(db_name=company.target_db_name, year=str(year), pg_kwargs=company.get_pg_kwargs())
+    is_ho = any(v.get('is_ho') or 'HEAD OFFICE' in str(v.get('name', '')).upper() or str(v.get('name', '')).upper() in ['HO', 'HEAD OFFICE'] for v in (vessels or []))
+    if not is_ho and template_name and ('HEAD OFFICE' in template_name.upper() or ' HO' in template_name.upper() or '(HO)' in template_name.upper()):
+        is_ho = True
+
+    if is_ho:
+        report_type = 'ho'
+    elif (company.initial_pt or '').upper() == 'BMS':
+        report_type = 'bms'
+    elif (company.initial_pt or '').upper() == 'ALJ':
+        report_type = 'alj'
+    else:
+        report_type = 'fps'
+
+    compiler = FastMatrixCompiler(
+        db_name=company.target_db_name, 
+        year=str(year), 
+        report_type=report_type, 
+        pg_kwargs=company.get_pg_kwargs(),
+        template_name=template_name
+    )
     return compiler.compile(raw_matrix)
 
 @router.post("/preview")

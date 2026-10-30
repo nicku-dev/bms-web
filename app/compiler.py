@@ -307,8 +307,30 @@ class FastMatrixCompiler:
                     val = cell.get('val', 0.0)
                     if 'total' not in vessel.lower():
                         clean_vessel = vessel.replace('Kapal - ', '').strip()
-                        if self.report_type == 'ho' or clean_vessel.upper() in ['HO', 'HEAD OFFICE']:
-                            vessel_df = df
+                        is_ho_col = bool(
+                            self.report_type == 'ho' 
+                            or 'HEAD OFFICE' in clean_vessel.upper() 
+                            or clean_vessel.upper() in ['HO', 'HEAD OFFICE']
+                        )
+                        if is_ho_col:
+                            # Indirect vessel overheads (Gaji Kantor, Kantor, Perjalanan Dinas, GA) are distributed to vessels, not kept in HO
+                            is_indirect_overhead = any(k in effective_tag.upper() or k in label_upper for k in [
+                                'GAJI, JAMSOSTEK', 'PERJALANAN DINAS', 'BIAYA KANTOR', 'JASA KONSULTAN', 
+                                'ASURANSI KENDARAAN', 'ASURANSI (KENDARAAN)', 'PENYUSUTAN (GA)', 'PENYUSUTAN GA'
+                            ])
+                            is_fin_or_other = any(k in effective_tag.upper() for k in [
+                                'BUNGA', 'KEUANGAN', 'PROVISI', 'SERVICING', 'PENAMPUNGAN', 
+                                'ADMIN BANK', 'SELISIH KURS', 'PAJAK', 'DENDA BANK', 'ANNUAL FEE', 'BROKER FEE'
+                            ]) or any(k in label_upper for k in [
+                                'BUNGA', 'KEUANGAN', 'PROVISI', 'SERVICING', 'PENAMPUNGAN', 
+                                'ADMIN BANK', 'SELISIH KURS', 'PAJAK', 'DENDA BANK', 'ANNUAL FEE', 'BROKER FEE'
+                            ])
+                            if not is_indirect_overhead and is_fin_or_other:
+                                vessel_df = df[df['vessel_name'].isin(['ALL', 'Head Office', 'HO'])]
+                            elif not is_indirect_overhead:
+                                vessel_df = df[df['vessel_name'].isin(['Head Office', 'HO'])]
+                            else:
+                                vessel_df = df.iloc[0:0]
                         else:
                             vessel_df = df[df['vessel_name'] == clean_vessel]
                             if vessel_df.empty:
@@ -318,8 +340,7 @@ class FastMatrixCompiler:
                                 # Direct vessel accounts belong strictly to the specific vessel and must NEVER inherit 'ALL'!
                                 is_indirect = bool(
                                     row.get('is_proportional') 
-                                    or self.report_type == 'ho' 
-                                    or clean_vessel.upper() in ['HO', 'HEAD OFFICE']
+                                    or is_ho_col
                                 )
                                 if is_expense and is_indirect:
                                     vessel_df = df[df['vessel_name'] == 'ALL']
