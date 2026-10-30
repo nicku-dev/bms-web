@@ -909,6 +909,7 @@ async def checker_ui(request: Request):
         return RedirectResponse(url="/login", status_code=303)
         
     db = SessionLocal()
+    user = db.query(User).filter(User.username == request.cookies.get("session_token")).first()
     companies = db.query(Company).filter(Company.is_active == True).all()
     comp_list = [{"id": c.id, "name": c.name, "target_db_name": c.target_db_name} for c in companies]
     db.close()

@@ -87,3 +87,16 @@ def test_api_reconcile_function():
     assert res["kpi"]["accuracy_pct"] > 0
     assert "excel_url" in res
     assert os.path.exists(f"app{res['excel_url']}")
+
+def test_checker_ui_render():
+    from app.main import checker_ui
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "headers": [(b"cookie", b"session_token=admin_dev")]
+    }
+    request = Request(scope)
+    res = asyncio.run(checker_ui(request))
+    assert res.status_code == 200
+    assert "Rekonsiliasi MIS" in res.body.decode("utf-8")
+
