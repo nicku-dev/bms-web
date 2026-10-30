@@ -370,6 +370,12 @@
                         <span>Mode HO</span>
                     </button>
 
+                    <!-- Total Kapal Terpilih Column Toggle -->
+                    <label class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50/80 text-blue-900 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition select-none shadow-2xs" title="Sertakan grup kolom Total Kapal Terpilih (Q1 - YTD) di paling kanan laporan">
+                        <input type="checkbox" id="include-total-vessel-toggle" checked class="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+                        <span class="font-bold">Total Kapal</span>
+                    </label>
+
                     <!-- Open Full Fleet Modal -->
                     <button type="button" onclick="openFleetModal()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-lg transition active:scale-95 shadow-2xs" title="Buka dialog pemilihan checklist armada">
                         <span>📋</span>
@@ -675,6 +681,10 @@
                 document.getElementById('saved-templates-select').value = id;
                 selectedVessels = data.config.vessels || [];
                 reportRows = data.config.rows || [];
+                let toggleEl = document.getElementById('include-total-vessel-toggle');
+                if (toggleEl) {
+                    toggleEl.checked = (data.config && data.config.include_total_vessel !== false);
+                }
                 if (reportRows.length > 0) {
                     rowCounter = Math.max(...reportRows.map(r => r.id || 0));
                 }
@@ -1785,12 +1795,14 @@
         statusDiv.className = "text-xs text-center font-medium mt-1 text-blue-600 block";
 
         try {
+            let includeTotal = document.getElementById('include-total-vessel-toggle') ? document.getElementById('include-total-vessel-toggle').checked : true;
             let payload = {
                 company_id: parseInt(companyId),
                 name: name,
                 config: {
                     vessels: selectedVessels,
-                    rows: reportRows
+                    rows: reportRows,
+                    include_total_vessel: includeTotal
                 }
             };
             if (currentTemplateId) {
@@ -1852,11 +1864,13 @@
         previewSec.scrollIntoView({ behavior: 'smooth' });
 
         try {
+            let includeTotal = document.getElementById('include-total-vessel-toggle') ? document.getElementById('include-total-vessel-toggle').checked : true;
             let payload = {
                 company_id: parseInt(companyId),
                 year: year,
                 vessels: selectedVessels,
-                rows: reportRows
+                rows: reportRows,
+                include_total_vessel: includeTotal
             };
 
             let res = await fetch('/api/builder/preview', {

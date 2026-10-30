@@ -566,6 +566,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
         cfg = json.loads(template_record.config_json)
         vessels = cfg.get("vessels", [])
         rows = cfg.get("rows", [])
+        include_total = cfg.get("include_total_vessel", True)
         
         # Determine year: from config, or from template_name, fallback to current year
         year = cfg.get("year")
@@ -576,7 +577,7 @@ async def api_generate_report(req: ReportRequest, request: Request):
             year = int(year)
 
         from app.builder import build_and_compile_matrix
-        matrix = build_and_compile_matrix(company, str(year), vessels, rows, db, template_name=template_record.name)
+        matrix = build_and_compile_matrix(company, str(year), vessels, rows, db, template_name=template_record.name, include_total_vessel=include_total)
         compile_status = "OK (Live Matrix Compiler)"
         
         report_display_name = template_record.name
@@ -1031,9 +1032,10 @@ async def reconcile_mis_builder(
         cfg = json.loads(template_record.config_json)
         vessels = cfg.get("vessels", [])
         rows = cfg.get("rows", [])
+        include_total = cfg.get("include_total_vessel", True)
         
         # Live matrix compilation via DuckDB
-        bms_matrix = build_and_compile_matrix(company, str(year), vessels, rows, db, template_name=template_record.name)
+        bms_matrix = build_and_compile_matrix(company, str(year), vessels, rows, db, template_name=template_record.name, include_total_vessel=include_total)
         
         # Compare matrices cell by cell
         diff_result = compare_matrices(bms_matrix, mis_data, tolerance=tolerance)

@@ -609,11 +609,28 @@ class PreviewRequest(BaseModel):
     year: str = "2026"
     vessels: List[Dict[str, Any]]
     rows: List[Dict[str, Any]]
+    include_total_vessel: bool = True
 
-def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None) -> dict:
+def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None, include_total_vessel: bool = True, template_name: str = '') -> dict:
     """Constructs the base matrix structure (header and body rows with val_c expressions) from builder config."""
     if not vessels:
         vessels = [{'id': 0, 'name': 'HEAD OFFICE (HO)', 'is_ho': True}]
+
+    is_ho = any(v.get('is_ho') or 'HEAD OFFICE' in str(v.get('name', '')).upper() or str(v.get('name', '')).upper() in ['HO', 'HEAD OFFICE'] for v in vessels)
+    
+    effective_vessels = list(vessels)
+    if include_total_vessel and not is_ho and len(vessels) > 0:
+        has_total = any('TOTAL' in str(v.get('name', '')).upper() for v in vessels)
+        if not has_total:
+            pt_name = (company.initial_pt or '').upper()
+            t_name_upper = (template_name or '').upper()
+            if 'NON' in t_name_upper:
+                tot_name = f"TOTAL KAPAL NON {pt_name}" if pt_name else "TOTAL KAPAL NON"
+            elif pt_name:
+                tot_name = f"TOTAL KAPAL {pt_name}"
+            else:
+                tot_name = "TOTAL KAPAL TERPILIH"
+            effective_vessels.append({'id': -1, 'name': tot_name, 'is_total': True})
 
     year_str = str(year)
     quarters = [
@@ -626,9 +643,14 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
 
     h0 = []
     h1 = []
-    for v in vessels:
+    for v in effective_vessels:
         v_name = v.get("name", "").strip()
-        label = v_name if (v.get('is_ho') or 'HEAD OFFICE' in v_name.upper()) else f'Kapal - {v_name}'
+        if v.get('is_ho') or 'HEAD OFFICE' in v_name.upper():
+            label = v_name
+        elif 'TOTAL' in v_name.upper():
+            label = v_name
+        else:
+            label = f'Kapal - {v_name}'
         h0.append({'label': label, 'colspan': len(quarters)})
         for q, _, _ in quarters:
             h1.append({'label': q.upper() if q != 'ytd' else 'YTD'})
@@ -684,7 +706,7 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                     style += ' display: none;'
                 
             cells = []
-            for v in vessels:
+            for v in effective_vessels:
                 for q, sd, ed in quarters:
                     if row_type == 'title':
                         cells.append({'val': None, 'val_r': '', 'val_c': ''})
@@ -754,7 +776,7 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                     child_code = f"{var_name}_{child_idx}"
                     child_idx += 1
                     child_cells = []
-                    for v in vessels:
+                    for v in effective_vessels:
                         for q, sd, ed in quarters:
                             val_c = f'{child_code}.{q} = balp[(\"account_id.code\",\"=\",\"{acc_code}\")][(\"date\", \">=\", \"{sd}\"),(\"date\", \"<=\", \"{ed}\")]'
                             child_cells.append({'val': 0.0, 'val_r': '-', 'val_c': val_c})
@@ -781,9 +803,9 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
 
     return {'header': [h0, h1], 'body': body}
 
-def build_and_compile_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None, template_name: str = '') -> dict:
+def build_and_compile_matrix(company: Company, year: str, vessels: list, rows: list, db: Session = None, template_name: str = '', include_total_vessel: bool = True) -> dict:
     """Builds the raw matrix from builder definition and evaluates all DuckDB accounting queries and formulas."""
-    raw_matrix = build_raw_matrix(company, year, vessels, rows, db)
+    raw_matrix = build_raw_matrix(company, year, vessels, rows, db, include_total_vessel=include_total_vessel, template_name=template_name)
     from app.compiler import FastMatrixCompiler
     is_ho = any(v.get('is_ho') or 'HEAD OFFICE' in str(v.get('name', '')).upper() or str(v.get('name', '')).upper() in ['HO', 'HEAD OFFICE'] for v in (vessels or []))
     if not is_ho and template_name and ('HEAD OFFICE' in template_name.upper() or ' HO' in template_name.upper() or '(HO)' in template_name.upper()):
@@ -821,10 +843,11 @@ def preview_template(payload: PreviewRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Tambahkan minimal 1 baris laporan.")
 
     year = str(payload.year)
+    include_total = getattr(payload, "include_total_vessel", True)
     try:
-        compiled_matrix = build_and_compile_matrix(company, year, vessels, payload.rows, db)
+        compiled_matrix = build_and_compile_matrix(company, year, vessels, payload.rows, db, include_total_vessel=include_total)
         return {"status": "success", "data": compiled_matrix}
     except Exception as e:
         print(f"FastMatrixCompiler preview failed: {e}")
-        raw_matrix = build_raw_matrix(company, year, vessels, payload.rows, db)
+        raw_matrix = build_raw_matrix(company, year, vessels, payload.rows, db, include_total_vessel=include_total)
         return {"status": "success", "data": raw_matrix, "warning": f"Matriks belum dikompilasi nilai DuckDB: {str(e)}"}
