@@ -16,6 +16,42 @@ class FastMatrixCompiler:
         
         # 1. Isolate Fetcher
         self.fetcher = CompilerFetcher(self.engine, self.year, report_type)
+
+        # Auto-detect odoo_report_id if not explicitly provided
+        if not self.odoo_report_id:
+            try:
+                report_sql = "SELECT id, name FROM pg.mis_report"
+                reports_df = self.engine.conn.execute(report_sql).df()
+                for _, r in reports_df.iterrows():
+                    r_name = str(r['name']).upper()
+                    if str(self.year) in r_name and 'KAPAL' in r_name:
+                        self.odoo_report_id = int(r['id'])
+                        break
+                if not self.odoo_report_id and not reports_df.empty:
+                    for _, r in reports_df.iterrows():
+                        r_name = str(r['name']).upper()
+                        if 'KAPAL' in r_name:
+                            self.odoo_report_id = int(r['id'])
+                            break
+            except Exception as e:
+                print(f"Auto-detect odoo_report_id failed: {e}")
+
+        # Load Odoo KPI variable names mapping for this report
+        self.kpi_var_map = {}
+        if self.odoo_report_id:
+            try:
+                kpi_sql = f"SELECT name, description FROM pg.mis_report_kpi WHERE report_id = {self.odoo_report_id}"
+                kpi_df = self.engine.conn.execute(kpi_sql).df()
+                for _, kr in kpi_df.iterrows():
+                    k_name = str(kr['name']).strip()
+                    desc = str(kr['description']).strip()
+                    if '"en_US":' in desc:
+                        m = re.search(r'"en_US":\s*"([^"]+)"', desc)
+                        if m:
+                            desc = m.group(1).strip()
+                    self.kpi_var_map[desc.upper()] = k_name
+            except Exception as e:
+                print(f"Error loading mis_report_kpi: {e}")
         
         # 2. Fetch MIS Report Queries as Objects for eval()
         self.query_vars = {}
@@ -42,6 +78,104 @@ class FastMatrixCompiler:
                 
         # 3. Isolate Evaluator
         self.evaluator = CompilerEvaluator(self.query_vars)
+
+    def get_row_var_aliases(self, label: str, row_name: str = '') -> list:
+        aliases = []
+        if row_name:
+            aliases.append(row_name)
+            aliases.append(row_name.lower())
+            aliases.append(row_name.upper())
+
+        l = label.upper().strip()
+        slug = re.sub(r'[^a-zA-Z0-9]+', '_', label).strip('_').lower()
+        if slug:
+            aliases.append(slug)
+
+        if 'PENDAPATAN JASA' in l or l == 'TOTAL PENDAPATAN JASA':
+            aliases.extend(['total_pendapatan', 'pendapatan', 'tpj'])
+        if 'TOTAL BIAYA TIDAK LANGSUNG' in l:
+            aliases.extend(['total_biaya_tidak_langsung', 'total_biaya_tidak_langsung_a'])
+        if 'TOTAL BIAYA LANGSUNG' in l:
+            aliases.append('total_biaya_langsung')
+        if 'TOTAL BIAYA OPERASIONAL' in l:
+            aliases.append('total_biaya_operasional')
+        if 'RUGI (LABA) USAHA' in l or 'LABA (RUGI) USAHA' in l or l == 'LABA USAHA':
+            aliases.append('rugi_laba_usaha')
+        if 'EBITDA' in l:
+            aliases.append('ebitda')
+        if 'TOTAL BIAYA KEUANGAN' in l:
+            aliases.append('total_biaya_keuangan')
+        if 'PENDAPATAN DAN BIAYA LAIN-LAIN' in l:
+            aliases.append('total_pendapatan_dan_biaya_lain_lain')
+        if 'TAKSIRAN PAJAK PENGASILAN' in l or 'TAKSIRAN PAJAK PENGHASILAN' in l:
+            aliases.append('total_taksiran_pajak_pengasilan')
+        if 'LABA (RUGI) BERSIH' in l:
+            aliases.append('laba_rugi_bersih')
+
+        is_tw_base = (
+            l.startswith('TW_') 
+            or row_name.startswith('R13') 
+            or row_name in ['R130', 'R131', 'R132', 'R133', 'R134']
+            or 'TW_' in str(row_name)
+        )
+
+        has_account_prefix = bool(re.match(r'^\d{4,}', l))
+
+        if not is_tw_base and not has_account_prefix:
+            if l in self.kpi_var_map:
+                aliases.append(self.kpi_var_map[l])
+
+            if 'GAJI' in l and 'JAMSOSTEK' in l:
+                aliases.append('biaya_gaji_jamsostek')
+            if 'PERJALANAN DINAS' in l:
+                aliases.append('biaya_perjalanan_dinas')
+            if 'BIAYA KANTOR' in l:
+                aliases.append('biaya_kantor')
+            if 'KONSULTAN' in l:
+                aliases.append('biaya_jasa_konsultan_profesional')
+            if 'ASURANSI' in l and 'KENDARAAN' in l:
+                aliases.append('biaya_asuransi_kendaraan')
+            if 'PENYUSUTAN' in l and ('GA' in l or 'KANTOR' in l):
+                aliases.extend(['biaya_penyusutan_ga_1', 'biaya_penyusutan_ga'])
+            elif 'PENYUSUTAN' in l:
+                aliases.append('biaya_penyusutan')
+            if 'BUNGA BANK' in l and 'BIAYA' in l:
+                aliases.append('biaya_bunga_bank')
+            if 'SERVICING FEE' in l:
+                aliases.append('biaya_servicing_fee')
+            if 'PROVISI BANK' in l:
+                aliases.append('biaya_provisi_bank')
+            if 'AGEN PENAMPUNGAN' in l:
+                aliases.append('biaya_agen_penampungan')
+            if 'ANNUAL FEE' in l:
+                aliases.append('biaya_annual_fee')
+            if 'DENDA BANK' in l:
+                aliases.append('biaya_denda_bank')
+            if 'PENDAPATAN BUNGA' in l:
+                aliases.append('pendapatan_bunga_bank')
+            if 'PENDAPATAN LAIN' in l and 'TOTAL' not in l:
+                aliases.append('pendapatan_lain_lain')
+            if 'LABA SELISIH KURS' in l:
+                aliases.append('laba_selisih_kurs')
+            if 'TOTAL PENDAPATAN LAIN' in l:
+                aliases.append('total_pendapatan_lain_lain')
+            if 'BIAYA LAIN-LAIN' in l and 'TOTAL' not in l:
+                if 'KAPAL' in l or 'KAS KAPAL' in l:
+                    aliases.append('biaya_lain_lain_kapal')
+                else:
+                    aliases.append('biaya_lain_lain')
+            if 'ADMIN BANK' in l:
+                aliases.append('biaya_admin_bank')
+            if 'RUGI SELISIH KURS' in l:
+                aliases.append('rugi_selisih_kurs')
+            if 'TOTAL BIAYA LAIN' in l:
+                aliases.append('total_biaya_lain_lain')
+            if 'PAJAK FINAL' in l:
+                aliases.append('beban_pajak_final')
+            if 'PAJAK LAIN' in l and 'TOTAL' not in l:
+                aliases.append('beban_pajak_lain_lain')
+
+        return list(dict.fromkeys(aliases))
 
     @property
     def is_non_bms(self) -> bool:
@@ -164,7 +298,7 @@ class FastMatrixCompiler:
                         is_expense = True
                     elif any(k in effective_tag for k in ['PENDAPATAN', 'LABA', 'INCOME', 'REVENUE']):
                         is_expense = False
-                    elif any(k in label_upper for k in ['BIAYA', 'BEBAN', 'RUGI', 'PAJAK', 'KLAIM']):
+                    elif any(k in label_upper for k in ['BIAYA', 'BEBAN', 'RUGI', 'PAJAK', 'KLAIM', 'BUNGA PINJAMAN', 'PINJAMAN', 'DENDA']):
                         if 'PENDAPATAN JASA' not in label_upper and 'PENDAPATAN BUNGA' not in label_upper and 'LABA' not in label_upper:
                             is_expense = True
                         else:
@@ -180,15 +314,12 @@ class FastMatrixCompiler:
                             if vessel_df.empty:
                                 vessel_df = df[df['vessel_name'].str.contains(clean_vessel, regex=False, na=False)]
                             if vessel_df.empty and 'ALL' in df['vessel_name'].values:
-                                # Fallback 'ALL' applies to general indirect overhead / company-wide shared expenses (proportional rows, HO, or general tags).
+                                # Fallback 'ALL' applies to general indirect overhead / company-wide shared expenses (proportional rows or HO).
                                 # Direct vessel accounts belong strictly to the specific vessel and must NEVER inherit 'ALL'!
                                 is_indirect = bool(
                                     row.get('is_proportional') 
                                     or self.report_type == 'ho' 
                                     or clean_vessel.upper() in ['HO', 'HEAD OFFICE']
-                                    or ('GAJI' in label_upper and 'CREW' not in label_upper)
-                                    or any(k in effective_tag for k in ['GA', 'OVERHEAD', 'BUNGA', 'PAJAK', 'KANTOR', 'DINAS', 'KONSULTAN', 'ADMIN'])
-                                    or any(k in label_upper for k in ['OVERHEAD', 'ADMINISTRASI', 'TIDAK LANGSUNG', 'BUNGA', 'PAJAK'])
                                 )
                                 if is_expense and is_indirect:
                                     vessel_df = df[df['vessel_name'] == 'ALL']
@@ -351,14 +482,24 @@ class FastMatrixCompiler:
                                 env_vars[i][var_name] = _num(cell.get('val', 0.0))
                                 var_owner[(i, var_name)] = row_idx
 
-                # Also register row name and aliases if available
-                row_name = str(row.get('name') or '').strip()
-                if row_name:
-                    if row_name not in env_vars[i] or not row.get('is_child'):
-                        val_num = _num(cell.get('val', 0.0))
-                        env_vars[i][row_name] = val_num
-                        env_vars[i][row_name.lower()] = val_num
-                        env_vars[i][row_name.upper()] = val_num
+                # Also register row name and all known aliases if available
+                row_name = str(row.get('name') or row.get('code') or '').strip()
+                val_num = _num(cell.get('val', 0.0))
+                row_aliases = self.get_row_var_aliases(row.get('label', ''), row_name)
+                is_child_row = bool(
+                    row.get('is_child') 
+                    or row.get('parent_code') 
+                    or re.match(r'^\d{4,}', label.strip())
+                )
+                for al in row_aliases:
+                    if row.get('row_type') == 'formula' and val_num == 0.0:
+                        continue
+                    if al not in env_vars[i] or (val_num != 0.0 and not is_child_row):
+                        env_vars[i][al] = val_num
+                        env_vars[i][al.lower()] = val_num
+                        env_vars[i][al.upper()] = val_num
+                        if (i, al) not in var_owner and not is_child_row:
+                            var_owner[(i, al)] = row_idx
                 
                 query_code_r = str(row.get('query_code') or '').upper()
                 if 'KAPASITAS' in label or query_code_r == 'KAPASITAS':
@@ -409,16 +550,16 @@ class FastMatrixCompiler:
                 env_vars[i]['prop_tpj'] = 0.0
                 env_vars[i]['ptpj'] = 0.0
             elif tpj_t != 0:
-                env_vars[i]['prop_tpj'] = tpj / tpj_t
-                env_vars[i]['ptpj'] = tpj / tpj_t
+                env_vars[i]['prop_tpj'] = round(tpj / tpj_t, 4)
+                env_vars[i]['ptpj'] = round(tpj / tpj_t, 4)
             elif tpj_s != 0:
-                env_vars[i]['prop_tpj'] = tpj / tpj_s
-                env_vars[i]['ptpj'] = tpj / tpj_s
+                env_vars[i]['prop_tpj'] = round(tpj / tpj_s, 4)
+                env_vars[i]['ptpj'] = round(tpj / tpj_s, 4)
             else:
                 env_vars[i]['prop_tpj'] = 0.0
                 env_vars[i]['ptpj'] = 0.0
 
-            env_vars[i]['prop_tpj_terpilih'] = (tpj / tpj_t) if tpj_t != 0 else 0.0
+            env_vars[i]['prop_tpj_terpilih'] = round(tpj / tpj_t, 4) if tpj_t != 0 else 0.0
             env_vars[i]['kpi_tpj_semua'] = env_vars[i]['tpj_semua']
             env_vars[i]['kpi_tpj_terpilih'] = env_vars[i]['tpj_terpilih']
 
@@ -657,10 +798,21 @@ class FastMatrixCompiler:
                                 continue
                                 
                             try:
+                                is_pct_row = bool(
+                                    row.get('is_percentage') or 
+                                    row.get('format') == 'percentage' or 
+                                    '%' in label_upper
+                                )
+
                                 if (self.report_type == 'ho' or self.is_non_bms) and 'ptpj' in expr:
                                     val = 0.0
-                                # YTD Override for indirect costs: sum Q1..Q4 instead of formula
-                                elif col_map[i]['period'] in ['ytd', 'total'] and 'ptpj' in expr:
+                                # Total Kapal Terpilih columns for non-percentage rows: sum up individual ships
+                                elif 'TOTAL' in col_map[i]['vessel_name'].upper() and not is_pct_row:
+                                    period = col_map[i]['period']
+                                    ship_cols = [j for j, c in enumerate(col_map) if c['period'] == period and 'TOTAL' not in c['vessel_name'].upper()]
+                                    val = sum((row['cells'][j].get('val') or 0.0) for j in ship_cols)
+                                # YTD Override for additive rows: sum Q1..Q4 instead of formula
+                                elif col_map[i]['period'] in ['ytd', 'total'] and ('ptpj' in expr or not is_pct_row):
                                     vessel_name = col_map[i]['vessel_name']
                                     q_cols = [j for j, col in enumerate(col_map) if col['period'] in ['q1', 'q2', 'q3', 'q4'] and col['vessel_name'] == vessel_name]
                                     if q_cols:
@@ -678,20 +830,34 @@ class FastMatrixCompiler:
                             # (only the row that owns the variable; children never overwrite parents).
                             var_name = parts[0].strip()
                             var_name_clean = var_name.split('.')[0]
+                            if 'PROPORTIONAL TPJ' in label_upper or 'PROPORSIONAL TPJ' in label_upper or var_name_clean.lower() in ['ptpj', 'prop_tpj', 'r_74', 'r36']:
+                                val = round(val, 4)
+
                             if var_owner.get((i, var_name_clean)) == row_idx or (i, var_name_clean) not in var_owner:
                                 env_vars[i][var_name_clean] = val
                                 env_vars[i][var_name_clean.lower()] = val
                                 env_vars[i][var_name_clean.upper()] = val
                             if var_owner.get((i, var_name)) == row_idx or (i, var_name) not in var_owner:
                                 env_vars[i][var_name] = val
-                            if 'PROPORTIONAL TPJ' in label_upper or 'PROPORSIONAL TPJ' in label_upper or var_name_clean.lower() in ['ptpj', 'prop_tpj', 'r36']:
+                            if 'PROPORTIONAL TPJ' in label_upper or 'PROPORSIONAL TPJ' in label_upper or var_name_clean.lower() in ['ptpj', 'prop_tpj', 'r_74', 'r36']:
                                 env_vars[i]['prop_tpj'] = val
                                 env_vars[i]['ptpj'] = val
+                                env_vars[i]['prop_tpj_terpilih'] = val
 
-                            # Format as percentage only if is_percentage flag is explicitly set or format == 'percentage'
+                            # Also feed back all aliases of this row so dependent formulas resolve accurately
+                            for al in self.get_row_var_aliases(row.get('label', ''), var_name_clean):
+                                owner = var_owner.get((i, al))
+                                if owner in (row_idx, None) or env_vars[i].get(al, 0.0) == 0.0:
+                                    env_vars[i][al] = val
+                                    env_vars[i][al.lower()] = val
+                                    env_vars[i][al.upper()] = val
+                                    var_owner[(i, al)] = row_idx
+
+                            # Format as percentage only if is_percentage flag is explicitly set or format == 'percentage' or % in label
                             is_pct = bool(
                                 row.get('is_percentage') or 
-                                row.get('format') == 'percentage'
+                                row.get('format') == 'percentage' or 
+                                '%' in label_upper
                             )
                             if is_pct:
                                 cell['val'] = val

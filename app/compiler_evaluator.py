@@ -21,6 +21,9 @@ class CompilerEvaluator:
         can handle it cleanly without overwriting valid data.
         """
         safe_env = defaultdict(float)
+        # Inject MIS queries (e.g., cap_query.debit, tbab.sumq1_25)
+        safe_env.update(self.query_vars)
+
         for k, v in env_vars.items():
             if isinstance(v, (int, float)):
                 sv = SmartVar(v)
@@ -30,9 +33,6 @@ class CompilerEvaluator:
                     safe_env[k.upper()] = sv
             else:
                 safe_env[k] = v
-        
-        # Inject MIS queries (e.g., cap_query.debit, tbab.sumq1_25)
-        safe_env.update(self.query_vars)
         
         try:
             val = eval(expr, {}, safe_env)

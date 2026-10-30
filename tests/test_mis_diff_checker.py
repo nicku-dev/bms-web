@@ -2,7 +2,6 @@ import os
 import json
 import io
 import asyncio
-import pytest
 from fastapi import UploadFile, Request
 from app.main import reconcile_mis_builder
 from app.db import SessionLocal

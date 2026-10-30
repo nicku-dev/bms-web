@@ -465,22 +465,42 @@ class ReportEngine:
                 
                 if q_name in custom_tags:
                     tag_name = custom_tags[q_name]
+                    target_year = 2026
+                    for f in fields:
+                        fn = str(f.get('name', ''))
+                        if '_25' in fn:
+                            target_year = 2025
+                            break
+                        elif '_26' in fn:
+                            target_year = 2026
+                            break
                     fetch_sql = f"""
                         WITH custom_view AS (
                             SELECT 
                                 1 as id,
-                                '2026-12-31'::date as date,
+                                '{target_year}-12-31'::date as date,
                                 '{tag_name}' as keterangan,
                                 COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 1 THEN aml.balance ELSE 0 END), 0) as sumq1_25,
                                 COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 2 THEN aml.balance ELSE 0 END), 0) as sumq2_25,
                                 COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 3 THEN aml.balance ELSE 0 END), 0) as sumq3_25,
                                 COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 4 THEN aml.balance ELSE 0 END), 0) as sumq4_25,
-                                COALESCE(SUM(aml.balance), 0) as ytd_25
+                                COALESCE(SUM(aml.balance), 0) as ytd_25,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 1 THEN aml.balance ELSE 0 END), 0) as sumq1_26,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 2 THEN aml.balance ELSE 0 END), 0) as sumq2_26,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 3 THEN aml.balance ELSE 0 END), 0) as sumq3_26,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 4 THEN aml.balance ELSE 0 END), 0) as sumq4_26,
+                                COALESCE(SUM(aml.balance), 0) as ytd_26,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 1 THEN aml.balance ELSE 0 END), 0) as sumq1,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 2 THEN aml.balance ELSE 0 END), 0) as sumq2,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 3 THEN aml.balance ELSE 0 END), 0) as sumq3,
+                                COALESCE(SUM(CASE WHEN EXTRACT(QUARTER FROM aml.date) = 4 THEN aml.balance ELSE 0 END), 0) as sumq4,
+                                COALESCE(SUM(aml.balance), 0) as ytd
                             FROM pg.account_move_line aml
                             JOIN pg.account_account_account_tag aaat ON aaat.account_account_id = aml.account_id 
                             JOIN pg.account_account_tag aat ON aat.id = aaat.account_account_tag_id 
                             WHERE aat.name->>'en_US' = '{tag_name}' 
                               AND aml.parent_state = 'posted'
+                              AND EXTRACT(YEAR FROM aml.date) = {target_year}
                         )
                         SELECT {select_str} FROM custom_view
                     """
