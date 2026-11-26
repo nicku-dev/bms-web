@@ -40,12 +40,7 @@ class ExcelWriter:
                 if match:
                     try:
                         em_val = float(match.group(1))
-                        if em_val >= 4:
-                            fmt['indent'] = 2
-                        elif em_val >= 2:
-                            fmt['indent'] = 1
-                        else:
-                            fmt['indent'] = 0
+                        fmt['indent'] = max(0, min(int(round(em_val)), 15))
                     except:
                         pass
         return fmt
@@ -81,14 +76,17 @@ class ExcelWriter:
         workbook = xlsxwriter.Workbook(self.output_path)
         worksheet = workbook.add_worksheet('Report')
         
-        # Write Report Titles
-        title_format = workbook.add_format({'bold': True, 'font_size': 14, 'font_name': 'Calibri'})
-        subtitle_format = workbook.add_format({'bold': True, 'font_size': 12, 'font_name': 'Calibri', 'font_color': '#334155'})
-        year_format = workbook.add_format({'bold': True, 'font_size': 11, 'font_name': 'Calibri', 'font_color': '#475569'})
+        # Write Report Titles (1:1 with Odoo MIS Builder reference)
+        title_format = workbook.add_format({'bold': True, 'font_size': 11, 'font_name': 'Calibri'})
+        
+        clean_report_scope = re.sub(rf'\b{re.escape(str(self.year))}\b', '', str(self.report_name or '')).strip(' -')
+        is_ho_report = 'HEAD OFFICE' in clean_report_scope.upper() or clean_report_scope.upper() == 'HO'
+        subtitle_text = "Laporan Laba Rugi Konsolidasi - Head Office" if is_ho_report else "Laporan Laba Rugi Konsolidasi - per kapal"
         
         worksheet.write(0, 0, self.company_name, title_format)
-        worksheet.write(1, 0, self.report_name, subtitle_format)
-        worksheet.write(2, 0, f"TAHUN {self.year}", year_format)
+        worksheet.write(1, 0, subtitle_text, title_format)
+        worksheet.write(2, 0, clean_report_scope or str(self.report_name or ''), title_format)
+        worksheet.write(3, 0, str(self.year), title_format)
         
         start_row = 5
         
@@ -98,7 +96,7 @@ class ExcelWriter:
         current_row = start_row
         max_cols = 0
         
-        header_fmt = self._get_format(workbook, {'bg_color': '#EAEEF3', 'font_color': '#0F172A'}, is_header=True)
+        header_fmt = self._get_format(workbook, {'bg_color': '#F0EEEE', 'font_color': '#000000'}, is_header=True)
         
         # Merge top-left "Keterangan" vertically across all header rows
         if num_header_rows > 1:
@@ -110,7 +108,9 @@ class ExcelWriter:
             col_idx = 1 # Start from column 1 (B) for data, column 0 (A) is for labels
             cols = h_row if isinstance(h_row, list) else h_row.get('cols', [])
             for c in cols:
-                label = c.get('label', c.get('val', ''))
+                label = str(c.get('label', c.get('val', ''))).strip()
+                if label.startswith('Kapal - '):
+                    label = label[len('Kapal - '):].strip()
                 colspan = c.get('colspan', 1)
                 
                 if colspan > 1:
@@ -173,7 +173,7 @@ class ExcelWriter:
                 row_style['italic'] = True
                 row_style['font_color'] = '#555555'
                 row_style['indent'] = max(row_style.get('indent', 2), 2)
-            elif is_total_row and 'bg_color' in row_style:
+            elif is_total_row and 'bg_color' in row_style and not trimmed_label.startswith('%') and row_style.get('bg_color', '').upper() != '#E2EFDA':
                 row_style['bold'] = True
                 
             # Write Label in Column A
@@ -224,10 +224,14 @@ class ExcelWriter:
                 
             current_row += 1
             
-        # 3. Adjust Column Widths
-        worksheet.set_column(0, 0, 45) # Label column wide
+        # 3. Adjust Column Widths & Footer
+        worksheet.set_column(0, 0, 46) # Label column wide
         if col_idx > 1:
-            worksheet.set_column(1, col_idx - 1, 15) # Data columns
+            worksheet.set_column(1, col_idx - 1, 18.7) # Data columns
+
+        from datetime import datetime
+        footer_fmt = workbook.add_format({'italic': True, 'font_size': 9, 'font_name': 'Calibri', 'font_color': '#64748B'})
+        worksheet.write(current_row + 1, 0, f"Generated on {datetime.now().strftime('%d/%m/%Y at %H:%M:%S')}", footer_fmt)
             
         # 4. Add Log Sistem Sheet
         log_sheet = workbook.add_worksheet('Log Sistem')

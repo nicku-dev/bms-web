@@ -342,7 +342,7 @@ class FastMatrixCompiler:
                                     row.get('is_proportional') 
                                     or is_ho_col
                                 )
-                                if is_expense and is_indirect:
+                                if row.get('is_proportional') or (is_expense and is_indirect):
                                     vessel_df = df[df['vessel_name'] == 'ALL']
                             
                         if not vessel_df.empty:
@@ -752,6 +752,7 @@ class FastMatrixCompiler:
                             if row_name:
                                 env_vars[i][row_name] = allocated
                                 env_vars[i][row_name.lower()] = allocated
+                                env_vars[i][row_name.upper()] = allocated
 
                     # Calculate YTD for each individual vessel
                     for i, cell in enumerate(row.get('cells', [])):
@@ -768,6 +769,7 @@ class FastMatrixCompiler:
                             if row_name:
                                 env_vars[i][row_name] = ytd_val
                                 env_vars[i][row_name.lower()] = ytd_val
+                                env_vars[i][row_name.upper()] = ytd_val
 
                     # Calculate Total Kapal Terpilih columns
                     for i, cell in enumerate(row.get('cells', [])):
@@ -788,6 +790,7 @@ class FastMatrixCompiler:
                             if row_name:
                                 env_vars[i][row_name] = cell['val']
                                 env_vars[i][row_name.lower()] = cell['val']
+                                env_vars[i][row_name.upper()] = cell['val']
                     continue
                 
                 for i, cell in enumerate(row.get('cells', [])):
@@ -797,7 +800,7 @@ class FastMatrixCompiler:
                     val_c = str(cell.get('val_c', '')).replace('\xa0', ' ')
                     
                     # Evaluate if it's an assignment like "var = expr" and not an Odoo domain list "['...']"
-                    if '=' in val_c and '[' not in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c and 'sumq' not in val_c.split('=', 1)[0]:
+                    if '=' in val_c and '[' not in val_c and 'balp' not in val_c and 'tpj_skf' not in val_c.split('=', 1)[0] and 'sumq' not in val_c.split('=', 1)[0]:
                         parts = val_c.split('=', 1)
                         if len(parts) == 2:
                             expr = parts[1].strip()

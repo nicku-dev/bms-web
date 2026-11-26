@@ -767,6 +767,11 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                     except Exception as e:
                         print(f"OdooAPI preview get_all_accounts failed: {e}")
 
+                parent_indent_match = re.search(r'text-indent:\s*([0-9.]+)\s*em', style)
+                parent_indent_em = float(parent_indent_match.group(1)) if parent_indent_match else 0.0
+                child_indent_em = parent_indent_em + 1.0
+                child_indent_str = f"{int(child_indent_em) if child_indent_em.is_integer() else child_indent_em}em"
+
                 child_idx = 1
                 for acc in accounts:
                     acc_code = str(acc['code']).strip()
@@ -791,7 +796,7 @@ def build_raw_matrix(company: Company, year: str, vessels: list, rows: list, db:
                         'tag_name': expr,
                         'is_proportional': is_proportional,
                         'multiplier_row': multiplier_row,
-                        'style': 'font-style: italic; text-indent: 2em;',
+                        'style': f'font-style: italic; text-indent: {child_indent_str};',
                         'cells': child_cells
                     })
     finally:

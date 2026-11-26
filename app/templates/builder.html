@@ -344,71 +344,43 @@
                 </div>
             </div>
 
-            <!-- TIER 2: Pemilihan Kapal & Quick Fleet Preset Buttons -->
-            <div class="flex flex-col xl:flex-row xl:items-center gap-3">
-                <!-- Preset Buttons & Search Inputs -->
-                <div class="flex flex-wrap items-center gap-2 shrink-0">
-                    <span class="text-xs font-bold text-slate-700">⛴️ Armada:</span>
-                    
-                    <!-- Quick Select Internal Vessels -->
-                    <button type="button" onclick="selectAllBmsVessels()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg transition active:scale-95 shadow-2xs" title="Pilih seluruh armada kapal internal (is_third_party=false)">
-                        <span>🚢</span>
-                        <span id="btn-fleet-internal-label">+ Kapal Internal</span>
-                        <span id="bms-count-tag" class="px-1.5 py-0.2 bg-blue-200/60 rounded text-[10px] font-bold">0</span>
-                    </button>
-
-                    <!-- Quick Select Non-Internal Vessels -->
-                    <button type="button" onclick="selectAllNonBmsVessels()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg transition active:scale-95 shadow-2xs" title="Pilih seluruh armada kapal Non-Internal / Sewa (is_third_party=true)">
-                        <span>⛴️</span>
-                        <span id="btn-fleet-external-label">+ Kapal Sewa</span>
-                        <span id="non-bms-count-tag" class="px-1.5 py-0.2 bg-amber-200/60 rounded text-[10px] font-bold">0</span>
-                    </button>
-
-                    <!-- Mode HO (Head Office) -->
-                    <button type="button" onclick="selectHoMode()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-lg transition active:scale-95 shadow-2xs" title="Jadikan Laporan Kantor Pusat / Head Office (Tanpa Kapal)">
-                        <span>🏢</span>
-                        <span>Mode HO</span>
-                    </button>
-
-                    <!-- Total Kapal Terpilih Column Toggle -->
-                    <label class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50/80 text-blue-900 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition select-none shadow-2xs" title="Sertakan grup kolom Total Kapal Terpilih (Q1 - YTD) di paling kanan laporan">
+            <!-- TIER 2: Ringkasan Armada & Akses Cepat Tab Kapal -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <span class="text-xs font-bold text-slate-700">⛴️ Armada Terpilih:</span>
+                    <span id="ribbon-vessels-summary" class="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">0 Kapal dipilih</span>
+                    <label class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1 bg-blue-50/80 text-blue-900 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition select-none shadow-2xs" title="Sertakan grup kolom Total Kapal Terpilih (Q1 - YTD) di paling kanan laporan">
                         <input type="checkbox" id="include-total-vessel-toggle" checked class="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
-                        <span class="font-bold">Total Kapal</span>
+                        <span class="font-bold">Sertakan Kolom Total Kapal</span>
                     </label>
-
-                    <!-- Open Full Fleet Modal -->
-                    <button type="button" onclick="openFleetModal()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-lg transition active:scale-95 shadow-2xs" title="Buka dialog pemilihan checklist armada">
-                        <span>📋</span>
-                        <span>Kelola...</span>
-                    </button>
-
-                    <!-- Individual Search / Add -->
-                    <div class="flex items-center space-x-1 ml-1 border-l border-slate-200 pl-2">
-                        <input list="vessels-datalist" id="search-vessel" class="w-40 text-xs border border-slate-200 rounded-lg p-1.5 focus:ring-2 focus:ring-blue-500 bg-slate-50 font-medium" placeholder="Cari kapal individual...">
-                        <datalist id="vessels-datalist"></datalist>
-                        <button type="button" onclick="addVessel()" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs active:scale-95">
-                            + Tambah
-                        </button>
-                    </div>
-
-                    <!-- Clear Button -->
-                    <button type="button" onclick="clearAllVessels()" class="text-xs text-rose-500 hover:text-rose-700 hover:underline font-bold px-1" title="Hapus semua kapal terpilih">✕ Kosongkan</button>
                 </div>
-
-                <!-- Selected Vessels Badged List (Horizontal Scroll / Wrap) -->
-                <div class="flex-1 border-t xl:border-t-0 xl:border-l border-slate-200 pt-2 xl:pt-0 xl:pl-3">
-                    <div id="selected-vessels" class="flex flex-wrap items-center gap-1.5 max-h-[85px] overflow-y-auto custom-scrollbar">
-                        <div class="text-xs text-slate-400 italic">Belum ada kapal dipilih</div>
-                    </div>
-                </div>
+                <button type="button" onclick="switchBuilderTab('vessels')" class="inline-flex items-center space-x-1.5 text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition active:scale-95 shadow-2xs">
+                    <span>⛴️</span>
+                    <span>Atur Daftar &amp; Urutan Kapal →</span>
+                </button>
             </div>
         </div>
     </div>
     <!-- END: Top Compact Parameter & Vessel Ribbon -->
 
-    <!-- Main Full-Width Area -->
-    <div class="space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+    <!-- Main Full-Width Area with Tabs -->
+    <div class="space-y-4">
+        <!-- Builder Workspace Tabs -->
+        <div class="flex items-center space-x-2 border-b border-slate-200">
+            <button type="button" id="tab-btn-rows" onclick="switchBuilderTab('rows')" class="inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-t-xl border border-b-0 border-slate-200 bg-white text-blue-700 shadow-2xs -mb-px transition">
+                <span>📊</span>
+                <span>Susunan Baris Laporan</span>
+                <span id="tab-rows-count" class="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-extrabold">0</span>
+            </button>
+            <button type="button" id="tab-btn-vessels" onclick="switchBuilderTab('vessels')" class="inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-t-xl border border-b-0 border-transparent bg-slate-100/70 text-slate-600 hover:text-slate-900 hover:bg-slate-100 -mb-px transition">
+                <span>⛴️</span>
+                <span>Susunan &amp; Urutan Kapal</span>
+                <span id="tab-vessels-count" class="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded-full text-[10px] font-extrabold">0</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: Susunan Baris Laporan -->
+        <div id="tab-panel-rows" class="bg-white rounded-2xl rounded-tl-none border border-slate-200 shadow-xs p-5 space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
                         <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -467,6 +439,82 @@
                     </button>
                 </div>
             </div>
+
+        <!-- TAB 2: Susunan & Urutan Kapal -->
+        <div id="tab-panel-vessels" class="hidden bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>⛴️</span> Susunan &amp; Urutan Kapal Laporan
+                    </h3>
+                    <p class="text-xs text-slate-400">
+                        Urutan kapal di bawah ini menentukan urutan kolom (kiri ke kanan) pada <b>Laporan Web</b> maupun <b>Export Excel</b>.
+                        <span class="text-blue-600 font-medium">💡 Geser (drag &amp; drop) ikon ⠿ atau gunakan tombol ▲ / ▼ untuk mengatur urutan.</span>
+                    </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="selectAllBmsVessels()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg transition active:scale-95 shadow-2xs">
+                        <span>🚢</span>
+                        <span id="btn-fleet-internal-label">+ Kapal Internal</span>
+                        <span id="bms-count-tag" class="px-1.5 py-0.2 bg-blue-200/60 rounded text-[10px] font-bold">0</span>
+                    </button>
+                    <button type="button" onclick="selectAllNonBmsVessels()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg transition active:scale-95 shadow-2xs">
+                        <span>⛴️</span>
+                        <span id="btn-fleet-external-label">+ Kapal Sewa</span>
+                        <span id="non-bms-count-tag" class="px-1.5 py-0.2 bg-amber-200/60 rounded text-[10px] font-bold">0</span>
+                    </button>
+                    <button type="button" onclick="selectHoMode()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-lg transition active:scale-95 shadow-2xs">
+                        <span>🏢</span>
+                        <span>Mode HO</span>
+                    </button>
+                    <button type="button" onclick="openFleetModal()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 rounded-lg transition active:scale-95 shadow-2xs">
+                        <span>📋</span>
+                        <span>Kelola Checklist...</span>
+                    </button>
+                    <button type="button" onclick="sortVesselsAZ()" class="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg transition active:scale-95 shadow-2xs" title="Urutkan nama kapal secara alfabetis A-Z">
+                        <span>🔤</span>
+                        <span>Urutkan A-Z</span>
+                    </button>
+                    <button type="button" onclick="clearAllVessels()" class="text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 font-bold transition" title="Hapus semua kapal terpilih">✕ Kosongkan</button>
+                </div>
+            </div>
+
+            <!-- Add Individual Vessel Bar -->
+            <div class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                <span class="text-xs font-bold text-slate-600">Tambah Kapal Individual:</span>
+                <input list="vessels-datalist" id="search-vessel" class="flex-1 max-w-sm text-xs border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 bg-white font-medium" placeholder="Ketik nama kapal lalu klik + Tambah...">
+                <datalist id="vessels-datalist"></datalist>
+                <button type="button" onclick="addVessel()" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-xs active:scale-95">
+                    + Tambah Kapal
+                </button>
+            </div>
+
+            <!-- Ordered Vessels Table -->
+            <div class="border rounded-xl border-slate-200 overflow-hidden shadow-2xs">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="p-3 w-12 text-center" title="Tahan dan geser untuk memindahkan urutan kapal">Urutan</th>
+                            <th class="p-3 w-14 text-center">No</th>
+                            <th class="p-3">Nama Kapal</th>
+                            <th class="p-3 w-44 text-center">Kategori</th>
+                            <th class="p-3 w-36 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vessels-table-body" class="divide-y divide-slate-100">
+                        <!-- Vessel rows rendered by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-2">
+                <span class="text-xs text-slate-400">💡 Jangan lupa klik <b>Simpan</b> di atas untuk menyimpan urutan kapal ke template.</span>
+                <button onclick="previewReport()" class="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-[0.98]">
+                    <span>▶️</span>
+                    <span>Hitung &amp; Lihat Hasil Matriks</span>
+                </button>
+            </div>
+        </div>
 
             <!-- Matrix Results Preview Area -->
             <div id="preview-section" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 hidden transition-all">
@@ -775,47 +823,121 @@
         }
     }
 
+    let draggedVesselIndex = null;
+
+    function switchBuilderTab(tabName) {
+        const isRows = tabName === 'rows';
+        document.getElementById('tab-panel-rows').classList.toggle('hidden', !isRows);
+        document.getElementById('tab-panel-vessels').classList.toggle('hidden', isRows);
+
+        const btnRows = document.getElementById('tab-btn-rows');
+        const btnVessels = document.getElementById('tab-btn-vessels');
+        if (isRows) {
+            btnRows.className = "inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-t-xl border border-b-0 border-slate-200 bg-white text-blue-700 shadow-2xs -mb-px transition";
+            btnVessels.className = "inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-t-xl border border-b-0 border-transparent bg-slate-100/70 text-slate-600 hover:text-slate-900 hover:bg-slate-100 -mb-px transition";
+        } else {
+            btnVessels.className = "inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-t-xl border border-b-0 border-slate-200 bg-white text-blue-700 shadow-2xs -mb-px transition";
+            btnRows.className = "inline-flex items-center space-x-2 px-5 py-2.5 text-xs font-bold rounded-t-xl border border-b-0 border-transparent bg-slate-100/70 text-slate-600 hover:text-slate-900 hover:bg-slate-100 -mb-px transition";
+        }
+    }
+
+    function moveVesselUp(idx) {
+        if (idx <= 0 || idx >= selectedVessels.length) return;
+        const item = selectedVessels.splice(idx, 1)[0];
+        selectedVessels.splice(idx - 1, 0, item);
+        renderVessels();
+    }
+
+    function moveVesselDown(idx) {
+        if (idx < 0 || idx >= selectedVessels.length - 1) return;
+        const item = selectedVessels.splice(idx, 1)[0];
+        selectedVessels.splice(idx + 1, 0, item);
+        renderVessels();
+    }
+
+    function sortVesselsAZ() {
+        selectedVessels.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        renderVessels();
+    }
+
+    function handleVesselDragStart(e, idx) {
+        draggedVesselIndex = idx;
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.classList.add('opacity-50', 'bg-blue-50');
+    }
+
+    function handleVesselDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleVesselDrop(e, targetIdx) {
+        e.preventDefault();
+        if (draggedVesselIndex === null || draggedVesselIndex === targetIdx) return;
+        const item = selectedVessels.splice(draggedVesselIndex, 1)[0];
+        selectedVessels.splice(targetIdx, 0, item);
+        draggedVesselIndex = null;
+        renderVessels();
+    }
+
+    function handleVesselDragEnd(e) {
+        e.currentTarget.classList.remove('opacity-50', 'bg-blue-50');
+        draggedVesselIndex = null;
+    }
+
     function renderVessels() {
-        let container = document.getElementById('selected-vessels');
-        let countBadge = document.getElementById('vessel-count');
+        let countBadge = document.getElementById('tab-vessels-count');
         if (countBadge) countBadge.innerText = selectedVessels.length;
-        
+
+        let ribbonSummary = document.getElementById('ribbon-vessels-summary');
+        if (ribbonSummary) {
+            ribbonSummary.innerText = selectedVessels.length > 0
+                ? `${selectedVessels.length} Kapal dipilih`
+                : 'Belum ada kapal dipilih';
+        }
+
+        let tbody = document.getElementById('vessels-table-body');
+        if (!tbody) return;
         if (!selectedVessels || selectedVessels.length === 0) {
-            container.innerHTML = '<div class="text-xs text-slate-400 italic py-1">Belum ada kapal dipilih (gunakan tombol preset armada di atas atau cari kapal)</div>';
+            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-xs text-slate-400 italic">Belum ada kapal dipilih. Gunakan tombol preset (+ Kapal Internal / + Kapal Sewa) atau tambah kapal individual di atas.</td></tr>`;
             return;
         }
         let html = '';
-        selectedVessels.forEach(v => {
-            let isHo = v.is_ho || v.name.includes('HEAD OFFICE');
+        selectedVessels.forEach((v, idx) => {
+            let isHo = v.is_ho || (v.name || '').includes('HEAD OFFICE');
             let isThirdParty = Boolean(v.is_third_party);
 
-            let tagHtml = '';
-            let bgClass = 'bg-slate-50 hover:bg-slate-100 border-slate-200/90 text-slate-800';
-            let icon = '🚢';
-
+            let badgeHtml = '';
             if (isHo) {
-                tagHtml = '<span class="text-[9px] font-bold px-1.5 py-0.2 bg-purple-100 text-purple-700 rounded border border-purple-200">HO</span>';
-                bgClass = 'bg-purple-50 hover:bg-purple-100/80 border-purple-200 text-purple-900';
-                icon = '🏢';
+                badgeHtml = '<span class="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md border border-purple-200">🏢 Head Office</span>';
             } else if (isThirdParty) {
-                tagHtml = '<span class="text-[9px] font-bold px-1 py-0.2 bg-amber-100 text-amber-800 rounded border border-amber-200">Non-BMS</span>';
-                bgClass = 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200 text-amber-900';
-                icon = '⛴️';
+                badgeHtml = '<span class="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md border border-amber-200">⛴️ Non-Internal (Sewa)</span>';
             } else {
-                tagHtml = '<span class="text-[9px] font-bold px-1 py-0.2 bg-blue-100 text-blue-800 rounded border border-blue-200">BMS</span>';
-                bgClass = 'bg-blue-50/70 hover:bg-blue-100/70 border-blue-200 text-blue-900';
-                icon = '🚢';
+                badgeHtml = '<span class="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md border border-blue-200">🚢 Internal</span>';
             }
 
             html += `
-            <div class="inline-flex items-center space-x-1.5 border pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-semibold shadow-2xs transition ${bgClass}">
-                <span class="truncate max-w-[160px]" title="${v.name}">${icon} ${v.name}</span>
-                ${tagHtml}
-                <button type="button" onclick="removeVessel('${v.name}')" class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-bold w-4 h-4 rounded flex items-center justify-center transition" title="Hapus kapal ini">✕</button>
-            </div>
+            <tr draggable="true"
+                ondragstart="handleVesselDragStart(event, ${idx})"
+                ondragover="handleVesselDragOver(event)"
+                ondrop="handleVesselDrop(event, ${idx})"
+                ondragend="handleVesselDragEnd(event)"
+                class="hover:bg-slate-50/80 transition group">
+                <td class="p-2.5 text-center cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-700 select-none font-bold" title="Geser untuk ubah urutan">⠿</td>
+                <td class="p-2.5 text-center text-xs font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-2.5 text-xs font-bold text-slate-800">${v.name}</td>
+                <td class="p-2.5 text-center">${badgeHtml}</td>
+                <td class="p-2.5 text-center">
+                    <div class="inline-flex items-center space-x-1">
+                        <button type="button" onclick="moveVesselUp(${idx})" ${idx === 0 ? 'disabled' : ''} class="px-2 py-1 text-xs font-bold rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Pindah ke atas (lebih kiri di laporan)">▲</button>
+                        <button type="button" onclick="moveVesselDown(${idx})" ${idx === selectedVessels.length - 1 ? 'disabled' : ''} class="px-2 py-1 text-xs font-bold rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition" title="Pindah ke bawah (lebih kanan di laporan)">▼</button>
+                        <button type="button" onclick="removeVessel('${v.name.replace(/'/g, "\\'")}')" class="px-2 py-1 text-xs font-bold rounded border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition" title="Hapus kapal">✕</button>
+                    </div>
+                </td>
+            </tr>
             `;
         });
-        container.innerHTML = html;
+        tbody.innerHTML = html;
     }
 
     // Modal Fleet State
@@ -1290,6 +1412,10 @@
                 return;
             }
 
+            let parentIndentMatch = (parentRow.style || '').match(/text-indent:\s*([0-9.]+)\s*em/);
+            let parentIndentEm = parentIndentMatch ? parseFloat(parentIndentMatch[1]) : (parentRow.indent_level ? parentRow.indent_level * 1.5 : 0);
+            let childIndentEm = parentIndentEm + 1;
+
             let newRows = [];
             accountsToAdd.forEach((acc, idx) => {
                 rowCounter++;
@@ -1301,7 +1427,7 @@
                     parent_id: parentRow.id,
                     label: `${acc.code} ${acc.name}`,
                     expression: acc.code,
-                    style: 'font-style: italic; text-indent: 2em;'
+                    style: `font-style: italic; text-indent: ${childIndentEm}em;`
                 });
             });
 
@@ -1528,6 +1654,8 @@
     function renderRows() {
         let html = '';
         document.getElementById('row-count-badge').innerText = `${reportRows.length} Baris dikonfigurasi`;
+        let tabRowsCount = document.getElementById('tab-rows-count');
+        if (tabRowsCount) tabRowsCount.innerText = reportRows.length;
         reportRows.forEach((r, idx) => {
             ensureRowStyleProps(r);
 
